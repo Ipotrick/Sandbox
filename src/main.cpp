@@ -1,7 +1,7 @@
 #include <iostream>
+#include <daxa/daxa.hpp>
 
 auto main() -> int
 {
-    std::cout << "Gabe sells Children to china!!!" << std::endl;
     return 0;
 }
