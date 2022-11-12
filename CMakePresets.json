@@ -1,0 +1,41 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 21,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "defaults",
+            "hidden": true,
+            "binaryDir": "${sourceDir}/build",
+            "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+            "generator": "Ninja Multi-Config"
+        },
+        {
+            "name": "defaults-windows",
+            "hidden": true,
+            "inherits": [
+                "defaults"
+            ],
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Windows"
+            }
+        },
+        {
+            "name": "default",
+            "displayName": "Default",
+            "inherits": [
+                "defaults-windows"
+            ]
+        }
+    ],
+    "buildPresets": [
+        { "name": "default-debug", "displayName": "Default Debug", "configurePreset": "default", "configuration": "Debug" },
+        { "name": "default-relwithdebinfo", "displayName": "Default RelWithDebInfo", "configurePreset": "default", "configuration": "RelWithDebInfo" },
+        { "name": "default-release", "displayName": "Default Release", "configurePreset": "default", "configuration": "Release" }
+    ]
+}
