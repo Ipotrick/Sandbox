@@ -15,7 +15,9 @@ struct Renderer
     ~Renderer();
 
     void compile_pipelines();
+    void window_resized(Window const& window);
     auto create_main_task_list() -> daxa::TaskList;
+    void render_frame(Window const& window);
 
     RenderContext context;
     daxa::TaskList main_task_list;

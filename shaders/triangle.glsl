@@ -1,8 +1,7 @@
 #define DAXA_SHADER_NO_NAMESPACE_PRIMITIVES
-#include <daxa/daxa.glsl>
-#include "triangle_shared.inl"
+#include <triangle_shared.inl>
 
-DAXA_USE_PUSHCONSTANT(TriangleTaskPushConstant)
+DAXA_USE_PUSH_CONSTANT(TriangleTaskPushConstant)
 
 const vec4 positions[] = {
     vec4(-0.5, 0.5, 0.0, 1.0),

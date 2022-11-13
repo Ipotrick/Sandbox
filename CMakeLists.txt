@@ -15,3 +15,6 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     daxa::daxa
     glfw
 )
+# This creates a marko define that can be used to find the daxa include folder for shader compilation.
+set(DAXA_INCLUDE_DIR "$<TARGET_FILE_DIR:Sandbox>/../../vcpkg_installed/x64-$<LOWER_CASE:$<PLATFORM_ID>>/include")
+target_compile_definitions(${PROJECT_NAME} PRIVATE DAXA_SHADER_INCLUDE_DIR="${DAXA_INCLUDE_DIR}")

@@ -7,6 +7,7 @@ Window::Window(i32 width, i32 height, std::string_view name)
           [=]()
           {
               glfwInit();
+              glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
               return glfwCreateWindow(width, height, name.data(), nullptr, nullptr);
           }()}
 {
