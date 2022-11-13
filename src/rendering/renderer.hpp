@@ -6,6 +6,7 @@
 #include "render_context.hpp"
 #include "../window.hpp"
 #include "tasks/triangle.hpp"
+#include "meshlet.inl"
 
 // Renderer struct.
 // This should idealy handle all rendering related information and functionality.
