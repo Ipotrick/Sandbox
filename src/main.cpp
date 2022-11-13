@@ -1,7 +1,7 @@
-#include <iostream>
-#include <daxa/daxa.hpp>
+#include "application.hpp"
 
-auto main() -> int
+auto main() -> i32
 {
-    return 0;
+    Application app{};
+    return app.run();
 }

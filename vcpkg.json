@@ -1,32 +1,32 @@
 {
-    "name": "sandbox",
-    "version": "0.1.0",
-    "dependencies": [
-        {
-            "name": "daxa",
-            "features": [
-                "glslang",
-                "utils"
-            ]
-        },
-        "glfw3",
-        {
-            "name": "imgui",
-            "features": [
-                "glfw-binding",
-                "docking-experimental"
-            ]
-        }
-    ],
-    "builtin-baseline": "a1737683a6f8ec5d8673890581c2a8c55838d411",
-    "overrides": [
-        {
-            "name": "daxa",
-            "version-string": "nightly"
-        },
-        {
-            "name": "glfw3",
-            "version-string": "custom"
-        }
-    ]
+  "name": "sandbox",
+  "version": "0.1.0",
+  "dependencies": [
+    {
+      "name": "daxa",
+      "features": [
+        "glslang",
+        "utils"
+      ]
+    },
+    "glfw3",
+    {
+      "name": "imgui",
+      "features": [
+        "glfw-binding",
+        "docking-experimental"
+      ]
+    }
+  ],
+  "builtin-baseline": "51685e17d6982871e1e8bab164edfe16f7ae6866",
+  "overrides": [
+    {
+      "name": "daxa",
+      "version-string": "nightly"
+    },
+    {
+      "name": "glfw3",
+      "version-string": "custom"
+    }
+  ]
 }
