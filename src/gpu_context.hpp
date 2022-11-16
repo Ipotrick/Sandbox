@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../sandbox.hpp"
+#include "sandbox.hpp"
 
 struct RenderContext
 {

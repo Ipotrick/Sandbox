@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../render_context.hpp"
+#include "../../gpu_context.hpp"
 #include "../../../shaders/triangle_shared.inl"
 
 inline static const daxa::RasterPipelineInfo TRIANGLE_TASK_RASTER_PIPE_INFO{
@@ -40,13 +40,6 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
         {
             daxa::CommandList cmd = runtime.get_command_list();
             daxa::ImageId swapchain_image = runtime.get_images(info.t_swapchain_image)[0];
-            std::cout
-                << "renderarea size: ("
-                << (runtime.get_device().info_image(swapchain_image).size.x)
-                << ", "
-                << (runtime.get_device().info_image(swapchain_image).size.y)
-                << ")"
-                << std::endl;
             cmd.begin_renderpass({
                 .color_attachments = {
                     daxa::RenderAttachmentInfo{
@@ -54,7 +47,7 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
                         .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                         .load_op = daxa::AttachmentLoadOp::CLEAR,
                         .store_op = daxa::AttachmentStoreOp::STORE,
-                        .clear_value = daxa::ClearValue{std::array<f32, 4>{0.f, 0.f, 0.f, 0.f}},
+                        .clear_value = daxa::ClearValue{std::array<f32, 4>{1.f, 1.f, 1.f, 1.f}},
                     },
                 },
                 .render_area = daxa::Rect2D{

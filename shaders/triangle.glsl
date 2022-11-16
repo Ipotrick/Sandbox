@@ -1,6 +1,6 @@
 #define DAXA_SHADER_NO_NAMESPACE_PRIMITIVES
 #include <triangle_shared.inl>
-#include <../src/rendering/meshlet.inl>
+#include <../src/mesh/mesh.inl>
 
 DAXA_USE_PUSH_CONSTANT(TriangleTaskPushConstant)
 

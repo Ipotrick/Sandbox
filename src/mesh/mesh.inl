@@ -11,20 +11,21 @@ struct DrawIndexedIndirectCommand
     daxa_u32 first_instance;
 };
 
-struct Object
+struct Model
 {
-    daxa_f32mat4x4 model_matrix;
+    daxa_f32mat4x4 matrix;
     daxa_u32 first_mesh_index;
     daxa_u32 mesh_count;
 };
 
 struct Mesh
 {
+    daxa_u32 first_meshlet;
+    daxa_u32 meshlet_count;
+    daxa_ImageId texture_albedo;
+    daxa_ImageId texture_normals;
     daxa_f32vec2 aabb_min;
     daxa_f32vec2 aabb_max;
-    daxa_u32 object_index;
-    daxa_u32 first_meshlet_index;
-    daxa_u32 meshlet_count;
     daxa_u32 vertex_offset_position;
     daxa_u32 vertex_offset_uv;
     daxa_u32 vertex_offset_normal;
@@ -34,12 +35,9 @@ struct Meshlet
 {
     daxa_f32vec2 aabb_min;
     daxa_f32vec2 aabb_max;
-    daxa_u32 first_index;
-    daxa_ImageViewId albedo_image_id;
-    daxa_u32 pad0;
 };
 
-struct VisibleMeshlet
+struct InstanciatedMeshlet
 {
     daxa_u32 object_index;
     daxa_u32 mesh_index;
@@ -48,16 +46,24 @@ struct VisibleMeshlet
 
 struct TriangleId
 {
-    // Bits 7-31: visible meshlet id;
+    // Bits 7-31: instanciated meshlet id;
     // Bits 0-6: in meshlet id;
     daxa_u32 value;
 };
 
 DAXA_DECL_BUFFER(
-    VisibleMeshlets,
+    InstanciatedMeshlets,
     {
-        u32 count;
-        VisibleMeshlet visible_meshlets[];
+        daxa_u32 count;
+        InstanciatedMeshlet meshlets[];
+    }
+);
+
+DAXA_DECL_BUFFER(
+    IndexBuffer,
+    {
+        daxa_u32 count;
+        daxa_u32 indices[];
     }
 );
 

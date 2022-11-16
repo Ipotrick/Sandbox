@@ -18,7 +18,9 @@
       ]
     },
     "glm",
-    "cgltf"
+    "cgltf",
+    "assimp",
+    "meshoptimizer"
   ],
   "builtin-baseline": "51685e17d6982871e1e8bab164edfe16f7ae6866",
   "overrides": [

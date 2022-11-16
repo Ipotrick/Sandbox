@@ -3,10 +3,10 @@
 // Standart headers:
 // Library headers:
 // Project headers:
-#include "render_context.hpp"
+#include "../gpu_context.hpp"
 #include "../window.hpp"
 #include "tasks/triangle.hpp"
-#include "meshlet.inl"
+#include "../mesh/mesh.inl"
 
 // Renderer struct.
 // This should idealy handle all rendering related information and functionality.
