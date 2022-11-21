@@ -5,7 +5,7 @@
 #include "mesh.inl"
 
 struct AssetManager
-{
+{ 
     daxa::Device device = {};
 
     daxa::BufferId meshlet_index_buffer = {};
@@ -22,5 +22,9 @@ struct AssetManager
 
     std::unordered_map<std::string, daxa::ImageId> albedo_textures = {};
     std::unordered_map<std::string, daxa::ImageId> normal_textures = {};
-    std::unordered_map<std::string, Mesh> meshes = {};
+    std::unordered_map<std::string, usize> mesh_lut = {};
+    std::vector<Mesh> meshes = {};
+    std::vector<Meshlet> meshlets = {};
+ 
+    AssetManager(daxa::Device device);
 };

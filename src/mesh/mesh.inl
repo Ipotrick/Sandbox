@@ -52,7 +52,7 @@ struct TriangleId
 };
 
 DAXA_DECL_BUFFER(
-    InstanciatedMeshlets,
+    InstanciatedMeshletsBuffer,
     {
         daxa_u32 count;
         InstanciatedMeshlet meshlets[];
@@ -69,9 +69,9 @@ DAXA_DECL_BUFFER(
 
 // Meshlet rendering strategy:
 // There will be the following persistent buffers:
-// 0. start a list of drawn meshlets
+// 0. start a list of instanciated meshlets
 ///   * first content is just the visible meshlets from last frame
-// 1. draw the current list of drawn meshlets (currently only visible meshlets from last frame)
+// 1. draw the current list of instanciated meshlets (currently only visible meshlets from last frame)
 // 2. generate HIZ buffer from current depth
 // 3. cull vs HIZ
 //    * cull frustum first
@@ -92,3 +92,16 @@ DAXA_DECL_BUFFER(
 //    * now use material depth texture as real depth texture with depth equal. Render each material quad at its fake depth material. This abuses the early z test hardware to pack threads into efficient waves.
 // 7. to prefix sum on all objects meshes and meshlets for visibility
 // 8. write out new visible meshlet buffer, using the prefix sum values per meshlet.
+
+// There are 4 renderpaths planned, and will be implemented in the following order:
+// 1. multi draw indirect, one indirect draw enty per meshlet
+// 2. index buffer expansion, one draw for everything
+// 3. non indexed, one draw indirect for everything
+// 3. mesh shaders (way later)
+
+// There are 2 shading pipelines planned:
+// 1. Culled Indirect vis buffer shading (aka Unreal 5 rearly depth test material trick)
+// 2. Culled forward
+// 3. Brute force forward
+
+// Dynamic Ligghts will first be bruteforced then later 3d volume cluster culled.

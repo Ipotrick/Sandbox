@@ -15,3 +15,17 @@
 
 using namespace daxa::types;
 using namespace std::chrono_literals;
+
+#if defined(_DEBUG)
+#include <iostream>
+#define ASSERT_M(x, m)                                         \
+    [&]() {                                                    \
+        if (!(x))                                              \
+        {                                                      \
+            std::cerr << "ASSERTION FAILURE: " << m std::endl; \
+            about(-1);                                         \
+        }                                                      \
+    }()
+#else
+#define ASSERT_M(x, m)
+#endif

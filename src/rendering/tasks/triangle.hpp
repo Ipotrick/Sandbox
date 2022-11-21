@@ -30,6 +30,7 @@ struct TriangleTaskInfo
     RenderContext &context;
     daxa::TaskImageId t_swapchain_image;
 };
+
 inline void t_draw_triangle(TriangleTaskInfo const &info)
 {
     info.task_list.add_task({
