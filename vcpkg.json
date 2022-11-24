@@ -26,7 +26,7 @@
   "overrides": [
     {
       "name": "daxa",
-      "version-string": "nightly"
+      "version-string": "nightly#12"
     },
     {
       "name": "glfw3",

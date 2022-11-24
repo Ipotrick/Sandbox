@@ -3,9 +3,12 @@
 Application::Application()
     : window{ 400, 300, "sandbox" }
     , renderer{ window }
+    , asset_manager{ renderer.context.device }
 {
     std::cout << "Application::Application" << std::endl;
     this->renderer.compile_pipelines();
+    this->scene_loader = SceneLoader{ "./assets/" };
+    scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
 }
 
 auto Application::run() -> i32
@@ -24,9 +27,15 @@ auto Application::run() -> i32
         }
         keep_running &= !static_cast<bool>(glfwWindowShouldClose(this->window.glfw_handle));
 
+        this->update();
         this->renderer.render_frame(this->window);
     }
     return 0;
+}
+
+void Application::update()
+{
+
 }
 
 Application::~Application()

@@ -11,30 +11,78 @@ struct DrawIndexedIndirectCommand
     daxa_u32 first_instance;
 };
 
-struct Model
+struct Object
 {
     daxa_f32mat4x4 matrix;
-    daxa_u32 first_mesh_index;
+    daxa_u32 model_index;
+};
+
+/// 
+/// A Model is a collection of meshes with some meta information.
+/// Each model can point to up to 8 meshes.
+///
+struct Model
+{
+    daxa_u32 mesh_indices[8];
     daxa_u32 mesh_count;
 };
 
+/// 
+/// A Mesh is a piece of a model.
+/// All triangles within a Mesh have the same material and textures.
+/// Each Mesh has:
+/// * an oob for culling.
+/// * 16 texture slots, relevant for material shading.
+/// * an offset into the shared index buffer, indicating the start of the indices of the mesh.
+/// * index count.
+/// * an offset into the shared vertex buffer, indication the start of the vertices of the mesh.
+/// * vertex count.
+/// * an offset into the shared meshlet buffer, indicating the start of the meshlets of the mesh.
+/// * mehslet count.
+///
 struct Mesh
 {
-    daxa_u32 first_meshlet;
+    daxa_f32vec3 obb_min;
+    daxa_f32vec3 obb_max;
+    daxa_u32 index_buffer_offset;
+    daxa_u32 index_count;
+    daxa_u32 vertex_buffer_offset;
+    daxa_u32 vertex_count;
+    daxa_u32 meshlet_buffer_offset;
     daxa_u32 meshlet_count;
-    daxa_ImageId texture_albedo;
-    daxa_ImageId texture_normals;
-    daxa_f32vec2 aabb_min;
-    daxa_f32vec2 aabb_max;
-    daxa_u32 vertex_offset_position;
-    daxa_u32 vertex_offset_uv;
-    daxa_u32 vertex_offset_normal;
 };
 
+/// An array of draw infos can be indexed with draw indirect
+struct MeshDrawInfo
+{
+    daxa_u32 object_id;
+    daxa_u32 mesh_id;
+};
+
+#define MAX_TRIANGLES_PER_MESHLET 124
+#define MAX_VERTICES_PER_MESHLET 64
+
+/// 
+/// A Meshlet is a small piece of a mesh
+/// It has a max index and vertex count
+/// It has an obb for culling
+///
 struct Meshlet
 {
-    daxa_f32vec2 aabb_min;
-    daxa_f32vec2 aabb_max;
+    daxa_f32vec3 obb_min;
+    daxa_f32vec3 obb_max;
+    daxa_u32 index_buffer_offset;
+    daxa_u32 index_count;
+    daxa_u32 vertex_buffer_offset;
+    daxa_u32 vertex_count;
+};
+
+/// Can be indexed when drawing meshlets via draw indirect.
+struct MeshletDrawInfo
+{
+    daxa_u32 object_index;
+    daxa_u32 mesh_index;
+    daxa_u32 meshlet_index;
 };
 
 struct InstanciatedMeshlet
@@ -57,7 +105,7 @@ DAXA_DECL_BUFFER(
         daxa_u32 count;
         InstanciatedMeshlet meshlets[];
     }
-);
+)
 
 DAXA_DECL_BUFFER(
     IndexBuffer,
@@ -65,7 +113,7 @@ DAXA_DECL_BUFFER(
         daxa_u32 count;
         daxa_u32 indices[];
     }
-);
+)
 
 // Meshlet rendering strategy:
 // There will be the following persistent buffers:

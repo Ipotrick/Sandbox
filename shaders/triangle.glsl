@@ -1,4 +1,4 @@
-#define DAXA_SHADER_NO_NAMESPACE_PRIMITIVES
+#define DAXA_ENABLE_SHADER_NO_NAMESPACE 1
 #include <triangle_shared.inl>
 #include <../src/mesh/mesh.inl>
 

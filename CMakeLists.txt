@@ -7,6 +7,8 @@ add_executable(${PROJECT_NAME}
     "src/application.cpp"
     "src/window.cpp"
     "src/rendering/renderer.cpp"
+    "src/scene/asset_manager.cpp"
+    "src/scene/scene.cpp"
 )
 find_package(daxa CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)     

@@ -10,6 +10,12 @@ using HWND = void *;
 #endif
 #include <GLFW/glfw3native.h>
 
+// Not needed, this is set by cmake. 
+// Intellisense doesnt get it, so this prevents it from complaining.
+#if !defined(DAXA_SHADER_INCLUDE_DIR)
+#define DAXA_SHADER_INCLUDE_DIR "."
+#endif
+
 Renderer::Renderer(Window const &window)
 {
     this->context.context = daxa::create_context({});
