@@ -27,31 +27,6 @@ struct Model
     daxa_u32 mesh_count;
 };
 
-/// 
-/// A Mesh is a piece of a model.
-/// All triangles within a Mesh have the same material and textures.
-/// Each Mesh has:
-/// * an oob for culling.
-/// * 16 texture slots, relevant for material shading.
-/// * an offset into the shared index buffer, indicating the start of the indices of the mesh.
-/// * index count.
-/// * an offset into the shared vertex buffer, indication the start of the vertices of the mesh.
-/// * vertex count.
-/// * an offset into the shared meshlet buffer, indicating the start of the meshlets of the mesh.
-/// * mehslet count.
-///
-struct Mesh
-{
-    daxa_f32vec3 obb_min;
-    daxa_f32vec3 obb_max;
-    daxa_u32 index_buffer_offset;
-    daxa_u32 index_count;
-    daxa_u32 vertex_buffer_offset;
-    daxa_u32 vertex_count;
-    daxa_u32 meshlet_buffer_offset;
-    daxa_u32 meshlet_count;
-};
-
 /// An array of draw infos can be indexed with draw indirect
 struct MeshDrawInfo
 {
@@ -62,19 +37,13 @@ struct MeshDrawInfo
 #define MAX_TRIANGLES_PER_MESHLET 124
 #define MAX_VERTICES_PER_MESHLET 64
 
-/// 
-/// A Meshlet is a small piece of a mesh
-/// It has a max index and vertex count
-/// It has an obb for culling
-///
+// !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet
 {
-    daxa_f32vec3 obb_min;
-    daxa_f32vec3 obb_max;
-    daxa_u32 index_buffer_offset;
-    daxa_u32 index_count;
-    daxa_u32 vertex_buffer_offset;
-    daxa_u32 vertex_count;
+	daxa_u32 indirect_vertex_offset;
+	daxa_u32 triangle_offset;
+	daxa_u32 vertex_count;
+	daxa_u32 triangle_count;
 };
 
 /// Can be indexed when drawing meshlets via draw indirect.
@@ -99,21 +68,38 @@ struct TriangleId
     daxa_u32 value;
 };
 
-DAXA_DECL_BUFFER(
-    InstanciatedMeshletsBuffer,
-    {
-        daxa_u32 count;
-        InstanciatedMeshlet meshlets[];
-    }
-)
+DAXA_DECL_BUFFER(MeshletArray,          { Meshlet get[]; })
+DAXA_DECL_BUFFER(MicroIndexArray,       { u8 get[]; })
+DAXA_DECL_BUFFER(IndirectVertexArray,   { u32 get[]; })
+DAXA_DECL_BUFFER(Vec3Array,             { f32vec3 get[]; })
 
-DAXA_DECL_BUFFER(
-    IndexBuffer,
-    {
-        daxa_u32 count;
-        daxa_u32 indices[];
-    }
-)
+/// 
+/// A Mesh is a piece of a model.
+/// All triangles within a Mesh have the same material and textures.
+/// A mesh is allocated into one chunk of memory, in one buffer. That is the mesh_buffer.
+/// A mesh has at least one:
+/// * meshlet buffer
+/// * meshlet micro index buffer
+/// * meshlet indirect vertex buffer
+/// * vertex position buffer
+///
+/// To access any of these buffers, get the buffer device address of the mesh_buffer and add on it the relevant offset.
+/// The address can then be casted to a daxa_RWBuffer(TYPE), to access the data efficiently. 
+/// 
+///
+struct Mesh
+{
+    daxa_f32vec3 obb_min;
+    daxa_f32vec3 obb_max;
+    daxa_BufferId mesh_buffer;
+    daxa_u32 meshlet_count;
+    daxa_Buffer(MeshletArray) meshlets;
+    daxa_Buffer(MicroIndexArray) micro_indices;
+    daxa_Buffer(IndirectVertexArray) indirect_vertices;
+    daxa_Buffer(Vec3Array) vertex_positions;
+};
+
+// mesh.meshlets.get[index]
 
 // Meshlet rendering strategy:
 // There will be the following persistent buffers:
