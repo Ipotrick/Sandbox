@@ -68,10 +68,25 @@ struct TriangleId
     daxa_u32 value;
 };
 
-DAXA_DECL_BUFFER(MeshletArray,          { Meshlet get[]; })
-DAXA_DECL_BUFFER(MicroIndexArray,       { u8 get[]; })
-DAXA_DECL_BUFFER(IndirectVertexArray,   { u32 get[]; })
-DAXA_DECL_BUFFER(Vec3Array,             { f32vec3 get[]; })
+struct BoundingSphere
+{
+    daxa_f32vec3 center;
+    daxa_f32 radius;
+};
+
+DAXA_DECL_BUFFER_STRUCT(
+    IndexType,
+    {
+        daxa_u32 index;
+    }
+)
+
+DAXA_DECL_BUFFER_STRUCT(
+    VertexPosition,
+    {
+        daxa_f32vec3 position;
+    }
+)
 
 /// 
 /// A Mesh is a piece of a model.
@@ -86,17 +101,15 @@ DAXA_DECL_BUFFER(Vec3Array,             { f32vec3 get[]; })
 /// To access any of these buffers, get the buffer device address of the mesh_buffer and add on it the relevant offset.
 /// The address can then be casted to a daxa_RWBuffer(TYPE), to access the data efficiently. 
 /// 
-///
 struct Mesh
 {
-    daxa_f32vec3 obb_min;
-    daxa_f32vec3 obb_max;
     daxa_BufferId mesh_buffer;
     daxa_u32 meshlet_count;
-    daxa_Buffer(MeshletArray) meshlets;
-    daxa_Buffer(MicroIndexArray) micro_indices;
-    daxa_Buffer(IndirectVertexArray) indirect_vertices;
-    daxa_Buffer(Vec3Array) vertex_positions;
+    daxa_Buffer(Meshlet) meshlets;
+    daxa_Buffer(BoundingSphere) meshlet_bounds;
+    daxa_Buffer(IndexType) micro_indices;
+    daxa_Buffer(IndexType) indirect_vertices;
+    daxa_Buffer(VertexPosition) vertex_positions;
 };
 
 // mesh.meshlets.get[index]
