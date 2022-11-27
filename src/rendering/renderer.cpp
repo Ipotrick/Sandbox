@@ -49,6 +49,7 @@ Renderer::Renderer(Window const &window)
 
 Renderer::~Renderer()
 {
+    this->context.device.destroy_buffer(this->context.globals_buffer.id);
     this->context.device.wait_idle();
     this->context.device.collect_garbage();
 }
@@ -102,27 +103,27 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     });
     task_list.add_runtime_buffer(this->context.globals_buffer.t_id, this->context.globals_buffer.id);
 
-    //task_list.add_task({
-    //    .used_buffers = {
-    //        {this->context.globals_buffer.t_id, daxa::TaskBufferAccess::HOST_TRANSFER_WRITE},
-    //    },
-    //    .task = [&](daxa::TaskRuntime const &runtime)
-    //    {
-    //        auto cmd = runtime.get_command_list();
-    //        auto staging_buffer = runtime.get_device().create_buffer({
-    //            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
-    //            .size = sizeof(ShaderGlobals),
-    //            .debug_name = "ShaderGlobals staging buffer",
-    //        });
-    //        cmd.destroy_buffer_deferred(staging_buffer);
-    //        *runtime.get_device().get_host_address_as<ShaderGlobals>(staging_buffer) = context.shader_globals;
-    //        cmd.copy_buffer_to_buffer({
-    //            .src_buffer = staging_buffer,
-    //            .dst_buffer = this->context.globals_buffer.id,
-    //            .size = sizeof(ShaderGlobals),
-    //        });
-    //    },
-    //});
+    task_list.add_task({
+        .used_buffers = {
+            {this->context.globals_buffer.t_id, daxa::TaskBufferAccess::HOST_TRANSFER_WRITE},
+        },
+        .task = [&](daxa::TaskRuntime const &runtime)
+        {
+            auto cmd = runtime.get_command_list();
+            auto staging_buffer = runtime.get_device().create_buffer({
+                .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+                .size = sizeof(ShaderGlobals),
+                .debug_name = "ShaderGlobals staging buffer",
+            });
+            cmd.destroy_buffer_deferred(staging_buffer);
+            *runtime.get_device().get_host_address_as<ShaderGlobals>(staging_buffer) = context.shader_globals;
+            cmd.copy_buffer_to_buffer({
+                .src_buffer = staging_buffer,
+                .dst_buffer = this->context.globals_buffer.id,
+                .size = sizeof(ShaderGlobals),
+            });
+        },
+    });
 
     t_draw_triangle({
         .task_list = task_list,

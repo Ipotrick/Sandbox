@@ -19,10 +19,11 @@ struct CameraController {
     f32 fov = 74.0f;
     f32 near = 0.01f;
     f32 far = 2000.0f;
-    f32 cameraSwaySpeed = 0.0005f;
-    f32 translationSpeed = 5.0f;
-    glm::vec4 up = { 0.f, 1.f, 0.0f, 0.f };
-    glm::vec4 position = { 0.f, 1.f, 2.f, 1.f };
+    f32 cameraSwaySpeed = 0.05f;
+    f32 translationSpeed = 0.01f;
+    glm::vec3 up = { 0.f, 1.f, 0.0f };
+    glm::vec3 forward = { 0.f, 0.f, 1.f };
+    glm::vec3 position = { 0.f, 1.f, 2.f };
     f32 yaw = 0.0f;
     f32 pitch = 0;
 };

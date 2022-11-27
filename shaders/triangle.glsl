@@ -2,12 +2,15 @@
 #include <triangle_shared.inl>
 #include <../src/mesh/mesh.inl>
 
-DAXA_USE_PUSH_CONSTANT(TriangleTaskPushConstant)
+layout(push_constant, scalar) uniform Push
+{
+    TriangleTaskPushConstant push;
+};
 
 const vec4 positions[] = {
-    vec4(-0.5, 0.5, 0.0, 1.0),
-    vec4( 0.5, 0.5, 0.0, 1.0),
-    vec4( 0.0,-0.5, 0.0, 1.0)
+    vec4(-0.5, -0.5, 0.0, 1.0),
+    vec4( 0.5, -0.5, 0.0, 1.0),
+    vec4( 0.0,  0.5, 0.0, 1.0)
 };
 
 const vec4 colors[] = {
@@ -21,7 +24,7 @@ layout(location = 0) out f32vec4 v_col;
 void main()
 {
     v_col = colors[gl_VertexIndex];
-    gl_Position = positions[gl_VertexIndex];
+    gl_Position = push.globals.camera_view_projection * positions[gl_VertexIndex];
 }
 #endif
 

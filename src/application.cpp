@@ -25,37 +25,34 @@ void CameraController::process_input(Window& window, f32 dt) {
         bZoom = false;
     }
 
-    auto yawRotaAroundUp = glm::rotate(glm::mat4(1.0f), yaw, {0.f,1.f,0.f});
-    auto pitchRotation = glm::rotate(glm::mat4(1.0f), pitch, glm::vec3{1.f,0.f,0.f});
-    glm::vec4 translation = {};
     if (window.is_cursor_captured()) {
         if (window.key_pressed(GLFW_KEY_W)) {
-            glm::vec4 direction = { 0.0f, 0.0f, -1.0f, 0.0f };
-            translation += yawRotaAroundUp * pitchRotation * direction * dt * speed;
+            position += forward * speed * dt;
         }
         if (window.key_pressed(GLFW_KEY_S)) {
-            glm::vec4 direction = { 0.0f, 0.0f, 1.0f, 0.0f };
-            translation += yawRotaAroundUp * pitchRotation * direction * dt * speed;
+            position -= forward * speed * dt;
         }
         if (window.key_pressed(GLFW_KEY_A)) {
-            glm::vec4 direction = { 1.0f, 0.0f, 0.0f, 0.0f };
-            translation += yawRotaAroundUp * direction * dt * speed;
+            position -= glm::normalize(glm::cross(forward, up)) * speed * dt;
         }
         if (window.key_pressed(GLFW_KEY_D)) {
-            glm::vec4 direction = { -1.0f, 0.0f, 0.0f, 0.0f };
-            translation += yawRotaAroundUp * direction * dt * speed;
+            position += glm::normalize(glm::cross(forward, up)) * speed * dt;
         }
         if (window.key_pressed(GLFW_KEY_SPACE)) {
-            translation += yawRotaAroundUp * pitchRotation * glm::vec4{ 0.f,  1.f, 0.f, 0.f } * dt * speed;
+            position += up * speed * dt;
         }
         if (window.key_pressed(GLFW_KEY_LEFT_CONTROL)) {
-            translation += yawRotaAroundUp * pitchRotation * glm::vec4{ 0.f, -1.f,  0.f, 0.f } * dt * speed;
+            position -= up * speed * dt;
         }
-        pitch -= window.get_cursor_change_y() * cameraSwaySpeed;
-        pitch = std::clamp(pitch, -0.5f * glm::pi<f32>(), 0.5f * glm::pi<f32>());
+        pitch += window.get_cursor_change_y() * cameraSwaySpeed;
+        pitch = std::clamp(pitch, -85.0f, 85.0f);
         yaw += window.get_cursor_change_x() * cameraSwaySpeed;
+        forward.x = glm::cos(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
+        forward.y = -glm::sin(glm::radians(pitch));
+        forward.z = glm::sin(glm::radians(yaw)) * glm::cos(glm::radians(pitch));
+        glm::vec3 right = glm::cross(forward, up);
+        //up = glm::cross(right, forward);
     }
-    position += translation;
 }
 
 void CameraController::update_matrices(Window& window) {
@@ -63,14 +60,10 @@ void CameraController::update_matrices(Window& window) {
     if (bZoom) {
         fov *= 0.25f;
     }
-    auto yawRotaAroundUp = glm::rotate(glm::mat4(1.0f), yaw, {0.f,1.f,0.f});
-    auto pitchRotation = glm::rotate(glm::mat4(1.0f), pitch, glm::vec3{1.f,0.f,0.f});
-    glm::mat4 prespective = glm::perspective(fov, (f32)window.get_width()/(f32)window.get_height(), near, far);
-    auto rota = yawRotaAroundUp * pitchRotation;
-    auto cameraModelMat = glm::translate(glm::mat4(1.0f), {position.x, position.y, position.z}) * rota;
-    glm::mat4 view = glm::inverse(cameraModelMat);
+    glm::mat4 prespective = glm::perspective(glm::radians(fov), (f32)window.get_width()/(f32)window.get_height(), near, far);
+    prespective[1][1] *= -1.0f;
     this->cam_info.proj = prespective;
-    this->cam_info.view = view;
+    this->cam_info.view = glm::lookAt(position, position + forward, up);;
     this->cam_info.vp = this->cam_info.proj * this->cam_info.view;
 }
 
@@ -79,24 +72,21 @@ Application::Application()
     , renderer{ window }
     , asset_manager{ renderer.context.device }
 {
-    std::cout << "Application::Application" << std::endl;
     this->renderer.compile_pipelines();
     this->scene_loader = SceneLoader{ "./assets/" };
-    scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
+    //scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
     last_time_point = std::chrono::steady_clock::now();
 }
 using FpMilliseconds = std::chrono::duration<float, std::chrono::milliseconds::period>;
 
 auto Application::run() -> i32
 {
-    std::cout << "Application::run" << std::endl;
     while(keep_running)
     {
         auto new_time_point = std::chrono::steady_clock::now();
         this->delta_time = std::chrono::duration_cast<FpMilliseconds>(new_time_point - this->last_time_point).count();
         this->last_time_point = new_time_point;
-        std::cout << "Application::run::loop" << std::endl;
-        glfwPollEvents();
+        window.update(delta_time);
         keep_running &= !static_cast<bool>(glfwWindowShouldClose(this->window.glfw_handle));
         i32vec2 new_window_size;
         glfwGetWindowSize(this->window.glfw_handle, &new_window_size.x, &new_window_size.y);
@@ -114,7 +104,6 @@ auto Application::run() -> i32
 
 void Application::update()
 {
-    std::cout << "update: delta time: " << this->delta_time << std::endl;
     if (this->window.size.x == 0 || this->window.size.y == 0)
     {
         return;
@@ -125,5 +114,4 @@ void Application::update()
 
 Application::~Application()
 {
-    std::cout << "Application::~Application" << std::endl;
 }
