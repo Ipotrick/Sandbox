@@ -1,8 +1,9 @@
 #pragma once
 
 #include <daxa/daxa.inl>
+#include "../src/shared.inl"
 
 struct TriangleTaskPushConstant
 {
-    daxa_u32 dummy; 
+    daxa_Buffer(ShaderGlobals) globals;
 };

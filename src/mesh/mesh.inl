@@ -38,13 +38,15 @@ struct MeshDrawInfo
 #define MAX_VERTICES_PER_MESHLET 64
 
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
-struct Meshlet
-{
-	daxa_u32 indirect_vertex_offset;
-	daxa_u32 triangle_offset;
-	daxa_u32 vertex_count;
-	daxa_u32 triangle_count;
-};
+DAXA_DECL_BUFFER_STRUCT(
+    Meshlet,
+    {
+        daxa_u32 indirect_vertex_offset;
+        daxa_u32 triangle_offset;
+        daxa_u32 vertex_count;
+        daxa_u32 triangle_count;
+    }
+)
 
 /// Can be indexed when drawing meshlets via draw indirect.
 struct MeshletDrawInfo
@@ -68,11 +70,13 @@ struct TriangleId
     daxa_u32 value;
 };
 
-struct BoundingSphere
-{
-    daxa_f32vec3 center;
-    daxa_f32 radius;
-};
+DAXA_DECL_BUFFER_STRUCT(
+    BoundingSphere,
+    {
+        daxa_f32vec3 center;
+        daxa_f32 radius;
+    }
+)
 
 DAXA_DECL_BUFFER_STRUCT(
     IndexType,

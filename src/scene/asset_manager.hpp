@@ -9,7 +9,7 @@
 #include <meshoptimizer.h>
 
 #include "../sandbox.hpp"
-#include "../gpu_context.hpp"
+#include "../rendering/gpu_context.hpp"
 #include "../mesh/mesh.inl"
 
 using MeshIndex = size_t;

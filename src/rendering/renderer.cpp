@@ -10,7 +10,7 @@ using HWND = void *;
 #endif
 #include <GLFW/glfw3native.h>
 
-// Not needed, this is set by cmake. 
+// Not needed, this is set by cmake.
 // Intellisense doesnt get it, so this prevents it from complaining.
 #if !defined(DAXA_SHADER_INCLUDE_DIR)
 #define DAXA_SHADER_INCLUDE_DIR "."
@@ -38,11 +38,19 @@ Renderer::Renderer(Window const &window)
         .debug_name = "Sandbox PipelineCompiler",
     });
 
-    this->main_task_list =  this->create_main_task_list();
+    this->context.globals_buffer.id = this->context.device.create_buffer({
+        .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
+        .size = sizeof(ShaderGlobals),
+        .debug_name = "globals",
+    });
+
+    this->main_task_list = this->create_main_task_list();
 }
 
 Renderer::~Renderer()
 {
+    this->context.device.wait_idle();
+    this->context.device.collect_garbage();
 }
 
 void Renderer::compile_pipelines()
@@ -52,7 +60,20 @@ void Renderer::compile_pipelines()
     this->context.triangle_pipe = compilation_result.value();
 }
 
-void Renderer::window_resized(Window const& window)
+void Renderer::hotload_pipelines()
+{
+    if (this->context.pipeline_compiler.check_if_sources_changed(this->context.triangle_pipe))
+    {
+        auto result = this->context.pipeline_compiler.recreate_raster_pipeline(this->context.triangle_pipe);
+        std::cout << result.to_string() << std::endl;
+        if (result.is_ok())
+        {
+            this->context.triangle_pipe = result.value();
+        }
+    }
+}
+
+void Renderer::window_resized(Window const &window)
 {
     if (window.size.x == 0 || window.size.y == 0)
     {
@@ -70,16 +91,44 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "Sandbox main TaskList",
     }};
 
-    this->context.t_swapchain_image = task_list.create_task_image({
+    this->context.swapchain_image.t_id = task_list.create_task_image({
         .swapchain_image = true,
         .debug_name = "Sandbox main Tasklist Swapchain Task Image",
     });
-    task_list.add_runtime_image(context.t_swapchain_image, context.swapchain_image);
+    task_list.add_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
+
+    this->context.globals_buffer.t_id = task_list.create_task_buffer({
+        .debug_name = "Shader Globals TaskBuffer",
+    });
+    task_list.add_runtime_buffer(this->context.globals_buffer.t_id, this->context.globals_buffer.id);
+
+    //task_list.add_task({
+    //    .used_buffers = {
+    //        {this->context.globals_buffer.t_id, daxa::TaskBufferAccess::HOST_TRANSFER_WRITE},
+    //    },
+    //    .task = [&](daxa::TaskRuntime const &runtime)
+    //    {
+    //        auto cmd = runtime.get_command_list();
+    //        auto staging_buffer = runtime.get_device().create_buffer({
+    //            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
+    //            .size = sizeof(ShaderGlobals),
+    //            .debug_name = "ShaderGlobals staging buffer",
+    //        });
+    //        cmd.destroy_buffer_deferred(staging_buffer);
+    //        *runtime.get_device().get_host_address_as<ShaderGlobals>(staging_buffer) = context.shader_globals;
+    //        cmd.copy_buffer_to_buffer({
+    //            .src_buffer = staging_buffer,
+    //            .dst_buffer = this->context.globals_buffer.id,
+    //            .size = sizeof(ShaderGlobals),
+    //        });
+    //    },
+    //});
 
     t_draw_triangle({
         .task_list = task_list,
         .context = this->context,
-        .t_swapchain_image = this->context.t_swapchain_image,
+        .t_swapchain_image = this->context.swapchain_image.t_id,
+        .t_shader_globals = this->context.globals_buffer.t_id,
     });
 
     task_list.submit({});
@@ -87,20 +136,23 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     return task_list;
 }
 
-void Renderer::render_frame(Window const& window)
+void Renderer::render_frame(Window const &window, CameraInfo const & camera_info)
 {
     if (window.size.x == 0 || window.size.y == 0)
     {
         return;
     }
+    this->context.shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const*>(&camera_info.view);
+    this->context.shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const*>(&camera_info.proj);
+    this->context.shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const*>(&camera_info.vp);
 
-    main_task_list.remove_runtime_image(context.t_swapchain_image, context.swapchain_image);
-    context.swapchain_image = context.swapchain.acquire_next_image();
-    if (context.swapchain_image.is_empty())
+    main_task_list.remove_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
+    context.swapchain_image.id = context.swapchain.acquire_next_image();
+    if (context.swapchain_image.id.is_empty())
     {
         return;
     }
-    main_task_list.add_runtime_image(context.t_swapchain_image, context.swapchain_image);
+    main_task_list.add_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
 
     main_task_list.execute();
 }

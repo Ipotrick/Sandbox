@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../../gpu_context.hpp"
+#include "../gpu_context.hpp"
 #include "../../../shaders/triangle_shared.inl"
 
 inline static const daxa::RasterPipelineInfo TRIANGLE_TASK_RASTER_PIPE_INFO{
@@ -29,11 +29,15 @@ struct TriangleTaskInfo
     daxa::TaskList &task_list;
     RenderContext &context;
     daxa::TaskImageId t_swapchain_image;
+    daxa::TaskBufferId t_shader_globals;
 };
 
 inline void t_draw_triangle(TriangleTaskInfo const &info)
 {
     info.task_list.add_task({
+        .used_buffers = {
+            daxa::TaskBufferUse{ info.t_shader_globals, daxa::TaskBufferAccess::SHADER_READ_ONLY }
+        },
         .used_images = {
             daxa::TaskImageUse{info.t_swapchain_image, daxa::TaskImageAccess::COLOR_ATTACHMENT, {}},
         },
@@ -57,6 +61,9 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
                 },
             });
             cmd.set_pipeline(info.context.triangle_pipe);
+            cmd.push_constant(TriangleTaskPushConstant{
+                .globals = runtime.get_device().get_device_address(runtime.get_buffers(info.t_shader_globals)[0]),
+            });
             cmd.draw({
                 .vertex_count = 3,
                 .instance_count = 1,
