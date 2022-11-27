@@ -28,6 +28,7 @@ struct Renderer
 
     void compile_pipelines();
     void hotload_pipelines();
+    void recreate_resizable_images(Window const& window);
     void window_resized(Window const& window);
     auto create_main_task_list() -> daxa::TaskList;
     void render_frame(Window const& window, CameraInfo const& camera_info);

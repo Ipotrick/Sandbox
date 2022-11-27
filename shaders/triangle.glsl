@@ -8,9 +8,9 @@ layout(push_constant, scalar) uniform Push
 };
 
 const vec4 positions[] = {
-    vec4(-0.5, -0.5, 0.0, 1.0),
-    vec4( 0.5, -0.5, 0.0, 1.0),
-    vec4( 0.0,  0.5, 0.0, 1.0)
+    vec4(-0.5, 0.0, -0.5, 1.0),
+    vec4( 0.5, 0.0, -0.5, 1.0),
+    vec4( 0.0, 0.0,  0.5, 1.0)
 };
 
 const vec4 colors[] = {

@@ -16,6 +16,8 @@ using HWND = void *;
 #define DAXA_SHADER_INCLUDE_DIR "."
 #endif
 
+
+
 Renderer::Renderer(Window const &window)
 {
     this->context.context = daxa::create_context({});
@@ -45,11 +47,14 @@ Renderer::Renderer(Window const &window)
     });
 
     this->main_task_list = this->create_main_task_list();
+
+    recreate_resizable_images(window);
 }
 
 Renderer::~Renderer()
 {
     this->context.device.destroy_buffer(this->context.globals_buffer.id);
+    this->context.device.destroy_image(this->context.depth_image.id);
     this->context.device.wait_idle();
     this->context.device.collect_garbage();
 }
@@ -74,12 +79,30 @@ void Renderer::hotload_pipelines()
     }
 }
 
+void Renderer::recreate_resizable_images(Window const & window)
+{
+    if (!this->context.depth_image.id.is_empty())
+    {
+        this->main_task_list.remove_runtime_image(this->context.depth_image.t_id, this->context.depth_image.id);
+        this->context.device.destroy_image(this->context.depth_image.id);
+    }
+    this->context.depth_image.id = this->context.device.create_image({
+        .format = daxa::Format::D32_SFLOAT,
+        .aspect = daxa::ImageAspectFlagBits::DEPTH,
+        .size = { window.get_width(), window.get_height(), 1 },
+        .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
+        .debug_name = "depth image",
+    });
+    this->main_task_list.add_runtime_image(this->context.depth_image.t_id, this->context.depth_image.id);
+}
+
 void Renderer::window_resized(Window const &window)
 {
     if (window.size.x == 0 || window.size.y == 0)
     {
         return;
     }
+    recreate_resizable_images(window);
     this->context.swapchain.resize();
 }
 
@@ -97,6 +120,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "Sandbox main Tasklist Swapchain Task Image",
     });
     task_list.add_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
+    this->context.depth_image.t_id = task_list.create_task_image({ .debug_name = "depth image" });
 
     this->context.globals_buffer.t_id = task_list.create_task_buffer({
         .debug_name = "Shader Globals TaskBuffer",
@@ -129,6 +153,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .task_list = task_list,
         .context = this->context,
         .t_swapchain_image = this->context.swapchain_image.t_id,
+        .t_depth_image = this->context.depth_image.t_id,
         .t_shader_globals = this->context.globals_buffer.t_id,
     });
 

@@ -16,6 +16,7 @@ struct ImageIdCombo
 
 struct RenderContext
 {
+    // Gpu interface:
     daxa::Context context = {};
     daxa::Device device = {};
     daxa::Swapchain swapchain = {};
@@ -25,6 +26,8 @@ struct RenderContext
     ShaderGlobals shader_globals = {};
     BufferIdCombo globals_buffer = {};
     BufferIdCombo index_buffer = {};
+
+    // Render Targets:
     ImageIdCombo swapchain_image = {};
     ImageIdCombo depth_image = {};
 

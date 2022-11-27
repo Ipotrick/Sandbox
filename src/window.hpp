@@ -8,6 +8,7 @@
 struct WindowState
 {
     bool b_close_requested = {};
+    bool b_focused = true;
     std::array<bool, 5> mouse_button_down_old = {};
     std::array<bool, 5> mouse_button_down = {};
     std::array<bool, 512> key_down = {};
@@ -63,7 +64,6 @@ struct Window
     std::unique_ptr<WindowState> window_state = {};
     u32 glfw_window_id = {};
     bool cursor_captured = {};
-    bool focused = {};
     std::string name = {};
     GLFWwindow *glfw_handle = {};
     i32 cursor_pos_change_x = {};
