@@ -2,6 +2,6 @@
 
 auto main() -> i32
 {
-    Application app{};
-    return app.run();
+    auto app = std::make_unique<Application>();
+    return app->run();
 }
