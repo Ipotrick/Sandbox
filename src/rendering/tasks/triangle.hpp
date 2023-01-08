@@ -3,14 +3,14 @@
 #include "../gpu_context.hpp"
 #include "../../../shaders/triangle_shared.inl"
 
-inline static const daxa::RasterPipelineInfo TRIANGLE_TASK_RASTER_PIPE_INFO{
-    .vertex_shader_info = daxa::ShaderInfo{
+inline static const daxa::RasterPipelineCompileInfo TRIANGLE_TASK_RASTER_PIPE_INFO{
+    .vertex_shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"triangle.glsl"},
         .compile_options = {
             .defines = {{"_VERTEX", ""}},
         },
     },
-    .fragment_shader_info = daxa::ShaderInfo{
+    .fragment_shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"triangle.glsl"},
         .compile_options = {
             .defines = {{"_FRAGMENT", ""}},
@@ -77,7 +77,7 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
                     .height = (runtime.get_device().info_image(swapchain_image).size.y),
                 },
             });
-            cmd.set_pipeline(info.context.triangle_pipe);
+            cmd.set_pipeline(*info.context.triangle_pipe);
             cmd.push_constant(TriangleTaskPushConstant{
                 .globals = runtime.get_device().get_device_address(runtime.get_buffers(info.t_shader_globals)[0]),
             });

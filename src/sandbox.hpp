@@ -13,6 +13,12 @@
 #include <GLFW/glfw3.h>
 #include <daxa/daxa.hpp>
 #include <daxa/utils/task_list.hpp>
+#include <daxa/utils/pipeline_manager.hpp>
+#include <daxa/utils/mem.hpp>
+#define GLM_DEPTH_ZERO_TO_ONEW
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 // Project headers:
 #include "shared.inl"
 
@@ -26,7 +32,7 @@ using namespace std::chrono_literals;
         if (!(x))                                                 \
         {                                                         \
             std::cerr << "ASSERTION FAILURE: " << m << std::endl; \
-            std::abort();                                            \
+            std::abort();                                         \
         }                                                         \
     }()
 #else

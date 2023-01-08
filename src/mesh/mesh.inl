@@ -38,15 +38,14 @@ struct MeshDrawInfo
 #define MAX_VERTICES_PER_MESHLET 64
 
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
-DAXA_DECL_BUFFER_STRUCT(
-    Meshlet,
-    {
-        daxa_u32 indirect_vertex_offset;
-        daxa_u32 triangle_offset;
-        daxa_u32 vertex_count;
-        daxa_u32 triangle_count;
-    }
-)
+struct Meshlet
+{
+    daxa_u32 indirect_vertex_offset;
+    daxa_u32 triangle_offset;
+    daxa_u32 vertex_count;
+    daxa_u32 triangle_count;
+};
+DAXA_ENABLE_BUFFER_PTR(Meshlet)
 
 /// Can be indexed when drawing meshlets via draw indirect.
 struct MeshletDrawInfo
@@ -54,7 +53,9 @@ struct MeshletDrawInfo
     daxa_u32 object_index;
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
+    daxa_u32 pad;          // Alignment 16 access optimization.
 };
+DAXA_ENABLE_BUFFER_PTR(MeshletDrawInfo)
 
 struct InstanciatedMeshlet
 {
@@ -62,6 +63,7 @@ struct InstanciatedMeshlet
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
 };
+DAXA_ENABLE_BUFFER_PTR(InstanciatedMeshlet)
 
 struct TriangleId
 {
@@ -69,28 +71,64 @@ struct TriangleId
     // Bits 0-6: in meshlet id;
     daxa_u32 value;
 };
+DAXA_ENABLE_BUFFER_PTR(TriangleId)
 
-DAXA_DECL_BUFFER_STRUCT(
-    BoundingSphere,
-    {
-        daxa_f32vec3 center;
-        daxa_f32 radius;
-    }
-)
+struct BoundingSphere{
+    daxa_f32vec3 center;
+    daxa_f32 radius;
+};
+DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
-DAXA_DECL_BUFFER_STRUCT(
-    IndexType,
-    {
-        daxa_u32 index;
-    }
-)
+struct IndexType
+{
+    daxa_u32 index;
+};
+DAXA_ENABLE_BUFFER_PTR(IndexType)
 
-DAXA_DECL_BUFFER_STRUCT(
-    VertexPosition,
-    {
-        daxa_f32vec3 position;
-    }
-)
+struct VertexPosition
+{
+    daxa_f32vec3 position;
+};
+DAXA_ENABLE_BUFFER_PTR(VertexPosition)
+
+/* renderdoc view:
+#pack(scalar)
+
+struct Meshlet
+{
+    uint indirect_vertex_offset;
+    uint triangle_offset;
+    uint vertex_count;
+    uint triangle_count;
+};
+
+struct BoundingSphere
+{
+	vec3 center;
+    float radius;
+};
+
+struct Index
+{
+    uint value;
+};
+
+struct Vec3
+{
+    vec3 value;
+};
+
+struct Mesh
+{
+    uint mesh_buffer;
+    uint meshlet_count;
+    Mesh* meshlets;
+    BoundingSphere* meshlet_bounds;
+    Index* micro_indices;
+    Index* indirect_vertices;
+    Vec3* vertex_positions;
+};
+*/
 
 /// 
 /// A Mesh is a piece of a model.
@@ -109,12 +147,13 @@ struct Mesh
 {
     daxa_BufferId mesh_buffer;
     daxa_u32 meshlet_count;
-    daxa_Buffer(Meshlet) meshlets;
-    daxa_Buffer(BoundingSphere) meshlet_bounds;
-    daxa_Buffer(IndexType) micro_indices;
-    daxa_Buffer(IndexType) indirect_vertices;
-    daxa_Buffer(VertexPosition) vertex_positions;
+    daxa_BufferPtr(Meshlet) meshlets;
+    daxa_BufferPtr(BoundingSphere) meshlet_bounds;
+    daxa_BufferPtr(IndexType) micro_indices;
+    daxa_BufferPtr(IndexType) indirect_vertices;
+    daxa_BufferPtr(VertexPosition) vertex_positions;
 };
+DAXA_ENABLE_BUFFER_PTR(Mesh)
 
 // mesh.meshlets.get[index]
 

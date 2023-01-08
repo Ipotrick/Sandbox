@@ -2,10 +2,6 @@
 
 // Standart headers:
 // Library headers:
-#define GLM_DEPTH_ZERO_TO_ONEW
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 // Project headers:
 #include "gpu_context.hpp"
 #include "../window.hpp"
@@ -27,7 +23,6 @@ struct Renderer
     ~Renderer();
 
     void compile_pipelines();
-    void hotload_pipelines();
     void recreate_resizable_images(Window const& window);
     void window_resized(Window const& window);
     auto create_main_task_list() -> daxa::TaskList;

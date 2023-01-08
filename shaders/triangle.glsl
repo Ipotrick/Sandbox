@@ -24,7 +24,7 @@ layout(location = 0) out f32vec4 v_col;
 void main()
 {
     v_col = colors[gl_VertexIndex];
-    gl_Position = push.globals.camera_view_projection * positions[gl_VertexIndex];
+    gl_Position = deref(push.globals).camera_view_projection * positions[gl_VertexIndex];
 }
 #endif
 

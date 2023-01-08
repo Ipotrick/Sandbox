@@ -68,7 +68,7 @@ void CameraController::process_input(Window &window, f32 dt)
         yaw += window.get_cursor_change_x() * cameraSwaySpeed;
     }
     forward.x = -glm::cos(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
-    forward.y =  glm::sin(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
+    forward.y = glm::sin(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
     forward.z = -glm::sin(glm::radians(pitch));
 }
 
@@ -87,11 +87,24 @@ void CameraController::update_matrices(Window &window)
 }
 
 Application::Application()
-    : window{400, 300, "sandbox"}, renderer{window}, asset_manager{renderer.context.device}
+    : window{400, 300, "sandbox"}, renderer{window}, asset_manager{renderer.context.device},
+      scene{}
 {
     this->renderer.compile_pipelines();
     this->scene_loader = SceneLoader{"./assets/"};
-    // scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
+    this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
+    //this->scene.set_combined_transforms();
+    auto cmd = this->asset_manager.get_update_commands().value();
+    auto cmd2 = this->renderer.context.device.create_command_list({});
+    this->scene.record_full_entity_update(this->renderer.context.device, cmd2, this->scene, this->renderer.context.entity_data_buffer.id);
+    cmd2.pipeline_barrier({
+        .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
+        .waiting_pipeline_access = daxa::AccessConsts::READ,
+    });
+    cmd2.complete();
+    this->renderer.context.device.submit_commands({
+        .command_lists = {std::move(cmd), std::move(cmd2)},
+    });
     last_time_point = std::chrono::steady_clock::now();
 }
 using FpMilliseconds = std::chrono::duration<float, std::chrono::milliseconds::period>;
@@ -113,7 +126,7 @@ auto Application::run() -> i32
             renderer.window_resized(this->window);
         }
         this->update();
-        this->renderer.hotload_pipelines();
+        this->renderer.context.pipeline_manager.reload_all();
         this->renderer.render_frame(this->window, this->camera_controller.cam_info);
     }
     return 0;

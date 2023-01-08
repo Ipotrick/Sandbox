@@ -2,42 +2,22 @@
 
 #include "../sandbox.hpp"
 #include "../mesh/mesh.inl"
+#include "scene.inl"
 #include "asset_manager.hpp"
-
-struct EntityId
-{
-    u32 index;
-};
-
-struct Transform
-{
-    f32vec3 position = {};
-};
-
-struct EntitySlot
-{
-    std::shared_ptr<Model> model = {};
-    // TODO(pahrens): rotation
-    EntityId parent = {};
-};
-
-struct EntityReference
-{
-    Transform *transform;
-    std::shared_ptr<Model> *model;
-    EntityId *parent_id;
-};
 
 struct Scene
 {
-    std::vector<Transform> entity_transforms = {};
-    std::vector<std::shared_ptr<Model>> entity_models = {};
-    std::vector<EntityId> entity_parents = {};
-    std::vector<EntityId> entity_slot_free_list = {};
-    u32 next_entity_index = 0;
+    Scene();
+    ~Scene();
 
-    EntityId create_entity();
-    EntityReference get_entity_reference(EntityId entity_id);
+    EntityData entities = {};
+    EntityId root_entity = {};
+
+    auto create_entity() -> EntityId;
+    auto get_entity_ref(EntityId ent_id) -> EntityRef;
+
+    void record_full_entity_update(daxa::Device& device, daxa::CommandList& cmd, Scene& scene, daxa::BufferId static_entities_buffer);
+    void set_combined_transforms();
 };
 
 struct SceneLoader

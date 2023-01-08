@@ -1,85 +1,28 @@
 #include "renderer.hpp"
 
-#if defined(_WIN32)
-#define GLFW_EXPOSE_NATIVE_WIN32
-#define GLFW_NATIVE_INCLUDE_NONE
-using HWND = void *;
-#elif defined(__linux__)
-#define GLFW_EXPOSE_NATIVE_X11
-#define GLFW_EXPOSE_NATIVE_WAYLAND
-#endif
-#include <GLFW/glfw3native.h>
-
-// Not needed, this is set by cmake.
-// Intellisense doesnt get it, so this prevents it from complaining.
-#if !defined(DAXA_SHADER_INCLUDE_DIR)
-#define DAXA_SHADER_INCLUDE_DIR "."
-#endif
-
-
+#include "../scene/scene.inl"
 
 Renderer::Renderer(Window const &window)
+    : context{window},
+      main_task_list{this->create_main_task_list()}
 {
-    this->context.context = daxa::create_context({});
-    this->context.device = this->context.context.create_device({
-        .debug_name = "Sandbox Device",
-    });
-    this->context.swapchain = this->context.device.create_swapchain({
-        .native_window = glfwGetWin32Window(window.glfw_handle),
-        .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,
-        .debug_name = "Sandbox Swapchain",
-    });
-    this->context.pipeline_compiler = this->context.device.create_pipeline_compiler({
-        .shader_compile_options = daxa::ShaderCompileOptions{
-            .root_paths = {
-                "./shaders",
-                DAXA_SHADER_INCLUDE_DIR,
-            },
-            .language = daxa::ShaderLanguage::GLSL,
-        },
-        .debug_name = "Sandbox PipelineCompiler",
-    });
-
-    this->context.globals_buffer.id = this->context.device.create_buffer({
-        .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
-        .size = sizeof(ShaderGlobals),
-        .debug_name = "globals",
-    });
-
-    this->main_task_list = this->create_main_task_list();
-
     recreate_resizable_images(window);
 }
 
 Renderer::~Renderer()
 {
-    this->context.device.destroy_buffer(this->context.globals_buffer.id);
-    this->context.device.destroy_image(this->context.depth_image.id);
     this->context.device.wait_idle();
     this->context.device.collect_garbage();
 }
 
 void Renderer::compile_pipelines()
 {
-    auto compilation_result = this->context.pipeline_compiler.create_raster_pipeline(TRIANGLE_TASK_RASTER_PIPE_INFO);
+    auto compilation_result = this->context.pipeline_manager.add_raster_pipeline(TRIANGLE_TASK_RASTER_PIPE_INFO);
     std::cout << compilation_result.to_string() << std::endl;
     this->context.triangle_pipe = compilation_result.value();
 }
 
-void Renderer::hotload_pipelines()
-{
-    if (this->context.pipeline_compiler.check_if_sources_changed(this->context.triangle_pipe))
-    {
-        auto result = this->context.pipeline_compiler.recreate_raster_pipeline(this->context.triangle_pipe);
-        std::cout << result.to_string() << std::endl;
-        if (result.is_ok())
-        {
-            this->context.triangle_pipe = result.value();
-        }
-    }
-}
-
-void Renderer::recreate_resizable_images(Window const & window)
+void Renderer::recreate_resizable_images(Window const &window)
 {
     if (!this->context.depth_image.id.is_empty())
     {
@@ -89,7 +32,7 @@ void Renderer::recreate_resizable_images(Window const & window)
     this->context.depth_image.id = this->context.device.create_image({
         .format = daxa::Format::D32_SFLOAT,
         .aspect = daxa::ImageAspectFlagBits::DEPTH,
-        .size = { window.get_width(), window.get_height(), 1 },
+        .size = {window.get_width(), window.get_height(), 1},
         .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
         .debug_name = "depth image",
     });
@@ -120,7 +63,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "Sandbox main Tasklist Swapchain Task Image",
     });
     task_list.add_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
-    this->context.depth_image.t_id = task_list.create_task_image({ .debug_name = "depth image" });
+    this->context.depth_image.t_id = task_list.create_task_image({.debug_name = "depth image"});
 
     this->context.globals_buffer.t_id = task_list.create_task_buffer({
         .debug_name = "Shader Globals TaskBuffer",
@@ -147,6 +90,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .size = sizeof(ShaderGlobals),
             });
         },
+        .debug_name = "buffer uploads",
     });
 
     t_draw_triangle({
@@ -162,15 +106,15 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     return task_list;
 }
 
-void Renderer::render_frame(Window const &window, CameraInfo const & camera_info)
+void Renderer::render_frame(Window const &window, CameraInfo const &camera_info)
 {
     if (window.size.x == 0 || window.size.y == 0)
     {
         return;
     }
-    this->context.shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const*>(&camera_info.view);
-    this->context.shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const*>(&camera_info.proj);
-    this->context.shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const*>(&camera_info.vp);
+    this->context.shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+    this->context.shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+    this->context.shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
 
     main_task_list.remove_runtime_image(context.swapchain_image.t_id, context.swapchain_image.id);
     context.swapchain_image.id = context.swapchain.acquire_next_image();

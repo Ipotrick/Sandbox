@@ -1,9 +1,19 @@
 #include "asset_manager.hpp"
 
-static constexpr usize INDEX_BUFFER_SIZE = 50'000'000;
-static constexpr usize VERTEX_BUFFER_SIZE = 200'000'000;
-
 AssetManager::AssetManager(daxa::Device device)
-    : device{ std::move(device) }
+    : device{std::move(device)}
 {
+    this->meshes_buffer = this->device.create_buffer({
+        .size = sizeof(Mesh) * MAX_MESHES,
+        .debug_name = "meshes buffer",
+    });
+}
+
+AssetManager::~AssetManager()
+{
+    device.destroy_buffer(meshes_buffer);
+    for (auto& mesh : meshes)
+    {
+        device.destroy_buffer(mesh.mesh_buffer);
+    }
 }

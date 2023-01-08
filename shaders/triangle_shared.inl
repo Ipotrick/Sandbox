@@ -5,5 +5,5 @@
 
 struct TriangleTaskPushConstant
 {
-    daxa_Buffer(ShaderGlobals) globals;
+    daxa_BufferPtr(ShaderGlobals) globals;
 };

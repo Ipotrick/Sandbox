@@ -15,13 +15,14 @@
 using MeshIndex = size_t;
 using ImageIndex = size_t;
 
+#define MAX_MESHES 10000
+
 struct AssetManager
 {
     daxa::Device device = {};
     std::optional<daxa::CommandList> asset_update_cmd_list = {};
-    daxa::BufferId staging_buffer = {};
-    usize used_staging_buffer_space = {};
-
+    daxa::BufferId meshes_buffer = {};
+    
     std::vector<Mesh> meshes = {};
     std::vector<std::string> mesh_names = {};
     std::vector<daxa::ImageId> images = {};
@@ -31,9 +32,11 @@ struct AssetManager
     usize total_meshlet_count = {};
 
     AssetManager(daxa::Device device);
+    ~AssetManager();
 
     auto create_mesh(aiMesh *aimesh) -> std::pair<u32, Mesh const *>
     {
+        ASSERT_M(meshes.size() + 1 < MAX_MESHES, "Exceeded max mesh count!");
         // Create entry of mesh in fields.
         ASSERT_M(!mesh_lut.contains(aimesh->mName.C_Str()), "All meshes MUST have unique names!");
         u32 mesh_index = static_cast<u32>(this->meshes.size());
@@ -117,7 +120,7 @@ struct AssetManager
         allocation_size += vertex_positions_array_bytesize;
         // Create mesh.
         mesh.mesh_buffer = device.create_buffer({
-            .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
+            // .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
             .size = allocation_size,
             .debug_name = std::string("Mesh Buffer of mesh \"") + aimesh->mName.C_Str() + "\"",
         });
@@ -129,12 +132,12 @@ struct AssetManager
         mesh.vertex_positions = device.get_device_address(mesh.mesh_buffer) + vertex_positions_array_offset;
         // Stage buffer upload.
         daxa::BufferId staging_buffer = device.create_buffer({
-            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .size = allocation_size,
             .debug_name = std::string("Staging buffer for mesh \"") + aimesh->mName.C_Str() + "\"",
         });
         void *staging_buffer_ptr = device.get_host_address(staging_buffer);
-
+//
         void *staging_meshlets = reinterpret_cast<u8 *>(staging_buffer_ptr) + meshlet_array_offset;
         std::memcpy(staging_meshlets, meshlets.data(), meshlet_array_bytesize);
 
@@ -194,10 +197,27 @@ struct AssetManager
         {
             daxa::CommandList cmd = std::move(this->asset_update_cmd_list.value());
             this->asset_update_cmd_list.reset();
+            auto staging_buffer = device.create_buffer({ .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM, .size = sizeof(Mesh) * MAX_MESHES, .debug_name = "mesh buffer staging upload buffer" });
+            cmd.destroy_buffer_deferred(staging_buffer);
+            auto host_ptr = device.get_host_address_as<Mesh>(staging_buffer);
+            for (usize mesh_i = 0; mesh_i < meshes.size(); ++mesh_i)
+            {
+                host_ptr[mesh_i] = meshes[mesh_i];
+            }
+            cmd.pipeline_barrier({
+                .awaited_pipeline_access = daxa::AccessConsts::HOST_WRITE,
+                .waiting_pipeline_access = daxa::AccessConsts::TRANSFER_READ,
+            });
+            cmd.copy_buffer_to_buffer({
+                .src_buffer = staging_buffer,
+                .dst_buffer = meshes_buffer,
+                .size = sizeof(Mesh) * meshes.size(),
+            });
             cmd.pipeline_barrier({
                 .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
                 .waiting_pipeline_access = daxa::AccessConsts::READ,
             });
+            cmd.complete();
             return cmd;
         }
         return {};
