@@ -22,6 +22,12 @@ bool entity_id_valid(EntityId id)
     return id.index != INVALID_ENTITY_INDEX;
 }
 
+struct MeshList
+{
+    daxa_u32 mesh_indices[7];
+    daxa_u32 count;
+};
+
 struct EntityData
 {
     daxa_u32 entity_count;
@@ -30,8 +36,7 @@ struct EntityData
     EntityId first_child[MAX_ENTITY_COUNT];
     EntityId next_silbing[MAX_ENTITY_COUNT];
     EntityId parent[MAX_ENTITY_COUNT];
-    daxa_u32 meshes[8][MAX_ENTITY_COUNT];
-    daxa_u32 meshes_count[MAX_ENTITY_COUNT];
+    MeshList meshes[MAX_ENTITY_COUNT];
 };
 DAXA_ENABLE_BUFFER_PTR(EntityData)
 
@@ -42,7 +47,6 @@ struct EntityRef
     EntityId* first_child;
     EntityId* next_silbing;
     EntityId* parent;
-    daxa_u32* meshes;
-    daxa_u32* meshes_count;
+    MeshList* meshes;
 };
 #endif

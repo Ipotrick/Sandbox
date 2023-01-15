@@ -20,7 +20,7 @@ using HWND = void *;
 #define DAXA_SHADER_INCLUDE_DIR "."
 #endif
 
-RenderContext::RenderContext(Window const &window)
+GPUContext::GPUContext(Window const &window)
     : context{daxa::create_context({})},
       device{this->context.create_device({.debug_name = "Sandbox Device"})},
       swapchain{this->device.create_swapchain({
@@ -37,6 +37,7 @@ RenderContext::RenderContext(Window const &window)
               },
               .write_out_preprocessed_code = "./preproc",
               .language = daxa::ShaderLanguage::GLSL,
+              .enable_debug_info = true,
           },
           .debug_name = "Sandbox PipelineCompiler",
       }}},
@@ -67,8 +68,9 @@ RenderContext::RenderContext(Window const &window)
 {
 }
 
-RenderContext::~RenderContext()
+GPUContext::~GPUContext()
 {
+    this->device.destroy_buffer(this->ent_meshlet_count_prefix_sum_buffer.id);
     this->device.destroy_buffer(this->globals_buffer.id);
     this->device.destroy_buffer(this->entity_data_buffer.id);
     this->device.destroy_buffer(this->instanciated_meshlets.id);

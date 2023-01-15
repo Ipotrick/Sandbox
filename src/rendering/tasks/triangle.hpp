@@ -3,19 +3,19 @@
 #include "../gpu_context.hpp"
 #include "../../../shaders/triangle_shared.inl"
 
-inline static constexpr std::string_view TRIANGLE_PIPELINE_NAME = "prefix sum";
+inline static constexpr std::string_view TRIANGLE_PIPELINE_NAME = "triangle pipeline";
 
 inline static const daxa::RasterPipelineCompileInfo TRIANGLE_PIPELINE_INFO{
     .vertex_shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"triangle.glsl"},
         .compile_options = {
-            .defines = {{"_VERTEX", ""}},
+            .defines = {{"ENTRY_VERTEX", ""}},
         },
     },
     .fragment_shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"triangle.glsl"},
         .compile_options = {
-            .defines = {{"_FRAGMENT", ""}},
+            .defines = {{"ENTRY_FRAGMENT", ""}},
         },
     },
     .color_attachments = {
@@ -38,7 +38,7 @@ inline static const daxa::RasterPipelineCompileInfo TRIANGLE_PIPELINE_INFO{
 struct TriangleTaskInfo
 {
     daxa::TaskList &task_list;
-    RenderContext &context;
+    GPUContext &context;
     daxa::TaskImageId t_swapchain_image;
     daxa::TaskImageId t_depth_image;
     daxa::TaskBufferId t_shader_globals;

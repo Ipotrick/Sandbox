@@ -87,22 +87,25 @@ void CameraController::update_matrices(Window &window)
 }
 
 Application::Application()
-    : window{400, 300, "sandbox"}, renderer{window}, asset_manager{renderer.context.device},
-      scene{}
+    : window{400, 300, "sandbox"},
+      gpu_context{this->window},
+      asset_manager{this->gpu_context.device},
+      scene{},
+      renderer{&(this->window), &(this->gpu_context), &(this->scene), &(this->asset_manager)}
 {
     this->renderer.compile_pipelines();
     this->scene_loader = SceneLoader{"./assets/"};
     this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
-    //this->scene.set_combined_transforms();
+    // this->scene.set_combined_transforms();
     auto cmd = this->asset_manager.get_update_commands().value();
-    auto cmd2 = this->renderer.context.device.create_command_list({});
-    this->scene.record_full_entity_update(this->renderer.context.device, cmd2, this->scene, this->renderer.context.entity_data_buffer.id);
+    auto cmd2 = this->gpu_context.device.create_command_list({});
+    this->scene.record_full_entity_update(this->gpu_context.device, cmd2, this->scene, this->gpu_context.entity_data_buffer.id);
     cmd2.pipeline_barrier({
         .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
         .waiting_pipeline_access = daxa::AccessConsts::READ,
     });
     cmd2.complete();
-    this->renderer.context.device.submit_commands({
+    this->gpu_context.device.submit_commands({
         .command_lists = {std::move(cmd), std::move(cmd2)},
     });
     last_time_point = std::chrono::steady_clock::now();
@@ -123,11 +126,11 @@ auto Application::run() -> i32
         if (this->window.size.x != new_window_size.x || this->window.size.y != new_window_size.y)
         {
             this->window.size = new_window_size;
-            renderer.window_resized(this->window);
+            renderer.window_resized();
         }
         this->update();
-        this->renderer.context.pipeline_manager.reload_all();
-        this->renderer.render_frame(this->window, this->camera_controller.cam_info);
+        this->gpu_context.pipeline_manager.reload_all();
+        this->renderer.render_frame(this->camera_controller.cam_info);
     }
     return 0;
 }

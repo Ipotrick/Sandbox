@@ -2,6 +2,7 @@
 
 #include "../window.hpp"
 #include "../mesh/mesh.inl"
+#include "../scene/scene.hpp"
 
 #include "gpu_context.hpp"
 
@@ -16,15 +17,18 @@ struct CameraInfo
 // This should idealy handle all rendering related information and functionality.
 struct Renderer
 {
-    Renderer(Window const& window);
+    Renderer(Window* window, GPUContext* context, Scene* scene, AssetManager* asset_manager);
     ~Renderer();
 
     void compile_pipelines();
-    void recreate_resizable_images(Window const& window);
-    void window_resized(Window const& window);
+    void recreate_resizable_images();
+    void window_resized();
     auto create_main_task_list() -> daxa::TaskList;
-    void render_frame(Window const& window, CameraInfo const& camera_info);
+    void render_frame(CameraInfo const& camera_info);
 
-    RenderContext context;
+    Window* window = {};
+    GPUContext* context = {};
+    Scene* scene = {};
+    AssetManager* asset_manager = {};
     daxa::TaskList main_task_list;
 };

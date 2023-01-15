@@ -36,9 +36,10 @@ struct Application
     void update();
 
     Window window;
-    Renderer renderer;
+    GPUContext gpu_context;
     AssetManager asset_manager;
     Scene scene;
+    Renderer renderer;
     SceneLoader scene_loader;
     CameraController camera_controller;
 

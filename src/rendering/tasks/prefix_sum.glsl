@@ -9,22 +9,27 @@ void main()
     const uint entity_index = gl_GlobalInvocationID.x;
     const uint warp_id = gl_SubgroupID;
     const uint warp_index = gl_SubgroupInvocationID;
+
+    daxa_BufferPtr(EntityData) entities = daxa_BufferPtr(EntityData)(push.entities);
+    daxa_BufferPtr(Mesh) meshes = daxa_BufferPtr(Mesh)(push.meshes);
+    daxa_RWBufferPtr(daxa_u32) dst = daxa_RWBufferPtr(daxa_u32)(push.dst);
+
     uint meshlets = 0;
-    if (entity_index < deref(push.entities).entity_count)
+    if (entity_index < deref(entities).entity_count)
     {
-        const uint mesh_count = deref(push.entities).meshes_count[entity_index];
-        for (uint mesh_i = 0; mesh_i < mesh_count; ++mesh_i)
+        const MeshList meshlist = deref(entities).meshes[entity_index];
+        for (uint mesh_i = 0; mesh_i < meshlist.count; ++mesh_i)
         {
-            const uint mesh_index = deref(push.entities).meshes[entity_index][mesh_i];
-            meshlets += deref(push.meshes).meshlet_count;
+            const uint mesh_index = meshlist.mesh_indices[mesh_i];
+            meshlets += deref(meshes).meshlet_count;
         }
     }
     prefix_sum(
         warp_index,
         warp_id,
         meshlets);
-    if (entity_index < deref(push.entities).entity_count)
+    if (entity_index < deref(entities).entity_count)
     {
-        deref(push.dst) = meshlets;
+        deref(dst[entity_index * 4]) = meshlets;
     }
 }

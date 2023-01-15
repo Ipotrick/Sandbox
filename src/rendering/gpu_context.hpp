@@ -15,10 +15,10 @@ struct ImageIdCombo
     daxa::TaskImageId t_id = {};
 };
 
-struct RenderContext
+struct GPUContext
 {
-    RenderContext(Window const& window);
-    ~RenderContext();
+    GPUContext(Window const& window);
+    ~GPUContext();
 
     // common unique:
     daxa::Context context = {};

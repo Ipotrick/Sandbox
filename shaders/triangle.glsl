@@ -19,7 +19,7 @@ const vec4 colors[] = {
     vec4(0.0f, 0.0f, 1.0f, 1.0f)
 };
 
-#ifdef _VERTEX
+#ifdef ENTRY_VERTEX
 layout(location = 0) out f32vec4 v_col;
 void main()
 {
@@ -28,7 +28,7 @@ void main()
 }
 #endif
 
-#ifdef _FRAGMENT
+#ifdef ENTRY_FRAGMENT
 layout(location = 0) in f32vec4 v_col;
 layout(location = 0) out f32vec4 color;
 void main()

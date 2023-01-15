@@ -15,7 +15,7 @@ Scene::~Scene()
 
 EntityId Scene::create_entity()
 {
-    return { this->entities.entity_count++ };
+    return {this->entities.entity_count++};
 }
 
 auto Scene::get_entity_ref(EntityId ent_id) -> EntityRef
@@ -25,12 +25,11 @@ auto Scene::get_entity_ref(EntityId ent_id) -> EntityRef
         .first_child = &this->entities.first_child[ent_id.index],
         .next_silbing = &this->entities.next_silbing[ent_id.index],
         .parent = &this->entities.parent[ent_id.index],
-        .meshes = reinterpret_cast<daxa_u32*>(this->entities.meshes) + ent_id.index * 8,
-        .meshes_count = &this->entities.meshes_count[ent_id.index],
+        .meshes = &this->entities.meshes[ent_id.index],
     };
 }
 
-void Scene::record_full_entity_update(daxa::Device& device, daxa::CommandList& cmd, Scene& scene, daxa::BufferId static_entities_buffer)
+void Scene::record_full_entity_update(daxa::Device &device, daxa::CommandList &cmd, Scene &scene, daxa::BufferId static_entities_buffer)
 {
     auto staging = device.create_buffer({
         .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
@@ -38,7 +37,7 @@ void Scene::record_full_entity_update(daxa::Device& device, daxa::CommandList& c
         .debug_name = "entity update staging",
     });
     cmd.destroy_buffer_deferred(staging);
-    *reinterpret_cast<EntityData*>(device.get_host_address(staging)) = scene.entities;
+    *reinterpret_cast<EntityData *>(device.get_host_address(staging)) = scene.entities;
     cmd.copy_buffer_to_buffer({
         .src_buffer = staging,
         .dst_buffer = static_entities_buffer,
@@ -54,19 +53,19 @@ void Scene::set_combined_transforms()
         return;
     }
     EntityId scene_ent = this->entities.first_child[this->root_entity.index];
-    while(scene_ent.index != INVALID_ENTITY_INDEX)
+    while (scene_ent.index != INVALID_ENTITY_INDEX)
     {
         frontier.push_back(scene_ent);
         EntityId sibling = this->entities.next_silbing[scene_ent.index];
     }
-    while(!frontier.empty())
+    while (!frontier.empty())
     {
         EntityId ent = frontier.back();
         frontier.pop_back();
         EntityId parent = this->entities.parent[ent.index];
         this->entities.combined_transform[ent.index] = this->entities.combined_transform[parent.index] * this->entities.transform[ent.index];
         EntityId child = this->entities.first_child[ent.index];
-        while(child.index != INVALID_ENTITY_INDEX)
+        while (child.index != INVALID_ENTITY_INDEX)
         {
             frontier.push_back(child);
             auto const old_child = child;
@@ -75,16 +74,17 @@ void Scene::set_combined_transforms()
     }
 }
 
-void recursive_print_aiNode(aiScene const* aiscene, aiNode *node, u32 depth, std::string & preamble_string)
+void recursive_print_aiNode(aiScene const *aiscene, aiNode *node, u32 depth, std::string &preamble_string)
 {
     std::cout << preamble_string << "aiNode::mName: " << node->mName.C_Str() << "\n";
     std::cout << preamble_string << "{\n";
-    if (node->mParent) { 
+    if (node->mParent)
+    {
         std::cout << preamble_string << "  parent node: " << node->mParent->mName.C_Str() << "\n";
     }
     std::cout << preamble_string << "  aiNode::mMeshes:\n";
     std::cout << preamble_string << "  {\n";
-    for (u32* mesh = node->mMeshes; mesh < (node->mMeshes + node->mNumMeshes); ++mesh)
+    for (u32 *mesh = node->mMeshes; mesh < (node->mMeshes + node->mNumMeshes); ++mesh)
     {
         std::cout << preamble_string << "    aiMesh::mName: " << aiscene->mMeshes[*mesh]->mName.C_Str() << "\n";
     }
@@ -98,14 +98,12 @@ void recursive_print_aiNode(aiScene const* aiscene, aiNode *node, u32 depth, std
     }
 }
 
-void process_meshes(aiScene const * aiscene, AssetManager &asset_manager)
+void process_meshes(aiScene const *aiscene, AssetManager &asset_manager)
 {
-    
 }
 
-void process_textures(aiScene const * aiscene, AssetManager &asset_manager)
+void process_textures(aiScene const *aiscene, AssetManager &asset_manager)
 {
-
 }
 
 void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manager, std::filesystem::path const &asset_name)
@@ -114,7 +112,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
 
     Assimp::Importer importer;
 
-    aiScene const* aiscene = importer.ReadFile(file_path.string(), {});
+    aiScene const *aiscene = importer.ReadFile(file_path.string(), {});
 
     if (aiscene == nullptr)
     {
@@ -138,7 +136,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
     EntityRef scene_entity = scene.get_entity_ref(scene_entity_id);
     scene.root_entity = scene_entity_id;
     auto ident = glm::identity<glm::mat4x4>();
-    *scene_entity.transform = *reinterpret_cast<daxa::types::f32mat4x4*>(&ident);
+    *scene_entity.transform = *reinterpret_cast<daxa::types::f32mat4x4 *>(&ident);
 
     std::vector<FrontierEntry> frontier = {};
     frontier.reserve(128);
@@ -154,17 +152,17 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
         const auto current_entity = scene.get_entity_ref(current_entity_id);
 
         usize n = current_node->mNumMeshes;
-        ASSERT_M(n <= 8, "max submeshes is 8");
+        ASSERT_M(n <= 7, "max submeshes is 7");
 
-        *current_entity.meshes_count = current_node->mNumMeshes;
+        current_entity.meshes->count = current_node->mNumMeshes;
         for (usize mesh_i = 0; mesh_i < current_node->mNumMeshes; ++mesh_i)
         {
-            current_entity.meshes[mesh_i] = asset_manager.get_or_create_mesh(aiscene->mMeshes[current_node->mMeshes[mesh_i]]).first;
+            current_entity.meshes->mesh_indices[mesh_i] = asset_manager.get_or_create_mesh(aiscene->mMeshes[current_node->mMeshes[mesh_i]]).first;
         }
         std::cout << "Node has " << current_node->mNumMeshes << "meshes" << std::endl;
 
-        *current_entity.transform = *reinterpret_cast<daxa::types::f32mat4x4*>(&current_node->mTransformation);
-        
+        *current_entity.transform = *reinterpret_cast<daxa::types::f32mat4x4 *>(&current_node->mTransformation);
+
         for (usize child_i = 0; child_i < current_node->mNumChildren; ++child_i)
         {
             EntityId new_child_id = scene.create_entity();
@@ -174,7 +172,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
             *new_child.next_silbing = *current_entity.first_child;
             *current_entity.first_child = new_child_id;
 
-            frontier.push_back(FrontierEntry{ .entity_id = new_child_id, .node = current_node->mChildren[child_i] });
+            frontier.push_back(FrontierEntry{.entity_id = new_child_id, .node = current_node->mChildren[child_i]});
         }
     }
 

@@ -18,7 +18,7 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO {
 };
 
 inline void t_prefix_sum(
-    RenderContext &context, 
+    GPUContext &context, 
     daxa::TaskList &task_list, 
     daxa::TaskBufferId src, 
     daxa::TaskBufferId dst,
@@ -70,7 +70,7 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZ
 };
 
 inline void t_prefix_sum_two_pass_finalize(
-    RenderContext &context, 
+    GPUContext &context, 
     daxa::TaskList &task_list, 
     daxa::TaskBufferId partial_sums, 
     daxa::TaskBufferId values, 
