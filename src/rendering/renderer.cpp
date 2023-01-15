@@ -100,6 +100,10 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "ent_meshlet_count_prefix_sum_buffer",
     });
     task_list.add_runtime_buffer(this->context->ent_meshlet_count_prefix_sum_buffer.t_id, this->context->ent_meshlet_count_prefix_sum_buffer.id);
+    this->context->ent_meshlet_count_partial_sum_buffer.t_id = task_list.create_task_buffer({
+        .debug_name = "ent_meshlet_count_partial_sum_buffer",
+    });
+    task_list.add_runtime_buffer(this->context->ent_meshlet_count_partial_sum_buffer.t_id, this->context->ent_meshlet_count_partial_sum_buffer.id);
 
     task_list.add_task({
         .used_buffers = {
@@ -142,6 +146,29 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
         .debug_name = std::string{PREFIX_SUM_PIPELINE_NAME},
     });
+
+    t_prefix_sum(
+        this->context,
+        task_list,
+        this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
+        this->context->ent_meshlet_count_partial_sum_buffer.t_id,
+        [=]()
+        {
+            return std::make_tuple<u32, u32, u32>(
+                PREFIX_SUM_WORKGROUP_SIZE,
+                PREFIX_SUM_WORKGROUP_SIZE - 1,
+                (scene->entities.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE);
+        });
+
+    t_prefix_sum_two_pass_finalize(
+        this->context,
+        task_list,
+        this->context->ent_meshlet_count_partial_sum_buffer.t_id,
+        this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
+        [=]()
+        {
+            return scene->entities.entity_count;
+        });
 
     t_draw_triangle({
         .task_list = task_list,

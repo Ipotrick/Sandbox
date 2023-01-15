@@ -28,8 +28,5 @@ void main()
         warp_index,
         warp_id,
         meshlets);
-    if (entity_index < deref(entities).entity_count)
-    {
-        deref(dst[entity_index * 4]) = meshlets;
-    }
+    deref(dst[entity_index]) = meshlets;
 }

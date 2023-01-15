@@ -32,6 +32,7 @@ struct GPUContext
     BufferIdCombo globals_buffer = {};
     BufferIdCombo entity_data_buffer = {};
     BufferIdCombo ent_meshlet_count_prefix_sum_buffer = {};
+    BufferIdCombo ent_meshlet_count_partial_sum_buffer = {};
     // First 16 bytes are reserved for a counter variable.
     BufferIdCombo instanciated_meshlets = {};
     // First 16 bytes are reserved for a counter variable.

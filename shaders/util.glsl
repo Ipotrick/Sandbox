@@ -14,12 +14,13 @@ void prefix_sum(
     uint warp_id,
     inout uint value)
 {
-    uint sum = subgroupInclusiveAdd(value);
+    value = subgroupInclusiveAdd(value);
     if (warp_index == (WARP_SIZE - 1))
     {
-        shared_prefix_sum_values[warp_id] = sum;
+        shared_prefix_sum_values[warp_id] = value;
     }
     memoryBarrierShared();
+    barrier();
     // Only one warp of size 32 is required to prefix sum the shared values, as 32 * 32 = 1024
     if (warp_id == 0)
     {
@@ -28,6 +29,7 @@ void prefix_sum(
         shared_prefix_sum_values[warp_index] = shared_sum;
     }
     memoryBarrierShared();
+    barrier();
     // Now all threads can use the finished shared values results to add on to their local result.
     if (warp_id == 0)
     {
@@ -45,12 +47,12 @@ void main()
     const uint global_index = gl_GlobalInvocationID.x;
     const uint warp_id = gl_SubgroupID;
     const uint warp_index = gl_SubgroupInvocationID;
+    const uint src_index = global_index * push.src_stride + push.src_offset;
 
     uint value = 0;
     if (global_index < push.value_count)
     {
-        const uint index = global_index * push.src_stride;
-        value = deref(push.src[index]);
+        value = deref(push.src[src_index]);
     }
     prefix_sum(
         warp_index,
@@ -58,7 +60,7 @@ void main()
         value);
     if (global_index < push.value_count)
     {
-        deref(push.dst) = value;
+        deref(push.dst[global_index]) = value;
     }
 }
 #endif // #if defined(ENTRY_PREFIX_SUM)
@@ -66,20 +68,15 @@ void main()
 // As the first PREFIX_SUM_WORKGROUP_SIZE values are already correct, 
 // this must be dispatched with an offset of PREFIX_SUM_WORKGROUP_SIZE and size of SIZE - PREFIX_SUM_WORKGROUP_SIZE.
 void prefix_sum_twoppass_finalize(
-    uint value_count,
     uint global_index,
+    uint workgroup_index,
     daxa_BufferPtr(daxa_u32) partial_sums,
     daxa_RWBufferPtr(daxa_u32) values)
 {
-    if (global_index >= value_count)
-    {
-        return;
-    }
-    uint partial_sum_index = (global_index / PREFIX_SUM_WORKGROUP_SIZE) - 1;
-    uint partial_sum = deref(partial_sums[partial_sum_index]);
-    uint value = deref(values[global_index]);
-    value += partial_sum;
-    deref(values[global_index]) = value;
+    uint partial_sum = deref(partial_sums[workgroup_index]);
+    const uint index = global_index + PREFIX_SUM_WORKGROUP_SIZE;
+    uint value = deref(values[index]);
+    deref(values[index]) = value + partial_sum;
 }
 
 
@@ -89,10 +86,11 @@ layout(local_size_x = WARP_SIZE) in;
 void main()
 {
     const uint global_index = gl_GlobalInvocationID.x;
+    const uint workgroup_index = gl_WorkGroupID.x;
 
     prefix_sum_twoppass_finalize(
-        push.value_count,
         global_index,
+        workgroup_index,
         push.partial_sums,
         push.values);
 }

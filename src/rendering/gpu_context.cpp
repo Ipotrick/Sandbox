@@ -62,14 +62,19 @@ GPUContext::GPUContext(Window const &window)
                        .debug_name = "index_buffer",
                    })},
       ent_meshlet_count_prefix_sum_buffer{.id = this->device.create_buffer({
-                                              .size = sizeof(u32) * MAX_ENTITY_COUNT,
+                                              .size = static_cast<u32>(sizeof(u32)) * round_up_to_multiple(MAX_ENTITY_COUNT, 1024),
                                               .debug_name = "ent_meshlet_count_prefix_sum_buffer",
-                                          })}
+                                          })},
+      ent_meshlet_count_partial_sum_buffer{.id = this->device.create_buffer({
+                                               .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), 1024), 1024),
+                                               .debug_name = "ent_meshlet_count_prefix_sum_buffer",
+                                           })}
 {
 }
 
 GPUContext::~GPUContext()
 {
+    this->device.destroy_buffer(this->ent_meshlet_count_partial_sum_buffer.id);
     this->device.destroy_buffer(this->ent_meshlet_count_prefix_sum_buffer.id);
     this->device.destroy_buffer(this->globals_buffer.id);
     this->device.destroy_buffer(this->entity_data_buffer.id);

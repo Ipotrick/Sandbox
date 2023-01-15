@@ -18,12 +18,11 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO {
 };
 
 inline void t_prefix_sum(
-    GPUContext &context, 
+    GPUContext *context, 
     daxa::TaskList &task_list, 
     daxa::TaskBufferId src, 
     daxa::TaskBufferId dst,
-    daxa::u32 src_stride,
-    daxa::u32 value_count)
+    std::function<std::tuple<u32,u32,u32>()> input_callback)
 {
     task_list.add_task({
         .used_buffers = {
@@ -32,12 +31,15 @@ inline void t_prefix_sum(
         },
         .task = [=](daxa::TaskRuntime const &runtime)
         {
+            auto [src_stride, src_offset, value_count] = input_callback();
+
             daxa::CommandList cmd = runtime.get_command_list();
-            cmd.set_pipeline(*context.compute_pipelines.at(PREFIX_SUM_PIPELINE_NAME));
+            cmd.set_pipeline(*context->compute_pipelines.at(PREFIX_SUM_PIPELINE_NAME));
             cmd.push_constant(PrefixSumPush{
-                .src = context.device.get_device_address(runtime.get_buffers(src)[0]),
-                .dst = context.device.get_device_address(runtime.get_buffers(dst)[0]),
+                .src = context->device.get_device_address(runtime.get_buffers(src)[0]),
+                .dst = context->device.get_device_address(runtime.get_buffers(dst)[0]),
                 .src_stride = src_stride,
+                .src_offset = src_offset,
                 .value_count = value_count,
             });
             cmd.dispatch((value_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
@@ -70,11 +72,11 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZ
 };
 
 inline void t_prefix_sum_two_pass_finalize(
-    GPUContext &context, 
+    GPUContext *context, 
     daxa::TaskList &task_list, 
     daxa::TaskBufferId partial_sums, 
     daxa::TaskBufferId values, 
-    daxa::u32 value_count)
+    std::function<u32()> input_callback)
 {
     task_list.add_task({
         .used_buffers = {
@@ -83,14 +85,15 @@ inline void t_prefix_sum_two_pass_finalize(
         },
         .task = [=](daxa::TaskRuntime const &runtime)
         {
+            const u32 value_count = input_callback();
             daxa::CommandList cmd = runtime.get_command_list();
-            cmd.set_pipeline(*context.compute_pipelines.at(PREFIX_SUM_PIPELINE_NAME));
+            cmd.set_pipeline(*context->compute_pipelines.at(PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME));
             cmd.push_constant(PrefixSumTwoPassFinalizePush{
-                .partial_sums = context.device.get_device_address(runtime.get_buffers(partial_sums)[0]),
-                .values = context.device.get_device_address(runtime.get_buffers(values)[0]),
-                .value_count = value_count,
+                .partial_sums = context->device.get_device_address(runtime.get_buffers(partial_sums)[0]),
+                .values = context->device.get_device_address(runtime.get_buffers(values)[0]),
             });
-            cmd.dispatch((value_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
+            const u32 dispatch_x = round_up_div(value_count, 1024) - 1;
+            cmd.dispatch(dispatch_x, 1, 1);
         },
         .debug_name = std::string{PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME},
     });
