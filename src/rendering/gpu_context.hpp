@@ -41,9 +41,6 @@ struct RenderContext
     ImageIdCombo depth_image = {};
 
     // Pipelines:
-    std::shared_ptr<daxa::RasterPipeline> triangle_pipe = {};
-    std::shared_ptr<daxa::RasterPipeline> vis_prepass = {};
-    std::shared_ptr<daxa::ComputePipeline> transform_pipeline = {};
-    std::shared_ptr<daxa::ComputePipeline> meshlet_culling_pipeline = {};
-    std::shared_ptr<daxa::ComputePipeline> vertex_id_writeout_pipeline = {};
+    std::unordered_map<std::string_view, std::shared_ptr<daxa::RasterPipeline>> raster_pipelines = {};
+    std::unordered_map<std::string_view, std::shared_ptr<daxa::ComputePipeline>> compute_pipelines = {};
 };

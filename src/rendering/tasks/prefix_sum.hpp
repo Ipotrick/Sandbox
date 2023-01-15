@@ -1,0 +1,86 @@
+#pragma once
+
+#include "../gpu_context.hpp"
+#include "../../../shaders/util.inl"
+
+inline static constexpr std::string_view PREFIX_SUM_PIPELINE_NAME = "prefix sum";
+
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO {
+    .shader_info = daxa::ShaderCompileInfo{
+        .source = daxa::ShaderFile{"util.glsl"},
+        .compile_options = {
+            .defines = {{"ENTRY_PREFIX_SUM"}},
+        },
+    },
+    .push_constant_size = sizeof(PrefixSumPush),
+    .debug_name = std::string{PREFIX_SUM_PIPELINE_NAME},
+};
+
+inline void t_prefix_sum(
+    RenderContext &context, 
+    daxa::TaskList &task_list, 
+    daxa::TaskBufferId src, 
+    daxa::TaskBufferId dst,
+    daxa::u32 src_stride,
+    daxa::u32 value_count)
+{
+    task_list.add_task({
+        .used_buffers = {
+            daxa::TaskBufferUse{src, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{dst, daxa::TaskBufferAccess::COMPUTE_SHADER_WRITE_ONLY},
+        },
+        .task = [=](daxa::TaskRuntime const &runtime)
+        {
+            daxa::CommandList cmd = runtime.get_command_list();
+            cmd.set_pipeline(*context.compute_pipelines.at(PREFIX_SUM_PIPELINE_NAME));
+            cmd.push_constant(PrefixSumPush{
+                .src = context.device.get_device_address(runtime.get_buffers(src)[0]),
+                .dst = context.device.get_device_address(runtime.get_buffers(dst)[0]),
+                .src_stride = src_stride,
+                .value_count = value_count,
+            });
+            cmd.dispatch((value_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
+        },
+        .debug_name = std::string{PREFIX_SUM_PIPELINE_NAME},
+    });
+}
+
+inline static constexpr std::string_view PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME = "prefix sum two pass finalize";
+
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO {
+    .shader_info = daxa::ShaderCompileInfo{
+        .source = daxa::ShaderFile{"util.glsl"},
+        .compile_options = {
+            .defines = {{"ENTRY_PREFIX_SUM_TWO_PASS_FINALIZE"}},
+        },
+    },
+    .push_constant_size = sizeof(PrefixSumTwoPassFinalizePush),
+    .debug_name = std::string{PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME},
+};
+
+inline void t_prefix_sum_two_pass_finalize(
+    RenderContext &context, 
+    daxa::TaskList &task_list, 
+    daxa::TaskBufferId partial_sums, 
+    daxa::TaskBufferId values, 
+    daxa::u32 value_count)
+{
+    task_list.add_task({
+        .used_buffers = {
+            daxa::TaskBufferUse{partial_sums, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{values, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_WRITE},
+        },
+        .task = [=](daxa::TaskRuntime const &runtime)
+        {
+            daxa::CommandList cmd = runtime.get_command_list();
+            cmd.set_pipeline(*context.compute_pipelines.at(PREFIX_SUM_PIPELINE_NAME));
+            cmd.push_constant(PrefixSumTwoPassFinalizePush{
+                .partial_sums = context.device.get_device_address(runtime.get_buffers(partial_sums)[0]),
+                .values = context.device.get_device_address(runtime.get_buffers(values)[0]),
+                .value_count = value_count,
+            });
+            cmd.dispatch((value_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
+        },
+        .debug_name = std::string{PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME},
+    });
+}
