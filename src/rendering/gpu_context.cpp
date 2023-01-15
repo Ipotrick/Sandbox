@@ -46,20 +46,24 @@ RenderContext::RenderContext(Window const &window)
       }},
       globals_buffer{.id = this->device.create_buffer({
                          .size = sizeof(ShaderGlobals),
-                         .debug_name = "shader globals",
+                         .debug_name = "globals_buffer",
                      })},
       entity_data_buffer{.id = this->device.create_buffer({
                              .size = sizeof(EntityData),
-                             .debug_name = "entity data",
+                             .debug_name = "entity_data_buffer",
                          })},
       instanciated_meshlets{.id = this->device.create_buffer({
                                 .size = sizeof(MeshletDrawInfo) * MAX_DRAWN_MESHLETS + /*reserved space for a counter*/ 16,
-                                .debug_name = "visible meshlets",
+                                .debug_name = "instanciated_meshlets",
                             })},
       index_buffer{.id = this->device.create_buffer({
                        .size = TRIANGLE_SIZE * MAX_DRAWN_TRIANGLES + /*reserved space for a counter*/ 16,
-                       .debug_name = "visible meshlets",
-                   })}
+                       .debug_name = "index_buffer",
+                   })},
+      ent_meshlet_count_prefix_sum_buffer{.id = this->device.create_buffer({
+                                              .size = sizeof(u32) * MAX_ENTITY_COUNT,
+                                              .debug_name = "ent_meshlet_count_prefix_sum_buffer",
+                                          })}
 {
 }
 

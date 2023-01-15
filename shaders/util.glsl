@@ -10,19 +10,10 @@
 #define SHARED_PREFIX_SUM_VALUE_COUNT ( PREFIX_SUM_WORKGROUP_SIZE / WARP_SIZE )
 shared uint shared_prefix_sum_values[SHARED_PREFIX_SUM_VALUE_COUNT];
 void prefix_sum(
-    bool value_count,
-    uint global_index,
     uint warp_index,
     uint warp_id,
-    daxa_BufferPtr(uint) src,
-    uint src_stride,
-    daxa_RWBufferPtr(uint) dst)
+    inout uint value)
 {
-    uint value = 0;
-    if (global_index < value_count)
-    {
-        value = deref(src[global_index * src_stride]);
-    }
     uint sum = subgroupInclusiveAdd(value);
     if (warp_index == (WARP_SIZE - 1))
     {
@@ -33,7 +24,7 @@ void prefix_sum(
     if (warp_id == 0)
     {
         uint shared_value = shared_prefix_sum_values[warp_index];
-        uint shared_sum = subgroupInclusiveAdd(shared_sum);
+        uint shared_sum = subgroupInclusiveAdd(shared_value);
         shared_prefix_sum_values[warp_index] = shared_sum;
     }
     memoryBarrierShared();
@@ -44,10 +35,6 @@ void prefix_sum(
         return;
     }
     value += shared_prefix_sum_values[warp_id - 1];
-    if (global_index < value_count)
-    {
-        deref(dst) = value;
-    }
 }
 
 #if defined(ENTRY_PREFIX_SUM)
@@ -59,24 +46,30 @@ void main()
     const uint warp_id = gl_SubgroupID;
     const uint warp_index = gl_SubgroupInvocationID;
 
+    uint value = 0;
+    if (global_index < push.value_count)
+    {
+        const uint index = global_index * push.src_stride;
+        value = deref(push.src[index]);
+    }
     prefix_sum(
-        push.value_count,
-        global_index,
         warp_index,
         warp_id,
-        push.src,
-        push.stride,
-        push.dst);
+        value);
+    if (global_index < push.value_count)
+    {
+        deref(push.dst) = value;
+    }
 }
 #endif // #if defined(ENTRY_PREFIX_SUM)
 
 // As the first PREFIX_SUM_WORKGROUP_SIZE values are already correct, 
 // this must be dispatched with an offset of PREFIX_SUM_WORKGROUP_SIZE and size of SIZE - PREFIX_SUM_WORKGROUP_SIZE.
 void prefix_sum_twoppass_finalize(
-    bool value_count,
+    uint value_count,
     uint global_index,
-    daxa_BufferPtr(uint) partial_sums,
-    daxa_RWBufferPtr(uint) values)
+    daxa_BufferPtr(daxa_u32) partial_sums,
+    daxa_RWBufferPtr(daxa_u32) values)
 {
     if (global_index >= value_count)
     {
@@ -91,7 +84,7 @@ void prefix_sum_twoppass_finalize(
 
 
 #if defined(ENTRY_PREFIX_SUM_TWO_PASS_FINALIZE)
-DEFINE_PUSHCONSTANT(PrefixSumPush, push)
+DEFINE_PUSHCONSTANT(PrefixSumTwoPassFinalizePush, push)
 layout(local_size_x = WARP_SIZE) in;
 void main()
 {

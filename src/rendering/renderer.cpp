@@ -2,6 +2,9 @@
 
 #include "../scene/scene.inl"
 
+#include "tasks/triangle.hpp"
+#include "tasks/prefix_sum.hpp"
+
 Renderer::Renderer(Window const &window)
     : context{window},
       main_task_list{this->create_main_task_list()}
@@ -17,9 +20,26 @@ Renderer::~Renderer()
 
 void Renderer::compile_pipelines()
 {
-    auto compilation_result = this->context.pipeline_manager.add_raster_pipeline(TRIANGLE_TASK_RASTER_PIPE_INFO);
-    std::cout << compilation_result.to_string() << std::endl;
-    this->context.triangle_pipe = compilation_result.value();
+    {
+        auto compilation_result = this->context.pipeline_manager.add_raster_pipeline(TRIANGLE_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context.raster_pipelines[TRIANGLE_PIPELINE_NAME] = compilation_result.value();
+    }
+    {
+        auto compilation_result = this->context.pipeline_manager.add_compute_pipeline(PREFIX_SUM_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context.compute_pipelines[PREFIX_SUM_PIPELINE_NAME] = compilation_result.value();
+    }
+    {
+        auto compilation_result = this->context.pipeline_manager.add_compute_pipeline(PREFIX_SUM_MESHLETS_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context.compute_pipelines[PREFIX_SUM_MESHLETS_PIPELINE_NAME] = compilation_result.value();
+    }
+    {
+        auto compilation_result = this->context.pipeline_manager.add_compute_pipeline(PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context.compute_pipelines[PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME] = compilation_result.value();
+    }
 }
 
 void Renderer::recreate_resizable_images(Window const &window)

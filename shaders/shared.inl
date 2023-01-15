@@ -14,6 +14,4 @@ DAXA_ENABLE_BUFFER_PTR(ShaderGlobals)
 #define MAX_DRAWN_TRIANGLES 10000000
 #define TRIANGLE_SIZE 12
 
-#define DEFINE_PUSHCONSTANT(STRUCT, NAME) layout(push_constant, scalar) Push{ STRUCT NAME; };
-
-DAXA_ENABLE_BUFFER_PTR(uint)
+#define DEFINE_PUSHCONSTANT(STRUCT, NAME) layout(push_constant, scalar) uniform Push { STRUCT NAME; };

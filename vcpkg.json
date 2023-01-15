@@ -3,11 +3,7 @@
   "version": "0.1.0",
   "dependencies": [
     {
-      "name": "daxa",
-      "features": [
-        "glslang",
-        "utils"
-      ]
+      "name": "daxa"
     },
     "glfw3",
     {

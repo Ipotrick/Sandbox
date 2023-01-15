@@ -2,6 +2,7 @@
 
 #include "../gpu_context.hpp"
 #include "../../../shaders/util.inl"
+#include "prefix_sum.inl"
 
 inline static constexpr std::string_view PREFIX_SUM_PIPELINE_NAME = "prefix sum";
 
@@ -45,7 +46,17 @@ inline void t_prefix_sum(
     });
 }
 
-inline static constexpr std::string_view PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME = "prefix sum two pass finalize";
+inline static constexpr std::string_view PREFIX_SUM_MESHLETS_PIPELINE_NAME = "prefix sum meshlets";
+
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_MESHLETS_PIPELINE_INFO {
+    .shader_info = daxa::ShaderCompileInfo{
+        .source = daxa::ShaderFile{"./src/rendering/tasks/prefix_sum.glsl"},
+    },
+    .push_constant_size = sizeof(PrefixSumMeshletCountPush),
+    .debug_name = std::string{PREFIX_SUM_MESHLETS_PIPELINE_NAME},
+};
+
+inline static constexpr std::string_view PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME = "prefix sum two pass finalize";
 
 inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO {
     .shader_info = daxa::ShaderCompileInfo{
@@ -55,7 +66,7 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZ
         },
     },
     .push_constant_size = sizeof(PrefixSumTwoPassFinalizePush),
-    .debug_name = std::string{PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME},
+    .debug_name = std::string{PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME},
 };
 
 inline void t_prefix_sum_two_pass_finalize(
@@ -81,6 +92,6 @@ inline void t_prefix_sum_two_pass_finalize(
             });
             cmd.dispatch((value_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
         },
-        .debug_name = std::string{PREFIX_SUM_TWOP_ASS_FINALIZE_PIPELINE_NAME},
+        .debug_name = std::string{PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME},
     });
 }

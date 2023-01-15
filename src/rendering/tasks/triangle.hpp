@@ -3,7 +3,9 @@
 #include "../gpu_context.hpp"
 #include "../../../shaders/triangle_shared.inl"
 
-inline static const daxa::RasterPipelineCompileInfo TRIANGLE_TASK_RASTER_PIPE_INFO{
+inline static constexpr std::string_view TRIANGLE_PIPELINE_NAME = "prefix sum";
+
+inline static const daxa::RasterPipelineCompileInfo TRIANGLE_PIPELINE_INFO{
     .vertex_shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"triangle.glsl"},
         .compile_options = {
@@ -30,6 +32,7 @@ inline static const daxa::RasterPipelineCompileInfo TRIANGLE_TASK_RASTER_PIPE_IN
         .max_depth_bounds = 0.0f,
     },
     .push_constant_size = sizeof(TriangleTaskPushConstant),
+    .debug_name = std::string{TRIANGLE_PIPELINE_NAME},
 };
 
 struct TriangleTaskInfo
@@ -77,7 +80,7 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
                     .height = (runtime.get_device().info_image(swapchain_image).size.y),
                 },
             });
-            cmd.set_pipeline(*info.context.triangle_pipe);
+            cmd.set_pipeline(*info.context.raster_pipelines.at(TRIANGLE_PIPELINE_NAME));
             cmd.push_constant(TriangleTaskPushConstant{
                 .globals = runtime.get_device().get_device_address(runtime.get_buffers(info.t_shader_globals)[0]),
             });
@@ -89,6 +92,6 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
             });
             cmd.end_renderpass();
         },
-        .debug_name = "Sandbox Triangle Task",
+        .debug_name = std::string{TRIANGLE_PIPELINE_NAME},
     });
 }

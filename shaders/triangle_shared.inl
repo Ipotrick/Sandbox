@@ -1,7 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include "../src/shared.inl"
+#include "shared.inl"
 
 struct TriangleTaskPushConstant
 {

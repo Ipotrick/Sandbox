@@ -1,12 +1,9 @@
 #pragma once
 
-// Standart headers:
-// Library headers:
-// Project headers:
-#include "gpu_context.hpp"
 #include "../window.hpp"
-#include "tasks/triangle.hpp"
 #include "../mesh/mesh.inl"
+
+#include "gpu_context.hpp"
 
 struct CameraInfo
 {
