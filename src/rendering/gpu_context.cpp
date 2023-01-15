@@ -1,6 +1,7 @@
 #include "gpu_context.hpp"
 
 #include "../mesh/mesh.inl"
+#include "../../shaders/util.inl"
 
 #if defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -62,11 +63,11 @@ GPUContext::GPUContext(Window const &window)
                        .debug_name = "index_buffer",
                    })},
       ent_meshlet_count_prefix_sum_buffer{.id = this->device.create_buffer({
-                                              .size = static_cast<u32>(sizeof(u32)) * round_up_to_multiple(MAX_ENTITY_COUNT, 1024),
+                                              .size = static_cast<u32>(sizeof(u32)) * round_up_to_multiple(MAX_ENTITY_COUNT, PREFIX_SUM_WORKGROUP_SIZE),
                                               .debug_name = "ent_meshlet_count_prefix_sum_buffer",
                                           })},
       ent_meshlet_count_partial_sum_buffer{.id = this->device.create_buffer({
-                                               .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), 1024), 1024),
+                                               .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), PREFIX_SUM_WORKGROUP_SIZE), PREFIX_SUM_WORKGROUP_SIZE),
                                                .debug_name = "ent_meshlet_count_prefix_sum_buffer",
                                            })}
 {

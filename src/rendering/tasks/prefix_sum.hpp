@@ -6,7 +6,7 @@
 
 inline static constexpr std::string_view PREFIX_SUM_PIPELINE_NAME = "prefix sum";
 
-inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO {
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO{
     .shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"util.glsl"},
         .compile_options = {
@@ -18,11 +18,11 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_PIPELINE_INFO {
 };
 
 inline void t_prefix_sum(
-    GPUContext *context, 
-    daxa::TaskList &task_list, 
-    daxa::TaskBufferId src, 
+    GPUContext *context,
+    daxa::TaskList &task_list,
+    daxa::TaskBufferId src,
     daxa::TaskBufferId dst,
-    std::function<std::tuple<u32,u32,u32>()> input_callback)
+    std::function<std::tuple<u32, u32, u32>()> input_callback)
 {
     task_list.add_task({
         .used_buffers = {
@@ -50,7 +50,7 @@ inline void t_prefix_sum(
 
 inline static constexpr std::string_view PREFIX_SUM_MESHLETS_PIPELINE_NAME = "prefix sum meshlets";
 
-inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_MESHLETS_PIPELINE_INFO {
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_MESHLETS_PIPELINE_INFO{
     .shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"./src/rendering/tasks/prefix_sum.glsl"},
     },
@@ -60,7 +60,7 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_MESHLETS_PIPELIN
 
 inline static constexpr std::string_view PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME = "prefix sum two pass finalize";
 
-inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO {
+inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO{
     .shader_info = daxa::ShaderCompileInfo{
         .source = daxa::ShaderFile{"util.glsl"},
         .compile_options = {
@@ -72,10 +72,10 @@ inline static const daxa::ComputePipelineCompileInfo PREFIX_SUM_TWO_PASS_FINALIZ
 };
 
 inline void t_prefix_sum_two_pass_finalize(
-    GPUContext *context, 
-    daxa::TaskList &task_list, 
-    daxa::TaskBufferId partial_sums, 
-    daxa::TaskBufferId values, 
+    GPUContext *context,
+    daxa::TaskList &task_list,
+    daxa::TaskBufferId partial_sums,
+    daxa::TaskBufferId values,
     std::function<u32()> input_callback)
 {
     task_list.add_task({
@@ -92,7 +92,8 @@ inline void t_prefix_sum_two_pass_finalize(
                 .partial_sums = context->device.get_device_address(runtime.get_buffers(partial_sums)[0]),
                 .values = context->device.get_device_address(runtime.get_buffers(values)[0]),
             });
-            const u32 dispatch_x = round_up_div(value_count, 1024) - 1;
+            const u32 workgroups = static_cast<u32>(std::max(0, static_cast<i32>(round_up_div(value_count, PREFIX_SUM_WORKGROUP_SIZE)) - 1));
+            const u32 dispatch_x = workgroups * (PREFIX_SUM_WORKGROUP_SIZE / PREFIX_SUM_TWO_PASS_FINALIZE_WORKGROUP_SIZE);
             cmd.dispatch(dispatch_x, 1, 1);
         },
         .debug_name = std::string{PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME},

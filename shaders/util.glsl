@@ -3,10 +3,6 @@
 #include "shared.inl"
 #include "util.inl"
 
-#if !defined(WARP_SIZE)
-#define WARP_SIZE 32
-#endif // #if !defined(WARP_SIZE)
-
 #define SHARED_PREFIX_SUM_VALUE_COUNT ( PREFIX_SUM_WORKGROUP_SIZE / WARP_SIZE )
 shared uint shared_prefix_sum_values[SHARED_PREFIX_SUM_VALUE_COUNT];
 void prefix_sum(
@@ -82,7 +78,7 @@ void prefix_sum_twoppass_finalize(
 
 #if defined(ENTRY_PREFIX_SUM_TWO_PASS_FINALIZE)
 DEFINE_PUSHCONSTANT(PrefixSumTwoPassFinalizePush, push)
-layout(local_size_x = WARP_SIZE) in;
+layout(local_size_x = PREFIX_SUM_TWO_PASS_FINALIZE_WORKGROUP_SIZE) in;
 void main()
 {
     const uint global_index = gl_GlobalInvocationID.x;
