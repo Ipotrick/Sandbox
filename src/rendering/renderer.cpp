@@ -44,6 +44,11 @@ void Renderer::compile_pipelines()
         std::cout << compilation_result.to_string() << std::endl;
         this->context->compute_pipelines[PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_NAME] = compilation_result.value();
     }
+    {
+        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(FIND_VISIBLE_MESHLETS_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context->compute_pipelines[FIND_VISIBLE_MESHLETS_PIPELINE_NAME] = compilation_result.value();
+    }
 }
 
 void Renderer::recreate_resizable_images()

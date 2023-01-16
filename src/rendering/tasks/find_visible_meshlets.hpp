@@ -8,7 +8,7 @@ inline static constexpr std::string_view FIND_VISIBLE_MESHLETS_PIPELINE_NAME = "
 
 inline static const daxa::ComputePipelineCompileInfo FIND_VISIBLE_MESHLETS_PIPELINE_INFO{
     .shader_info = daxa::ShaderCompileInfo{
-        .source = daxa::ShaderFile{"src/rendering/tasks/find_visible_meshlets.glsl"},
+        .source = daxa::ShaderFile{"./src/rendering/tasks/find_visible_meshlets.glsl"},
         .compile_options = {
             .defines = {{"d"}},
         },
@@ -43,6 +43,7 @@ inline void t_find_visible_meshlets(
                 .entities = context->device.get_device_address(runtime.get_buffers(entities)[0]),
                 .meshes = context->device.get_device_address(runtime.get_buffers(meshes)[0]),
                 .instanciated_meshlets = context->device.get_device_address(runtime.get_buffers(instanciated_meshlets)[0]),
+                .meshlet_count = value_count,
             });
             cmd.dispatch(round_up_div(value_count, 32), 1, 1);
         },
