@@ -1,3 +1,5 @@
+#pragma once
+
 #include <daxa/daxa.inl>
 
 #include "../../scene/scene.inl"

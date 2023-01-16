@@ -4,6 +4,7 @@
 
 #include "tasks/triangle.hpp"
 #include "tasks/prefix_sum.hpp"
+#include "tasks/find_visible_meshlets.hpp"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -104,6 +105,14 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "ent_meshlet_count_partial_sum_buffer",
     });
     task_list.add_runtime_buffer(this->context->ent_meshlet_count_partial_sum_buffer.t_id, this->context->ent_meshlet_count_partial_sum_buffer.id);
+    auto meshes_buffer_tid = task_list.create_task_buffer({
+        .debug_name = "meshes_buffer_tid",
+    });
+    task_list.add_runtime_buffer(meshes_buffer_tid, this->asset_manager->meshes_buffer);
+    this->context->instanciated_meshlets.t_id = task_list.create_task_buffer({
+        .debug_name = "instanciated_meshlets",
+    });
+    task_list.add_runtime_buffer(this->context->instanciated_meshlets.t_id, this->context->instanciated_meshlets.id);
 
     task_list.add_task({
         .used_buffers = {
@@ -169,6 +178,16 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         {
             return scene->entities.entity_count;
         });
+
+    t_find_visible_meshlets(
+        this->context,
+        task_list,
+        this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
+        this->context->entity_data_buffer.t_id,
+        meshes_buffer_tid,
+        this->context->instanciated_meshlets.t_id,
+        [=]()
+        { return this->asset_manager->total_meshlet_count; });
 
     t_draw_triangle({
         .task_list = task_list,

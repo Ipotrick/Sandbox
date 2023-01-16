@@ -1,3 +1,5 @@
+#pragma once
+
 #include <daxa/daxa.inl>
 
 #define PREFIX_SUM_WORKGROUP_SIZE 1024

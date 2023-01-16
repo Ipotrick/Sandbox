@@ -62,6 +62,7 @@ struct InstanciatedMeshlet
     daxa_u32 entity_index;
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
+    daxa_u32 pad;
 };
 DAXA_ENABLE_BUFFER_PTR(InstanciatedMeshlet)
 
