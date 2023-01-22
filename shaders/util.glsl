@@ -29,7 +29,7 @@ void prefix_sum(
     // Now all threads can use the finished shared values results to add on to their local result.
     if (warp_id == 0)
     {
-        // The first warp obviously is already done in the prefix sum.
+        // The first warp is already done in the prefix sum.
         return;
     }
     value += shared_prefix_sum_values[warp_id - 1];

@@ -92,44 +92,20 @@ struct VertexPosition
 };
 DAXA_ENABLE_BUFFER_PTR(VertexPosition)
 
-/* renderdoc view:
-#pack(scalar)
+#if defined(DAXA_SHADER)
 
-struct Meshlet
+void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 vertex_index, out daxa_u32 vertex_id)
 {
-    uint indirect_vertex_offset;
-    uint triangle_offset;
-    uint vertex_count;
-    uint triangle_count;
-};
+    vertex_id = (instanciated_meshlet_index << 6) | triangle_index;
+}
 
-struct BoundingSphere
+void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 vertex_index)
 {
-	vec3 center;
-    float radius;
-};
+    instanciated_meshlet_index = vertex_id >> 6;
+    triangle_index = vertex_id & 0x3F;
+}
 
-struct Index
-{
-    uint value;
-};
-
-struct Vec3
-{
-    vec3 value;
-};
-
-struct Mesh
-{
-    uint mesh_buffer;
-    uint meshlet_count;
-    Mesh* meshlets;
-    BoundingSphere* meshlet_bounds;
-    Index* micro_indices;
-    Index* indirect_vertices;
-    Vec3* vertex_positions;
-};
-*/
+#endif // #if defined(DAXA_SHADER)
 
 /// 
 /// A Mesh is a piece of a model.
@@ -155,6 +131,17 @@ struct Mesh
     daxa_BufferPtr(VertexPosition) vertex_positions;
 };
 DAXA_ENABLE_BUFFER_PTR(Mesh)
+
+#if defined(DAXA_SHADER)
+uint get_micro_index(daxa_BufferPtr(IndexType) micro_indices, uint index_offset)
+{
+    uint pack_index = index_offset / 4;
+    uint index_pack = deref(micro_indices[pack_index]);
+    uint in_pack_offset = index_offset % 4;
+    uint in_pack_shift = in_pack_offset * 8;
+    return (index_pack >> in_pack_shift) & 0xFF;
+}
+#endif // #if defined(DAXA_SHADER)
 
 // mesh.meshlets.get[index]
 

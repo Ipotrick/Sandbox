@@ -2,7 +2,7 @@
 
 #include <daxa/daxa.inl>
 
-#define MAX_ENTITY_COUNT 100000
+#define MAX_ENTITY_COUNT (1 << 16)
 #define INVALID_ENTITY_INDEX (~(0))
 
 struct EntityId

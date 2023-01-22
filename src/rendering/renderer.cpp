@@ -24,6 +24,7 @@ Renderer::~Renderer()
 
 void Renderer::compile_pipelines()
 {
+    std::cout << "sizeof(EntityData): " << sizeof(EntityData) << std::endl;
     {
         auto compilation_result = this->context->pipeline_manager.add_raster_pipeline(TRIANGLE_PIPELINE_INFO);
         std::cout << compilation_result.to_string() << std::endl;
@@ -118,6 +119,10 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "instanciated_meshlets",
     });
     task_list.add_runtime_buffer(this->context->instanciated_meshlets.t_id, this->context->instanciated_meshlets.id);
+    this->context->index_buffer.t_id = task_list.create_task_buffer({
+        .debug_name = "index buffer",
+    });
+    task_list.add_runtime_buffer(this->context->index_buffer.t_id, this->context->index_buffer.id);
 
     task_list.add_task({
         .used_buffers = {
@@ -194,6 +199,28 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         [=]()
         { return this->asset_manager->total_meshlet_count; });
 
+    task_list.add_task({
+        .used_buffers = {
+            daxa::TaskBufferUse{this->context->index_buffer.t_id, daxa::TaskBufferAccess::TRANSFER_WRITE},
+        },
+        // TODO(pahrens):  Need a way to tell task list that a task uploaded memory.
+        //                 In this case we write memory to a buffer that is then copied over to some buffer, like a deferred memory write.
+        .task = [=](daxa::TaskRuntime const &runtime)
+        {
+            daxa::CommandList cmd = runtime.get_command_list();
+            auto alloc = this->context->transient_mem.allocate(sizeof(u32)).value();
+            *reinterpret_cast<u32 *>(alloc.host_address) = 0;
+            cmd.copy_buffer_to_buffer({
+                .src_buffer = this->context->transient_mem.get_buffer(),
+                .src_offset = alloc.buffer_offset,
+                .dst_buffer = runtime.get_buffers(this->context->index_buffer.t_id)[0],
+                .dst_offset = 0,
+                .size = sizeof(u32),
+            });
+        },
+        .debug_name = "clear triangle count of index buffer",
+    });
+
     t_draw_triangle({
         .task_list = task_list,
         .context = *(this->context),
@@ -202,7 +229,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .t_shader_globals = this->context->globals_buffer.t_id,
     });
 
-    task_list.submit({});
+    task_list.submit(&this->submit_info);
     task_list.present({});
     return task_list;
 }
@@ -225,5 +252,9 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     }
     main_task_list.add_runtime_image(context->swapchain_image.t_id, context->swapchain_image.id);
 
+    this->submit_info = {};
+    this->submit_info.signal_timeline_semaphores = {
+        {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
+    };
     main_task_list.execute();
 }

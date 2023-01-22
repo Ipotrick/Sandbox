@@ -22,7 +22,7 @@ using HWND = void *;
 #endif
 
 GPUContext::GPUContext(Window const &window)
-    : context{daxa::create_context({})},
+    : context{daxa::create_context({.enable_validation = false})},
       device{this->context.create_device({.debug_name = "Sandbox Device"})},
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),

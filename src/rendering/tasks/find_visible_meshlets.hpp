@@ -45,7 +45,7 @@ inline void t_find_visible_meshlets(
                 .instanciated_meshlets = context->device.get_device_address(runtime.get_buffers(instanciated_meshlets)[0]),
                 .meshlet_count = value_count,
             });
-            cmd.dispatch(round_up_div(value_count, 32), 1, 1);
+            cmd.dispatch(round_up_div(value_count, FIND_VISIBLE_MESHLETS_WORKGROUP_X), 1, 1);
         },
         .debug_name = std::string{FIND_VISIBLE_MESHLETS_PIPELINE_NAME},
     });

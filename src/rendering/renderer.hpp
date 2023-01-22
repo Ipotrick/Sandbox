@@ -31,4 +31,5 @@ struct Renderer
     Scene* scene = {};
     AssetManager* asset_manager = {};
     daxa::TaskList main_task_list;
+    daxa::CommandSubmitInfo submit_info = {};
 };

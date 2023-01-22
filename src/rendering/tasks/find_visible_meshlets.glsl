@@ -3,19 +3,19 @@
 #include "find_visible_meshlets.inl"
 
 DEFINE_PUSHCONSTANT(FindVisibleMeshletsPush, push)
-layout(local_size_x = 96) in;
+layout(local_size_x = FIND_VISIBLE_MESHLETS_WORKGROUP_X) in;
 void main()
 {
-    const int global_invocation_id = int(gl_GlobalInvocationID.x);
-    const int meshlet_id = global_invocation_id;
+    const int meshlet_instance_index = int(gl_GlobalInvocationID.x);
     const int entity_count = int(deref(push.entities).entity_count);
 
     // Binary Serarch the entity the meshlet id belongs to.
-    int in_entity_meshlet_id = 0;
-    int entity_index = 0;
-    int in_entity_mesh_index = 0;
-    int in_entity_in_mesh_meshlet_index = 0;
-    if (global_invocation_id >= int(push.meshlet_count))
+    InstanciatedMeshlet instanced_meshlet;
+    instanced_meshlet.entity_index = 0xFFFFFFFF;
+    instanced_meshlet.mesh_index = 0xFFFFFFFF;
+    instanced_meshlet.meshlet_index = 0xFFFFFFFF;
+    int in_entity_meshlet_index = 0xFFFFFFFF;
+    if (meshlet_instance_index >= int(push.meshlet_count))
     {
         return;
     }
@@ -38,20 +38,19 @@ void main()
 
         if (last < first)
         {
-            InstanciatedMeshlet instanced_meshlet;
             instanced_meshlet.entity_index = up_count;
             instanced_meshlet.mesh_index = down_count;
             instanced_meshlet.meshlet_index = iter;
-            instanced_meshlet.pad = meshlet_id;
-            deref(push.instanciated_meshlets[meshlet_id]) = instanced_meshlet;
+            instanced_meshlet.pad = meshlet_instance_index;
+            deref(push.instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
             return;
         }
-        if (meshlet_id < meshlet_sum_prev_entity)
+        if (meshlet_instance_index < meshlet_sum_prev_entity)
         {
             last = middle -1;
             down_count++;
         }
-        else if (meshlet_id > meshlet_sum_for_entity)
+        else if (meshlet_instance_index >= meshlet_sum_for_entity)
         {
             first = middle + 1;
             up_count++;
@@ -59,8 +58,8 @@ void main()
         else
         {
             // Found ranage.
-            in_entity_meshlet_id = meshlet_id - meshlet_sum_prev_entity;
-            entity_index = middle;
+            in_entity_meshlet_index = meshlet_instance_index - meshlet_sum_prev_entity;
+            instanced_meshlet.entity_index = middle;
             break;
         }
 
@@ -68,7 +67,7 @@ void main()
     }
     // middle is now the entity the meshlet id belongs to.
     // Now find the mesh, the meshlet belongs to within the entity.
-    const MeshList mesh_list = deref(push.entities).meshes[entity_index];
+    const MeshList mesh_list = deref(push.entities).meshes[instanced_meshlet.entity_index];
     int entity_meshlet_sum = 0;
     for (int mesh_i = 0; mesh_i < mesh_list.count; ++mesh_i)
     {
@@ -77,17 +76,13 @@ void main()
         entity_meshlet_sum += int(deref(push.meshes[mesh_id]).meshlet_count);
         int meshlet_count_range_end = entity_meshlet_sum;
 
-        if (in_entity_meshlet_id >= meshlet_count_range_begin && in_entity_meshlet_id < meshlet_count_range_end)
+        if (in_entity_meshlet_index >= meshlet_count_range_begin && in_entity_meshlet_index < meshlet_count_range_end)
         {
-            in_entity_in_mesh_meshlet_index = in_entity_meshlet_id - meshlet_count_range_begin;
-            in_entity_mesh_index = mesh_i;
+            instanced_meshlet.meshlet_index = in_entity_meshlet_index - meshlet_count_range_begin;
+            instanced_meshlet.mesh_index = mesh_i;
             break;
         }
     }
 
-    InstanciatedMeshlet instanced_meshlet;
-    instanced_meshlet.entity_index = entity_index;
-    instanced_meshlet.mesh_index = in_entity_mesh_index;
-    instanced_meshlet.meshlet_index = in_entity_in_mesh_meshlet_index;
-    deref(push.instanciated_meshlets[meshlet_id]) = instanced_meshlet;
+    deref(push.instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
 }

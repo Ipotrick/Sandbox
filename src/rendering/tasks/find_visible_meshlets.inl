@@ -6,6 +6,7 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
+#define FIND_VISIBLE_MESHLETS_WORKGROUP_X 96
 struct FindVisibleMeshletsPush
 {
     daxa_BufferPtr(daxa_u32) prefix_sum_mehslet_counts;

@@ -21,7 +21,7 @@ void main()
         for (uint mesh_i = 0; mesh_i < meshlist.count; ++mesh_i)
         {
             const uint mesh_index = meshlist.mesh_indices[mesh_i];
-            meshlets += deref(meshes).meshlet_count;
+            meshlets += deref(meshes[mesh_index]).meshlet_count;
         }
     }
     prefix_sum(
