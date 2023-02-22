@@ -80,29 +80,17 @@ struct BoundingSphere{
 };
 DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
-struct IndexType
-{
-    daxa_u32 index;
-};
-DAXA_ENABLE_BUFFER_PTR(IndexType)
-
-struct VertexPosition
-{
-    daxa_f32vec3 position;
-};
-DAXA_ENABLE_BUFFER_PTR(VertexPosition)
-
 #if defined(DAXA_SHADER)
 
 void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 vertex_index, out daxa_u32 vertex_id)
 {
-    vertex_id = (instanciated_meshlet_index << 6) | triangle_index;
+    vertex_id = (instanciated_meshlet_index << 6) | vertex_id;
 }
 
 void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 vertex_index)
 {
     instanciated_meshlet_index = vertex_id >> 6;
-    triangle_index = vertex_id & 0x3F;
+    vertex_index = vertex_id & 0x3F;
 }
 
 #endif // #if defined(DAXA_SHADER)
@@ -126,14 +114,14 @@ struct Mesh
     daxa_u32 meshlet_count;
     daxa_BufferPtr(Meshlet) meshlets;
     daxa_BufferPtr(BoundingSphere) meshlet_bounds;
-    daxa_BufferPtr(IndexType) micro_indices;
-    daxa_BufferPtr(IndexType) indirect_vertices;
-    daxa_BufferPtr(VertexPosition) vertex_positions;
+    daxa_BufferPtr(daxa_u32) micro_indices;
+    daxa_BufferPtr(daxa_u32) indirect_vertices;
+    daxa_BufferPtr(daxa_f32vec3) vertex_positions;
 };
 DAXA_ENABLE_BUFFER_PTR(Mesh)
 
 #if defined(DAXA_SHADER)
-uint get_micro_index(daxa_BufferPtr(IndexType) micro_indices, uint index_offset)
+uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offset)
 {
     uint pack_index = index_offset / 4;
     uint index_pack = deref(micro_indices[pack_index]);

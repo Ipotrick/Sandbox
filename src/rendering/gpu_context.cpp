@@ -44,6 +44,7 @@ GPUContext::GPUContext(Window const &window)
       }}},
       transient_mem{{
           .device = this->device,
+          .capacity = 4096,
           .debug_name = "transient memory pool",
       }},
       globals_buffer{.id = this->device.create_buffer({
