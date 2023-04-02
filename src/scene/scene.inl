@@ -13,6 +13,8 @@ struct EntityId
     daxa::types::u32 index = INVALID_ENTITY_INDEX;
 #endif
 };
+DAXA_ENABLE_BUFFER_PTR(EntityId)
+
 
 #if !defined(DAXA_SHADER)
 inline
@@ -27,18 +29,13 @@ struct MeshList
     daxa_u32 mesh_indices[7];
     daxa_u32 count;
 };
+DAXA_ENABLE_BUFFER_PTR(MeshList)
 
-struct EntityData
+struct EntityMetaData
 {
     daxa_u32 entity_count;
-    daxa_f32mat4x4 transform[MAX_ENTITY_COUNT];
-    daxa_f32mat4x4 combined_transform[MAX_ENTITY_COUNT];
-    EntityId first_child[MAX_ENTITY_COUNT];
-    EntityId next_silbing[MAX_ENTITY_COUNT];
-    EntityId parent[MAX_ENTITY_COUNT];
-    MeshList meshes[MAX_ENTITY_COUNT];
 };
-DAXA_ENABLE_BUFFER_PTR(EntityData)
+DAXA_ENABLE_BUFFER_PTR(EntityMetaData)
 
 #if !defined(DAXA_SHADER)
 struct EntityRef
@@ -49,4 +46,6 @@ struct EntityRef
     EntityId* parent;
     MeshList* meshes;
 };
+// 0x000001d5edf87b20
+
 #endif

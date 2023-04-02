@@ -10,14 +10,15 @@ void main()
     const uint warp_id = gl_SubgroupID;
     const uint warp_index = gl_SubgroupInvocationID;
 
-    daxa_BufferPtr(EntityData) entities = daxa_BufferPtr(EntityData)(push.entities);
+    daxa_BufferPtr(EntityMetaData) entities = daxa_BufferPtr(EntityMetaData)(push.entity_meta_data);
+    daxa_BufferPtr(MeshList) entity_meshlists = daxa_BufferPtr(MeshList)(push.entity_meshlists);
     daxa_BufferPtr(Mesh) meshes = daxa_BufferPtr(Mesh)(push.meshes);
     daxa_RWBufferPtr(daxa_u32) dst = daxa_RWBufferPtr(daxa_u32)(push.dst);
 
     uint meshlets = 0;
     if (entity_index < deref(entities).entity_count)
     {
-        const MeshList meshlist = deref(entities).meshes[entity_index];
+        const MeshList meshlist = deref(entity_meshlists[entity_index]);
         for (uint mesh_i = 0; mesh_i < meshlist.count; ++mesh_i)
         {
             const uint mesh_index = meshlist.mesh_indices[mesh_i];

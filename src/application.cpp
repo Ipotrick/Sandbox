@@ -99,7 +99,17 @@ Application::Application()
     // this->scene.set_combined_transforms();
     auto cmd = this->asset_manager.get_update_commands().value();
     auto cmd2 = this->gpu_context.device.create_command_list({});
-    this->scene.record_full_entity_update(this->gpu_context.device, cmd2, this->scene, this->gpu_context.entity_data_buffer.id);
+    this->scene.record_full_entity_update(
+        this->gpu_context.device, 
+        cmd2, 
+        this->scene, 
+        this->gpu_context.entity_meta_data.id,
+        this->gpu_context.entity_transforms.id,
+        this->gpu_context.entity_combined_transforms.id,
+        this->gpu_context.entity_first_children.id,
+        this->gpu_context.entity_next_silbings.id,
+        this->gpu_context.entity_parents.id,
+        this->gpu_context.entity_meshlists.id);
     cmd2.pipeline_barrier({
         .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
         .waiting_pipeline_access = daxa::AccessConsts::READ,

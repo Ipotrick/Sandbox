@@ -17,6 +17,12 @@ using ImageIndex = size_t;
 
 #define MAX_MESHES 10000
 
+inline std::string generate_mesh_name(aiMesh* mesh)
+{
+    return
+        std::string(mesh->mName.C_Str()) + std::string(" m:") + std::to_string(mesh->mMaterialIndex);
+}
+
 struct AssetManager
 {
     daxa::Device device = {};
@@ -34,14 +40,14 @@ struct AssetManager
     AssetManager(daxa::Device device);
     ~AssetManager();
 
-    auto create_mesh(aiMesh *aimesh) -> std::pair<u32, Mesh const *>
+    auto create_mesh(std::string_view unique_name, aiMesh *aimesh) -> std::pair<u32, Mesh const *>
     {
         ASSERT_M(meshes.size() + 1 < MAX_MESHES, "Exceeded max mesh count!");
         // Create entry of mesh in fields.
-        ASSERT_M(!mesh_lut.contains(aimesh->mName.C_Str()), "All meshes MUST have unique names!");
+        ASSERT_M(!mesh_lut.contains(unique_name), "All meshes MUST have unique names!");
         u32 mesh_index = static_cast<u32>(this->meshes.size());
         this->meshes.push_back({});
-        this->mesh_names.push_back({aimesh->mName.C_Str()});
+        this->mesh_names.push_back(std::string{unique_name});
         this->mesh_lut[this->mesh_names[mesh_index]] = mesh_index;
         Mesh &mesh = this->meshes.back();
         // Create standart index buffer.
@@ -122,7 +128,7 @@ struct AssetManager
         mesh.mesh_buffer = device.create_buffer({
             // .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
             .size = allocation_size,
-            .debug_name = std::string("Mesh Buffer of mesh \"") + aimesh->mName.C_Str() + "\"",
+            .debug_name = std::string("Mesh Buffer of mesh \"") + std::string(unique_name) + "\"",
         });
         mesh.meshlet_count = meshlets.size();
         mesh.meshlets = device.get_device_address(mesh.mesh_buffer) + meshlet_array_offset;
@@ -134,7 +140,7 @@ struct AssetManager
         daxa::BufferId staging_buffer = device.create_buffer({
             .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .size = allocation_size,
-            .debug_name = std::string("Staging buffer for mesh \"") + aimesh->mName.C_Str() + "\"",
+            .debug_name = std::string("Staging buffer for mesh \"") + std::string(unique_name) + "\"",
         });
         void *staging_buffer_ptr = device.get_host_address(staging_buffer);
 //
@@ -168,7 +174,7 @@ struct AssetManager
             .dst_buffer = mesh.mesh_buffer,
             .size = allocation_size,
         });
-        std::cout << "mesh \"" << aimesh->mName.C_Str() << "\" has " << meshlets.size() << " meshlets" << std::endl;
+        std::cout << "mesh \"" << unique_name << "\" has " << meshlets.size() << " meshlets" << std::endl;
         return { mesh_index, &mesh };
     }
 
@@ -183,10 +189,11 @@ struct AssetManager
 
     auto get_or_create_mesh(aiMesh * aimesh) -> std::pair<u32, Mesh const *>
     {
-        auto ret = get_mesh_if_present(aimesh->mName.C_Str());
+        auto const unique_name = generate_mesh_name(aimesh);
+        auto ret = get_mesh_if_present(unique_name);
         if (!ret.has_value())
         {
-            ret = create_mesh(aimesh);
+            ret = create_mesh(unique_name, aimesh);
         }
         return ret.value();
     }

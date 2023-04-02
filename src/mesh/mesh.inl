@@ -60,9 +60,9 @@ DAXA_ENABLE_BUFFER_PTR(MeshletDrawInfo)
 struct InstanciatedMeshlet
 {
     daxa_u32 entity_index;
+    daxa_u32 mesh_id;
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
-    daxa_u32 pad;
 };
 DAXA_ENABLE_BUFFER_PTR(InstanciatedMeshlet)
 
@@ -82,15 +82,15 @@ DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
 #if defined(DAXA_SHADER)
 
-void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 vertex_index, out daxa_u32 vertex_id)
+void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 micro_index, out daxa_u32 vertex_id)
 {
-    vertex_id = (instanciated_meshlet_index << 6) | vertex_id;
+    vertex_id = (instanciated_meshlet_index << 6) | micro_index;
 }
 
-void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 vertex_index)
+void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 micro_index)
 {
     instanciated_meshlet_index = vertex_id >> 6;
-    vertex_index = vertex_id & 0x3F;
+    micro_index = vertex_id & 0x3F;
 }
 
 #endif // #if defined(DAXA_SHADER)

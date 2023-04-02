@@ -21,26 +21,30 @@ inline void t_find_visible_meshlets(
     GPUContext *context,
     daxa::TaskList &task_list,
     daxa::TaskBufferId prefix_sum_mehslet_counts,
-    daxa::TaskBufferId entities,
+    daxa::TaskBufferId entity_meta_data,
+    daxa::TaskBufferId entity_meshlists,
     daxa::TaskBufferId meshes,
     daxa::TaskBufferId instanciated_meshlets,
     std::function<u32()> input_callback)
 {
+    using enum daxa::TaskBufferAccess;
     task_list.add_task({
         .used_buffers = {
-            daxa::TaskBufferUse{prefix_sum_mehslet_counts, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
-            daxa::TaskBufferUse{entities, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
-            daxa::TaskBufferUse{meshes, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
-            daxa::TaskBufferUse{instanciated_meshlets, daxa::TaskBufferAccess::COMPUTE_SHADER_WRITE_ONLY},
+            daxa::TaskBufferUse{prefix_sum_mehslet_counts, COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{entity_meta_data, COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{entity_meshlists, COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{meshes, COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{instanciated_meshlets, COMPUTE_SHADER_WRITE_ONLY},
         },
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             auto value_count = input_callback();
             daxa::CommandList cmd = runtime.get_command_list();
             cmd.set_pipeline(*context->compute_pipelines.at(FIND_VISIBLE_MESHLETS_PIPELINE_NAME));
             cmd.push_constant(FindVisibleMeshletsPush{
                 .prefix_sum_mehslet_counts = context->device.get_device_address(runtime.get_buffers(prefix_sum_mehslet_counts)[0]),
-                .entities = context->device.get_device_address(runtime.get_buffers(entities)[0]),
+                .entity_meta_data = context->device.get_device_address(runtime.get_buffers(entity_meta_data)[0]),
+                .entity_meshlists = context->device.get_device_address(runtime.get_buffers(entity_meshlists)[0]),
                 .meshes = context->device.get_device_address(runtime.get_buffers(meshes)[0]),
                 .instanciated_meshlets = context->device.get_device_address(runtime.get_buffers(instanciated_meshlets)[0]),
                 .meshlet_count = value_count,

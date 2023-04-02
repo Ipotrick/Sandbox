@@ -53,7 +53,7 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
             daxa::TaskImageUse{info.t_swapchain_image, daxa::TaskImageAccess::COLOR_ATTACHMENT, {}},
             daxa::TaskImageUse{info.t_depth_image, daxa::TaskImageAccess::DEPTH_ATTACHMENT, {.image_aspect = daxa::ImageAspectFlagBits::DEPTH}},
         },
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             daxa::CommandList cmd = runtime.get_command_list();
             daxa::ImageId swapchain_image = runtime.get_images(info.t_swapchain_image)[0];

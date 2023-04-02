@@ -1,4 +1,4 @@
-#include <daxa/daxa.glsl>
+#include <daxa/daxa.inl>
 
 #include "shared.inl"
 #include "util.inl"

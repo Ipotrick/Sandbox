@@ -29,7 +29,7 @@ inline void t_prefix_sum(
             daxa::TaskBufferUse{src, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
             daxa::TaskBufferUse{dst, daxa::TaskBufferAccess::COMPUTE_SHADER_WRITE_ONLY},
         },
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             auto [src_stride, src_offset, value_count] = input_callback();
 
@@ -83,7 +83,7 @@ inline void t_prefix_sum_two_pass_finalize(
             daxa::TaskBufferUse{partial_sums, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
             daxa::TaskBufferUse{values, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_WRITE},
         },
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             const u32 value_count = input_callback();
             daxa::CommandList cmd = runtime.get_command_list();

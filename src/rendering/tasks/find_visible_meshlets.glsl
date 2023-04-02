@@ -1,4 +1,4 @@
-#include <daxa/daxa.glsl>
+#include <daxa/daxa.inl>
 
 #include "find_visible_meshlets.inl"
 
@@ -7,7 +7,7 @@ layout(local_size_x = FIND_VISIBLE_MESHLETS_WORKGROUP_X) in;
 void main()
 {
     const int meshlet_instance_index = int(gl_GlobalInvocationID.x);
-    const int entity_count = int(deref(push.entities).entity_count);
+    const int entity_count = int(deref(push.entity_meta_data).entity_count);
 
     // Binary Serarch the entity the meshlet id belongs to.
     InstanciatedMeshlet instanced_meshlet;
@@ -41,7 +41,6 @@ void main()
             instanced_meshlet.entity_index = up_count;
             instanced_meshlet.mesh_index = down_count;
             instanced_meshlet.meshlet_index = iter;
-            instanced_meshlet.pad = meshlet_instance_index;
             deref(push.instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
             return;
         }
@@ -67,7 +66,7 @@ void main()
     }
     // middle is now the entity the meshlet id belongs to.
     // Now find the mesh, the meshlet belongs to within the entity.
-    const MeshList mesh_list = deref(push.entities).meshes[instanced_meshlet.entity_index];
+    const MeshList mesh_list = deref(push.entity_meshlists[instanced_meshlet.entity_index]);
     int entity_meshlet_sum = 0;
     for (int mesh_i = 0; mesh_i < mesh_list.count; ++mesh_i)
     {
@@ -80,6 +79,7 @@ void main()
         {
             instanced_meshlet.meshlet_index = in_entity_meshlet_index - meshlet_count_range_begin;
             instanced_meshlet.mesh_index = mesh_i;
+            instanced_meshlet.mesh_id = mesh_id;
             break;
         }
     }

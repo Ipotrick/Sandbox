@@ -1,0 +1,54 @@
+{
+  "name": "daxa",
+  "version-string": "local",
+  "port-version": 3,
+  "description": "Daxa C++ Vulkan Abstraction",
+  "homepage": "https://github.com/Ipotrick/Daxa",
+  "dependencies": [
+    "vulkan-memory-allocator",
+    "vulkan"
+  ],
+  "default-features": [
+    "utils-imgui",
+    "utils-mem",
+    "utils-pipeline-manager-glslang",
+    "utils-task-list"
+  ],
+  "features": {
+    "utils-fsr2": {
+      "description": "The FSR2 Daxa utility",
+      "dependencies": [
+        {
+          "name": "fsr2",
+          "features": [
+            "vulkan"
+          ]
+        }
+      ]
+    },
+    "utils-imgui": {
+      "description": "The ImGUI Daxa utility",
+      "dependencies": [
+        "imgui"
+      ]
+    },
+    "utils-mem": {
+      "description": "The Mem Daxa utility"
+    },
+    "utils-pipeline-manager-glslang": {
+      "description": "Build with glslang",
+      "dependencies": [
+        "glslang"
+      ]
+    },
+    "utils-pipeline-manager-dxc": {
+      "description": "Build with dxc",
+      "dependencies": [
+        "dxc"
+      ]
+    },
+    "utils-task-list": {
+      "description": "The Task-List Daxa utility"
+    }
+  }
+}

@@ -5,6 +5,7 @@
 #include "tasks/triangle.hpp"
 #include "tasks/prefix_sum.hpp"
 #include "tasks/find_visible_meshlets.hpp"
+#include "tasks/generate_index_buffer.hpp"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -24,7 +25,6 @@ Renderer::~Renderer()
 
 void Renderer::compile_pipelines()
 {
-    std::cout << "sizeof(EntityData): " << sizeof(EntityData) << std::endl;
     {
         auto compilation_result = this->context->pipeline_manager.add_raster_pipeline(TRIANGLE_PIPELINE_INFO);
         std::cout << compilation_result.to_string() << std::endl;
@@ -49,6 +49,11 @@ void Renderer::compile_pipelines()
         auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(FIND_VISIBLE_MESHLETS_PIPELINE_INFO);
         std::cout << compilation_result.to_string() << std::endl;
         this->context->compute_pipelines[FIND_VISIBLE_MESHLETS_PIPELINE_NAME] = compilation_result.value();
+    }
+    {
+        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(GENERATE_INDEX_BUFFER_PIPELINE_INFO);
+        std::cout << compilation_result.to_string() << std::endl;
+        this->context->compute_pipelines[GENERATE_INDEX_BUFFER_PIPELINE_NAME] = compilation_result.value();
     }
 }
 
@@ -99,10 +104,36 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "Shader Globals TaskBuffer",
     });
     task_list.add_runtime_buffer(this->context->globals_buffer.t_id, this->context->globals_buffer.id);
-    this->context->entity_data_buffer.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_data_buffer",
+
+    this->context->entity_meta_data.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_meta_data",
     });
-    task_list.add_runtime_buffer(this->context->entity_data_buffer.t_id, this->context->entity_data_buffer.id);
+    task_list.add_runtime_buffer(this->context->entity_meta_data.t_id, this->context->entity_meta_data.id);
+    this->context->entity_transforms.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_transforms",
+    });
+    task_list.add_runtime_buffer(this->context->entity_transforms.t_id, this->context->entity_transforms.id);
+    this->context->entity_combined_transforms.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_combined_transforms",
+    });
+    task_list.add_runtime_buffer(this->context->entity_combined_transforms.t_id, this->context->entity_combined_transforms.id);
+    this->context->entity_first_children.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_first_children",
+    });
+    task_list.add_runtime_buffer(this->context->entity_first_children.t_id, this->context->entity_first_children.id);
+    this->context->entity_next_silbings.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_next_silbings",
+    });
+    task_list.add_runtime_buffer(this->context->entity_next_silbings.t_id, this->context->entity_next_silbings.id);
+    this->context->entity_parents.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_parents",
+    });
+    task_list.add_runtime_buffer(this->context->entity_parents.t_id, this->context->entity_parents.id);
+    this->context->entity_meshlists.t_id = task_list.create_task_buffer({
+        .debug_name = "entity_meshes",
+    });
+    task_list.add_runtime_buffer(this->context->entity_meshlists.t_id, this->context->entity_meshlists.id);
+
     this->context->ent_meshlet_count_prefix_sum_buffer.t_id = task_list.create_task_buffer({
         .debug_name = "ent_meshlet_count_prefix_sum_buffer",
     });
@@ -128,7 +159,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .used_buffers = {
             {this->context->globals_buffer.t_id, daxa::TaskBufferAccess::HOST_TRANSFER_WRITE},
         },
-        .task = [&](daxa::TaskRuntime const &runtime)
+        .task = [&](daxa::TaskRuntimeInterface const &runtime)
         {
             auto cmd = runtime.get_command_list();
             auto staging_buffer = runtime.get_device().create_buffer({
@@ -149,19 +180,21 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
 
     task_list.add_task({
         .used_buffers = {
-            daxa::TaskBufferUse{this->context->entity_data_buffer.t_id, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{this->context->entity_meta_data.t_id, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
+            daxa::TaskBufferUse{this->context->entity_meshlists.t_id, daxa::TaskBufferAccess::COMPUTE_SHADER_READ_ONLY},
             daxa::TaskBufferUse{this->context->ent_meshlet_count_prefix_sum_buffer.t_id, daxa::TaskBufferAccess::COMPUTE_SHADER_WRITE_ONLY},
         },
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             daxa::CommandList cmd = runtime.get_command_list();
             cmd.set_pipeline(*(this->context->compute_pipelines[PREFIX_SUM_MESHLETS_PIPELINE_NAME]));
             cmd.push_constant(PrefixSumMeshletCountPush{
-                .entities = context->device.get_device_address(context->entity_data_buffer.id),
+                .entity_meta_data = context->device.get_device_address(context->entity_meta_data.id),
+                .entity_meshlists = context->device.get_device_address(context->entity_meshlists.id),
                 .meshes = context->device.get_device_address(asset_manager->meshes_buffer),
                 .dst = context->device.get_device_address(context->ent_meshlet_count_prefix_sum_buffer.id),
             });
-            cmd.dispatch((scene->entities.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
+            cmd.dispatch((scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
         },
         .debug_name = std::string{PREFIX_SUM_PIPELINE_NAME},
     });
@@ -171,12 +204,12 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         task_list,
         this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
         this->context->ent_meshlet_count_partial_sum_buffer.t_id,
-        [=]()
+        [=]() -> std::tuple<u32, u32, u32>
         {
             return std::make_tuple<u32, u32, u32>(
                 PREFIX_SUM_WORKGROUP_SIZE,
                 PREFIX_SUM_WORKGROUP_SIZE - 1,
-                (scene->entities.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE);
+                (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE);
         });
 
     t_prefix_sum_two_pass_finalize(
@@ -184,28 +217,29 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         task_list,
         this->context->ent_meshlet_count_partial_sum_buffer.t_id,
         this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
-        [=]()
+        [=]() -> u32
         {
-            return scene->entities.entity_count;
+            return scene->entity_meta.entity_count;
         });
 
     t_find_visible_meshlets(
         this->context,
         task_list,
         this->context->ent_meshlet_count_prefix_sum_buffer.t_id,
-        this->context->entity_data_buffer.t_id,
+        this->context->entity_meta_data.t_id,
+        this->context->entity_meshlists.t_id,
         meshes_buffer_tid,
         this->context->instanciated_meshlets.t_id,
         [=]()
-        { return this->asset_manager->total_meshlet_count; });
+        {
+            return this->asset_manager->total_meshlet_count;
+        });
 
     task_list.add_task({
         .used_buffers = {
-            daxa::TaskBufferUse{this->context->index_buffer.t_id, daxa::TaskBufferAccess::TRANSFER_WRITE},
+            daxa::TaskBufferUse{this->context->index_buffer.t_id, daxa::TaskBufferAccess::HOST_TRANSFER_WRITE},
         },
-        // TODO(pahrens):  Need a way to tell task list that a task uploaded memory.
-        //                 In this case we write memory to a buffer that is then copied over to some buffer, like a deferred memory write.
-        .task = [=](daxa::TaskRuntime const &runtime)
+        .task = [=](daxa::TaskRuntimeInterface const &runtime)
         {
             daxa::CommandList cmd = runtime.get_command_list();
             auto alloc = this->context->transient_mem.allocate(sizeof(u32)).value();
@@ -221,6 +255,15 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .debug_name = "clear triangle count of index buffer",
     });
 
+    t_generate_index_buffer(
+        this->context,
+        task_list,
+        meshes_buffer_tid,
+        this->context->instanciated_meshlets.t_id,
+        this->context->index_buffer.t_id,
+        [=]()
+        { return this->asset_manager->total_meshlet_count; });
+
     t_draw_triangle({
         .task_list = task_list,
         .context = *(this->context),
@@ -229,8 +272,9 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .t_shader_globals = this->context->globals_buffer.t_id,
     });
 
-    task_list.submit(&this->submit_info);
+    task_list.submit({.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
     task_list.present({});
+    task_list.complete({});
     return task_list;
 }
 
@@ -256,5 +300,5 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     this->submit_info.signal_timeline_semaphores = {
         {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
     };
-    main_task_list.execute();
+    main_task_list.execute({});
 }

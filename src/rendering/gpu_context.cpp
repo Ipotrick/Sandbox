@@ -51,10 +51,34 @@ GPUContext::GPUContext(Window const &window)
                          .size = sizeof(ShaderGlobals),
                          .debug_name = "globals_buffer",
                      })},
-      entity_data_buffer{.id = this->device.create_buffer({
-                             .size = sizeof(EntityData),
-                             .debug_name = "entity_data_buffer",
-                         })},
+      entity_meta_data{.id = this->device.create_buffer({
+                           .size = sizeof(EntityMetaData),
+                           .debug_name = "entity_meta_data",
+                       })},
+      entity_transforms{.id = this->device.create_buffer({
+                            .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
+                            .debug_name = "entity_transforms",
+                        })},
+      entity_combined_transforms{.id = this->device.create_buffer({
+                                     .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
+                                     .debug_name = "entity_combined_transforms",
+                                 })},
+      entity_first_children{.id = this->device.create_buffer({
+                                .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
+                                .debug_name = "entity_first_children",
+                            })},
+      entity_next_silbings{.id = this->device.create_buffer({
+                               .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
+                               .debug_name = "entity_next_silbings",
+                           })},
+      entity_parents{.id = this->device.create_buffer({
+                         .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
+                         .debug_name = "entity_parents",
+                     })},
+      entity_meshlists{.id = this->device.create_buffer({
+                           .size = sizeof(MeshList) * MAX_ENTITY_COUNT,
+                           .debug_name = "entity_meshlists",
+                       })},
       instanciated_meshlets{.id = this->device.create_buffer({
                                 .size = sizeof(MeshletDrawInfo) * MAX_DRAWN_MESHLETS + /*reserved space for a counter*/ 16,
                                 .debug_name = "instanciated_meshlets",
@@ -70,7 +94,10 @@ GPUContext::GPUContext(Window const &window)
       ent_meshlet_count_partial_sum_buffer{.id = this->device.create_buffer({
                                                .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), PREFIX_SUM_WORKGROUP_SIZE), PREFIX_SUM_WORKGROUP_SIZE),
                                                .debug_name = "ent_meshlet_count_prefix_sum_buffer",
-                                           })}
+                                           })},
+      draw_opaque_indirect_buffer{
+        // TODO
+      }
 {
 }
 
@@ -79,7 +106,13 @@ GPUContext::~GPUContext()
     this->device.destroy_buffer(this->ent_meshlet_count_partial_sum_buffer.id);
     this->device.destroy_buffer(this->ent_meshlet_count_prefix_sum_buffer.id);
     this->device.destroy_buffer(this->globals_buffer.id);
-    this->device.destroy_buffer(this->entity_data_buffer.id);
+    this->device.destroy_buffer(this->entity_meta_data.id);
+    this->device.destroy_buffer(this->entity_transforms.id);
+    this->device.destroy_buffer(this->entity_combined_transforms.id);
+    this->device.destroy_buffer(this->entity_first_children.id);
+    this->device.destroy_buffer(this->entity_next_silbings.id);
+    this->device.destroy_buffer(this->entity_parents.id);
+    this->device.destroy_buffer(this->entity_meshlists.id);
     this->device.destroy_buffer(this->instanciated_meshlets.id);
     this->device.destroy_buffer(this->index_buffer.id);
     this->device.destroy_image(this->depth_image.id);

@@ -10,7 +10,8 @@
 struct FindVisibleMeshletsPush
 {
     daxa_BufferPtr(daxa_u32) prefix_sum_mehslet_counts;
-    daxa_BufferPtr(EntityData) entities;
+    daxa_BufferPtr(EntityMetaData) entity_meta_data;
+    daxa_BufferPtr(MeshList) entity_meshlists;
     daxa_BufferPtr(Mesh) meshes;
     daxa_RWBufferPtr(InstanciatedMeshlet) instanciated_meshlets;
     daxa_u32 meshlet_count;
