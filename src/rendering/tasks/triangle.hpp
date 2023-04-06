@@ -32,7 +32,7 @@ inline static const daxa::RasterPipelineCompileInfo TRIANGLE_PIPELINE_INFO{
         .max_depth_bounds = 0.0f,
     },
     .push_constant_size = sizeof(TriangleTaskPushConstant),
-    .debug_name = std::string{TRIANGLE_PIPELINE_NAME},
+    .name = std::string{TRIANGLE_PIPELINE_NAME},
 };
 
 struct TriangleTaskInfo
@@ -92,6 +92,6 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
             });
             cmd.end_renderpass();
         },
-        .debug_name = std::string{TRIANGLE_PIPELINE_NAME},
+        .name = std::string{TRIANGLE_PIPELINE_NAME},
     });
 }

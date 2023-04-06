@@ -23,11 +23,11 @@ using HWND = void *;
 
 GPUContext::GPUContext(Window const &window)
     : context{daxa::create_context({.enable_validation = false})},
-      device{this->context.create_device({.debug_name = "Sandbox Device"})},
+      device{this->context.create_device({.name = "Sandbox Device"})},
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
           .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,
-          .debug_name = "Sandbox Swapchain",
+          .name = "Sandbox Swapchain",
       })},
       pipeline_manager{daxa::PipelineManager{{
           .device = this->device,
@@ -40,64 +40,65 @@ GPUContext::GPUContext(Window const &window)
               .language = daxa::ShaderLanguage::GLSL,
               .enable_debug_info = true,
           },
-          .debug_name = "Sandbox PipelineCompiler",
+          .name = "Sandbox PipelineCompiler",
       }}},
       transient_mem{{
           .device = this->device,
           .capacity = 4096,
-          .debug_name = "transient memory pool",
+          .name = "transient memory pool",
       }},
       globals_buffer{.id = this->device.create_buffer({
                          .size = sizeof(ShaderGlobals),
-                         .debug_name = "globals_buffer",
+                         .name = "globals_buffer",
                      })},
       entity_meta_data{.id = this->device.create_buffer({
                            .size = sizeof(EntityMetaData),
-                           .debug_name = "entity_meta_data",
+                           .name = "entity_meta_data",
                        })},
       entity_transforms{.id = this->device.create_buffer({
                             .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
-                            .debug_name = "entity_transforms",
+                            .name = "entity_transforms",
                         })},
       entity_combined_transforms{.id = this->device.create_buffer({
                                      .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
-                                     .debug_name = "entity_combined_transforms",
+                                     .name = "entity_combined_transforms",
                                  })},
       entity_first_children{.id = this->device.create_buffer({
                                 .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                                .debug_name = "entity_first_children",
+                                .name = "entity_first_children",
                             })},
       entity_next_silbings{.id = this->device.create_buffer({
                                .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                               .debug_name = "entity_next_silbings",
+                               .name = "entity_next_silbings",
                            })},
       entity_parents{.id = this->device.create_buffer({
                          .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                         .debug_name = "entity_parents",
+                         .name = "entity_parents",
                      })},
       entity_meshlists{.id = this->device.create_buffer({
                            .size = sizeof(MeshList) * MAX_ENTITY_COUNT,
-                           .debug_name = "entity_meshlists",
+                           .name = "entity_meshlists",
                        })},
       instanciated_meshlets{.id = this->device.create_buffer({
                                 .size = sizeof(MeshletDrawInfo) * MAX_DRAWN_MESHLETS + /*reserved space for a counter*/ 16,
-                                .debug_name = "instanciated_meshlets",
+                                .name = "instanciated_meshlets",
                             })},
       index_buffer{.id = this->device.create_buffer({
                        .size = TRIANGLE_SIZE * MAX_DRAWN_TRIANGLES + /*reserved space for a counter*/ 16,
-                       .debug_name = "index_buffer",
+                       .name = "index_buffer",
                    })},
       ent_meshlet_count_prefix_sum_buffer{.id = this->device.create_buffer({
-                                              .size = static_cast<u32>(sizeof(u32)) * round_up_to_multiple(MAX_ENTITY_COUNT, PREFIX_SUM_WORKGROUP_SIZE),
-                                              .debug_name = "ent_meshlet_count_prefix_sum_buffer",
+                                              .size = static_cast<u32>(sizeof(u32)) *
+                                                      round_up_to_multiple(MAX_ENTITY_COUNT, PREFIX_SUM_WORKGROUP_SIZE),
+                                              .name = "ent_meshlet_count_prefix_sum_buffer",
                                           })},
       ent_meshlet_count_partial_sum_buffer{.id = this->device.create_buffer({
                                                .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), PREFIX_SUM_WORKGROUP_SIZE), PREFIX_SUM_WORKGROUP_SIZE),
-                                               .debug_name = "ent_meshlet_count_prefix_sum_buffer",
+                                               .name = "ent_meshlet_count_prefix_sum_buffer",
                                            })},
-      draw_opaque_indirect_buffer{
-        // TODO
-      }
+        draw_opaque_id_info_buffer{
+
+        }
 {
 }
 

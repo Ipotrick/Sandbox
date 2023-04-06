@@ -49,7 +49,7 @@ void Scene::record_full_entity_update(
         auto staging = device.create_buffer({
             .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .size = size,
-            .debug_name = device.info_buffer(dst_buffer).debug_name + " staging",
+            .name = device.info_buffer(dst_buffer).name + " staging",
         });
         cmd.destroy_buffer_deferred(staging);
         std::memcpy(reinterpret_cast<DATA_T*>(device.get_host_address(staging)), &src_field, size);

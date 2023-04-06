@@ -5,7 +5,7 @@ AssetManager::AssetManager(daxa::Device device)
 {
     this->meshes_buffer = this->device.create_buffer({
         .size = sizeof(Mesh) * MAX_MESHES,
-        .debug_name = "meshes buffer",
+        .name = "meshes buffer",
     });
 }
 

@@ -14,7 +14,7 @@ inline static const daxa::ComputePipelineCompileInfo FIND_VISIBLE_MESHLETS_PIPEL
         },
     },
     .push_constant_size = sizeof(FindVisibleMeshletsPush),
-    .debug_name = std::string{FIND_VISIBLE_MESHLETS_PIPELINE_NAME},
+    .name = std::string{FIND_VISIBLE_MESHLETS_PIPELINE_NAME},
 };
 
 inline void t_find_visible_meshlets(
@@ -51,6 +51,6 @@ inline void t_find_visible_meshlets(
             });
             cmd.dispatch(round_up_div(value_count, FIND_VISIBLE_MESHLETS_WORKGROUP_X), 1, 1);
         },
-        .debug_name = std::string{FIND_VISIBLE_MESHLETS_PIPELINE_NAME},
+        .name = std::string{FIND_VISIBLE_MESHLETS_PIPELINE_NAME},
     });
 }

@@ -43,6 +43,7 @@ struct GPUContext
     BufferIdCombo instanciated_meshlets = {};
     // First 16 bytes are reserved for a counter variable.
     BufferIdCombo index_buffer = {};
+    BufferIdCombo draw_opaque_id_info_buffer = {};
 
     // Render Targets:
     ImageIdCombo swapchain_image = {};

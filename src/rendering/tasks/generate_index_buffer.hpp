@@ -14,7 +14,7 @@ inline static const daxa::ComputePipelineCompileInfo GENERATE_INDEX_BUFFER_PIPEL
         },
     },
     .push_constant_size = sizeof(GenerateIndexBufferPush),
-    .debug_name = std::string{GENERATE_INDEX_BUFFER_PIPELINE_NAME},
+    .name = std::string{GENERATE_INDEX_BUFFER_PIPELINE_NAME},
 };
 
 inline void t_generate_index_buffer(
@@ -44,6 +44,6 @@ inline void t_generate_index_buffer(
             });
             cmd.dispatch(round_up_div(value_count * MAX_TRIANGLES_PER_MESHLET, GENERATE_INDEX_BUFFER_WORKGROUP_X), 1, 1);
         },
-        .debug_name = std::string{GENERATE_INDEX_BUFFER_PIPELINE_NAME},
+        .name = std::string{GENERATE_INDEX_BUFFER_PIPELINE_NAME},
     });
 }

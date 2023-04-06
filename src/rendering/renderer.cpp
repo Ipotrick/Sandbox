@@ -6,6 +6,7 @@
 #include "tasks/prefix_sum.hpp"
 #include "tasks/find_visible_meshlets.hpp"
 #include "tasks/generate_index_buffer.hpp"
+#include "tasks/draw_opaque_ids.hpp"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -69,7 +70,7 @@ void Renderer::recreate_resizable_images()
         .aspect = daxa::ImageAspectFlagBits::DEPTH,
         .size = {this->window->get_width(), this->window->get_height(), 1},
         .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
-        .debug_name = "depth image",
+        .name = "depth image",
     });
     this->main_task_list.add_runtime_image(this->context->depth_image.t_id, this->context->depth_image.id);
 }
@@ -90,68 +91,68 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     TaskList task_list{{
         .device = this->context->device,
         .swapchain = this->context->swapchain,
-        .debug_name = "Sandbox main TaskList",
+        .name = "Sandbox main TaskList",
     }};
     this->context->swapchain_image.t_id = task_list.create_task_image({
         .swapchain_image = true,
-        .debug_name = "Sandbox main Tasklist Swapchain Task Image",
+        .name = "swapchain",
     });
     task_list.add_runtime_image(context->swapchain_image.t_id, context->swapchain_image.id);
     this->context->depth_image.t_id = task_list.create_task_image({
-        .debug_name = "depth image",
+        .name = "depth",
     });
     this->context->globals_buffer.t_id = task_list.create_task_buffer({
-        .debug_name = "Shader Globals TaskBuffer",
+        .name = "globals",
     });
     task_list.add_runtime_buffer(this->context->globals_buffer.t_id, this->context->globals_buffer.id);
 
     this->context->entity_meta_data.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_meta_data",
+        .name = "entity_meta_data",
     });
     task_list.add_runtime_buffer(this->context->entity_meta_data.t_id, this->context->entity_meta_data.id);
     this->context->entity_transforms.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_transforms",
+        .name = "entity_transforms",
     });
     task_list.add_runtime_buffer(this->context->entity_transforms.t_id, this->context->entity_transforms.id);
     this->context->entity_combined_transforms.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_combined_transforms",
+        .name = "entity_combined_transforms",
     });
     task_list.add_runtime_buffer(this->context->entity_combined_transforms.t_id, this->context->entity_combined_transforms.id);
     this->context->entity_first_children.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_first_children",
+        .name = "entity_first_children",
     });
     task_list.add_runtime_buffer(this->context->entity_first_children.t_id, this->context->entity_first_children.id);
     this->context->entity_next_silbings.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_next_silbings",
+        .name = "entity_next_silbings",
     });
     task_list.add_runtime_buffer(this->context->entity_next_silbings.t_id, this->context->entity_next_silbings.id);
     this->context->entity_parents.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_parents",
+        .name = "entity_parents",
     });
     task_list.add_runtime_buffer(this->context->entity_parents.t_id, this->context->entity_parents.id);
     this->context->entity_meshlists.t_id = task_list.create_task_buffer({
-        .debug_name = "entity_meshes",
+        .name = "entity_meshes",
     });
     task_list.add_runtime_buffer(this->context->entity_meshlists.t_id, this->context->entity_meshlists.id);
 
     this->context->ent_meshlet_count_prefix_sum_buffer.t_id = task_list.create_task_buffer({
-        .debug_name = "ent_meshlet_count_prefix_sum_buffer",
+        .name = "ent_meshlet_count_prefix_sum_buffer",
     });
     task_list.add_runtime_buffer(this->context->ent_meshlet_count_prefix_sum_buffer.t_id, this->context->ent_meshlet_count_prefix_sum_buffer.id);
     this->context->ent_meshlet_count_partial_sum_buffer.t_id = task_list.create_task_buffer({
-        .debug_name = "ent_meshlet_count_partial_sum_buffer",
+        .name = "ent_meshlet_count_partial_sum_buffer",
     });
     task_list.add_runtime_buffer(this->context->ent_meshlet_count_partial_sum_buffer.t_id, this->context->ent_meshlet_count_partial_sum_buffer.id);
     auto meshes_buffer_tid = task_list.create_task_buffer({
-        .debug_name = "meshes_buffer_tid",
+        .name = "meshes_buffer_tid",
     });
     task_list.add_runtime_buffer(meshes_buffer_tid, this->asset_manager->meshes_buffer);
     this->context->instanciated_meshlets.t_id = task_list.create_task_buffer({
-        .debug_name = "instanciated_meshlets",
+        .name = "instanciated_meshlets",
     });
     task_list.add_runtime_buffer(this->context->instanciated_meshlets.t_id, this->context->instanciated_meshlets.id);
     this->context->index_buffer.t_id = task_list.create_task_buffer({
-        .debug_name = "index buffer",
+        .name = "index buffer",
     });
     task_list.add_runtime_buffer(this->context->index_buffer.t_id, this->context->index_buffer.id);
 
@@ -165,7 +166,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             auto staging_buffer = runtime.get_device().create_buffer({
                 .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .size = sizeof(ShaderGlobals),
-                .debug_name = "ShaderGlobals staging buffer",
+                .name = "ShaderGlobals staging buffer",
             });
             cmd.destroy_buffer_deferred(staging_buffer);
             *runtime.get_device().get_host_address_as<ShaderGlobals>(staging_buffer) = context->shader_globals;
@@ -175,7 +176,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .size = sizeof(ShaderGlobals),
             });
         },
-        .debug_name = "buffer uploads",
+        .name = "buffer uploads",
     });
 
     task_list.add_task({
@@ -196,7 +197,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             });
             cmd.dispatch((scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);
         },
-        .debug_name = std::string{PREFIX_SUM_PIPELINE_NAME},
+        .name = std::string{PREFIX_SUM_PIPELINE_NAME},
     });
 
     t_prefix_sum(
@@ -252,7 +253,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .size = sizeof(u32),
             });
         },
-        .debug_name = "clear triangle count of index buffer",
+        .name = "clear triangle count of index buffer",
     });
 
     t_generate_index_buffer(

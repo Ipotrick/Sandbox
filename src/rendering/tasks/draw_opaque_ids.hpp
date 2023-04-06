@@ -26,7 +26,7 @@ inline static const daxa::RasterPipelineCompileInfo DRAW_OPAQUE_IDS_PIPELINE_INF
         .max_depth_bounds = 0.0f,
     },
     .push_constant_size = sizeof(DrawOpaqueIdsPush),
-    .debug_name = std::string{DRAW_OPAQUE_IDS_PIPELINE_NAME},
+    .name = std::string{DRAW_OPAQUE_IDS_PIPELINE_NAME},
 };
 
 inline void t_draw_opaque_ids(
@@ -43,6 +43,7 @@ inline void t_draw_opaque_ids(
             daxa::TaskBufferUse{ vertex_id_buffer, daxa::TaskBufferAccess::INDEX_READ },
             daxa::TaskBufferUse{ instanced_meshlets, daxa::TaskBufferAccess::VERTEX_SHADER_READ_ONLY },
             daxa::TaskBufferUse{ meshes, daxa::TaskBufferAccess::SHADER_READ_ONLY },
+            daxa::TaskBufferUse{ context.draw_opaque_id_info_buffer.t_id, daxa::TaskBufferAccess::DRAW_INDIRECT_INFO_READ }
         },
         .used_images = {
             daxa::TaskImageUse{opaque_ids, daxa::TaskImageAccess::COLOR_ATTACHMENT, {}},
@@ -77,13 +78,13 @@ inline void t_draw_opaque_ids(
             cmd.push_constant(DrawOpaqueIdsPush{
                 .dummy = 64,
             });
-            cmd.draw_indirect({
-                .draw_command_buffer = 
-                .draw_count = 1,
-                .is_indexed = true,
-            });
+            // cmd.draw_indirect({
+            //     .draw_command_buffer = context.draw_opaque_id_info_buffer.id,
+            //     .draw_count = 1,
+            //     .is_indexed = true,
+            // });
             cmd.end_renderpass();
         },
-        .debug_name = std::string{DRAW_OPAQUE_IDS_PIPELINE_NAME},
+        .name = std::string{DRAW_OPAQUE_IDS_PIPELINE_NAME},
     });
 }
