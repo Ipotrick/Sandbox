@@ -47,8 +47,8 @@ void Scene::record_full_entity_update(
         using DATA_T = decltype(dummy);
         const u32 size = sizeof(DATA_T) * count;
         auto staging = device.create_buffer({
-            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .size = size,
+            .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .name = device.info_buffer(dst_buffer).name + " staging",
         });
         cmd.destroy_buffer_deferred(staging);

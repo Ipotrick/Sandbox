@@ -28,6 +28,7 @@ struct AssetManager
     daxa::Device device = {};
     std::optional<daxa::CommandList> asset_update_cmd_list = {};
     daxa::BufferId meshes_buffer = {};
+    daxa::TaskBuffer tmeshes = {};
     
     std::vector<Mesh> meshes = {};
     std::vector<std::string> mesh_names = {};
@@ -138,8 +139,8 @@ struct AssetManager
         mesh.vertex_positions = device.get_device_address(mesh.mesh_buffer) + vertex_positions_array_offset;
         // Stage buffer upload.
         daxa::BufferId staging_buffer = device.create_buffer({
-            .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .size = allocation_size,
+            .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
             .name = std::string("Staging buffer for mesh \"") + std::string(unique_name) + "\"",
         });
         void *staging_buffer_ptr = device.get_host_address(staging_buffer);
@@ -204,7 +205,7 @@ struct AssetManager
         {
             daxa::CommandList cmd = std::move(this->asset_update_cmd_list.value());
             this->asset_update_cmd_list.reset();
-            auto staging_buffer = device.create_buffer({ .memory_flags = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM, .size = sizeof(Mesh) * MAX_MESHES, .name = "mesh buffer staging upload buffer" });
+            auto staging_buffer = device.create_buffer({ .size = sizeof(Mesh) * MAX_MESHES, .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM, .name = "mesh buffer staging upload buffer" });
             cmd.destroy_buffer_deferred(staging_buffer);
             auto host_ptr = device.get_host_address_as<Mesh>(staging_buffer);
             for (usize mesh_i = 0; mesh_i < meshes.size(); ++mesh_i)

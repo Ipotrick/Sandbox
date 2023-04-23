@@ -7,12 +7,18 @@ AssetManager::AssetManager(daxa::Device device)
         .size = sizeof(Mesh) * MAX_MESHES,
         .name = "meshes buffer",
     });
+    this->tmeshes = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{meshes_buffer},
+        },
+        .name = "meshes buffer",
+    }};
 }
 
 AssetManager::~AssetManager()
 {
     device.destroy_buffer(meshes_buffer);
-    for (auto& mesh : meshes)
+    for (auto &mesh : meshes)
     {
         device.destroy_buffer(mesh.mesh_buffer);
     }

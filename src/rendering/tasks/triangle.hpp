@@ -39,25 +39,25 @@ struct TriangleTaskInfo
 {
     daxa::TaskList &task_list;
     GPUContext &context;
-    daxa::TaskImageId t_swapchain_image;
-    daxa::TaskImageId t_depth_image;
-    daxa::TaskBufferId t_shader_globals;
+    daxa::TaskImageHandle t_swapchain_image;
+    daxa::TaskImageHandle t_depth_image;
+    daxa::TaskBufferHandle t_shader_globals;
 };
 
 inline void t_draw_triangle(TriangleTaskInfo const &info)
 {
+    daxa::TaskImageHandle depth = info.t_depth_image.subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
     info.task_list.add_task({
-        .used_buffers = {
-            daxa::TaskBufferUse{info.t_shader_globals, daxa::TaskBufferAccess::SHADER_READ_ONLY}},
-        .used_images = {
-            daxa::TaskImageUse{info.t_swapchain_image, daxa::TaskImageAccess::COLOR_ATTACHMENT, {}},
-            daxa::TaskImageUse{info.t_depth_image, daxa::TaskImageAccess::DEPTH_ATTACHMENT, {.image_aspect = daxa::ImageAspectFlagBits::DEPTH}},
+        .uses = {
+            daxa::BufferComputeShaderRead{info.t_shader_globals},
+            daxa::ImageColorAttachment<>{info.t_swapchain_image},
+            daxa::ImageDepthAttachment<>{depth},
         },
-        .task = [=](daxa::TaskRuntimeInterface const &runtime)
+        .task = [=](daxa::TaskInterface runtime)
         {
             daxa::CommandList cmd = runtime.get_command_list();
-            daxa::ImageId swapchain_image = runtime.get_images(info.t_swapchain_image)[0];
-            daxa::ImageId depth_image = runtime.get_images(info.t_depth_image)[0];
+            daxa::ImageId swapchain_image = runtime.uses[info.t_swapchain_image].image();
+            daxa::ImageId depth_image = runtime.uses[depth].image();
             cmd.begin_renderpass({
                 .color_attachments = {
                     daxa::RenderAttachmentInfo{
@@ -82,7 +82,7 @@ inline void t_draw_triangle(TriangleTaskInfo const &info)
             });
             cmd.set_pipeline(*info.context.raster_pipelines.at(TRIANGLE_PIPELINE_NAME));
             cmd.push_constant(TriangleTaskPushConstant{
-                .globals = runtime.get_device().get_device_address(runtime.get_buffers(info.t_shader_globals)[0]),
+                .globals = runtime.get_device().get_device_address(runtime.uses[info.t_shader_globals].buffer()),
             });
             cmd.draw({
                 .vertex_count = 3,

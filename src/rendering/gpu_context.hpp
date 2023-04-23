@@ -2,18 +2,7 @@
 
 #include "../sandbox.hpp"
 #include "../window.hpp"
-
-struct BufferIdCombo
-{
-    daxa::BufferId id = {};
-    daxa::TaskBufferId t_id = {};
-};
-
-struct ImageIdCombo
-{
-    daxa::ImageId id = {};
-    daxa::TaskImageId t_id = {};
-};
+#include "tasks/draw_opaque_ids.inl"
 
 struct GPUContext
 {
@@ -28,28 +17,12 @@ struct GPUContext
     ShaderGlobals shader_globals = {};
     daxa::TransferMemoryPool transient_mem;
 
-    // Buffers:
-    BufferIdCombo globals_buffer = {};
-    BufferIdCombo entity_meta_data = {};
-    BufferIdCombo entity_transforms = {};
-    BufferIdCombo entity_combined_transforms = {};
-    BufferIdCombo entity_first_children = {};
-    BufferIdCombo entity_next_silbings = {};
-    BufferIdCombo entity_parents = {};
-    BufferIdCombo entity_meshlists = {};
-    BufferIdCombo ent_meshlet_count_prefix_sum_buffer = {};
-    BufferIdCombo ent_meshlet_count_partial_sum_buffer = {};
-    // First 16 bytes are reserved for a counter variable.
-    BufferIdCombo instanciated_meshlets = {};
-    // First 16 bytes are reserved for a counter variable.
-    BufferIdCombo index_buffer = {};
-    BufferIdCombo draw_opaque_id_info_buffer = {};
-
-    // Render Targets:
-    ImageIdCombo swapchain_image = {};
-    ImageIdCombo depth_image = {};
-
     // Pipelines:
     std::unordered_map<std::string_view, std::shared_ptr<daxa::RasterPipeline>> raster_pipelines = {};
     std::unordered_map<std::string_view, std::shared_ptr<daxa::ComputePipeline>> compute_pipelines = {};
+
+    // Data
+    usize total_meshlet_count = {};
+
+    u32 meshlet_sums_step2_dispatch_size = {}; // (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE)
 };

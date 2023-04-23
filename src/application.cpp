@@ -103,13 +103,13 @@ Application::Application()
         this->gpu_context.device, 
         cmd2, 
         this->scene, 
-        this->gpu_context.entity_meta_data.id,
-        this->gpu_context.entity_transforms.id,
-        this->gpu_context.entity_combined_transforms.id,
-        this->gpu_context.entity_first_children.id,
-        this->gpu_context.entity_next_silbings.id,
-        this->gpu_context.entity_parents.id,
-        this->gpu_context.entity_meshlists.id);
+        this->renderer.entity_meta.get_state().buffers[0],
+        this->renderer.entity_transforms.get_state().buffers[0],
+        this->renderer.entity_combined_transforms.get_state().buffers[0],
+        this->renderer.entity_first_children.get_state().buffers[0],
+        this->renderer.entity_next_silbings.get_state().buffers[0],
+        this->renderer.entity_parents.get_state().buffers[0],
+        this->renderer.entity_meshlists.get_state().buffers[0]);
     cmd2.pipeline_barrier({
         .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
         .waiting_pipeline_access = daxa::AccessConsts::READ,
