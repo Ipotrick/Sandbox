@@ -13,7 +13,7 @@
 DAXA_INL_TASK_USE_BEGIN(GenIndexBufferBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(index_buffer, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
+DAXA_INL_TASK_USE_BUFFER(index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
 #if __cplusplus
@@ -43,23 +43,29 @@ struct GenIndexBufferTask : GenIndexBufferBase
 #elif DAXA_SHADER
 #extension GL_EXT_debug_printf : enable
 #include "../../../shaders/util.glsl"
-DEFINE_PUSHCONSTANT(GenerateIndexBufferPush, push)
-shared uint group_global_triangle_offset;
+shared uint index_buffer_offset;
 layout(local_size_x = GENERATE_INDEX_BUFFER_WORKGROUP_X) in;
 void main()
 {
     const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.x;
     const daxa_u32 meshlet_triangle_index = gl_LocalInvocationID.x;
+    daxa_RWBufferPtr(daxa_u32) triangle_counter = index_buffer_and_count;
+    daxa_RWBufferPtr(daxa_u32) index_buffer = index_buffer_and_count + 4;
 
-    InstanciatedMeshlet instanced_meshlet = deref(push.instanciated_meshlets[instanced_meshlet_index]);
-    Meshlet meshlet = push.meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(push.meshes[instanced_meshlet.mesh_id]).micro_indices;
-    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(push.meshes[instanced_meshlet.mesh_id]).indirect_vertices;
+    InstanciatedMeshlet instanced_meshlet = deref(instanciated_meshlets[instanced_meshlet_index]);
+    Meshlet meshlet = meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(meshes[instanced_meshlet.mesh_id]).micro_indices;
+    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(meshes[instanced_meshlet.mesh_id]).indirect_vertices;
     const uint triangle_count = meshlet.triangle_count;
     const bool is_active = meshlet_triangle_index < meshlet.triangle_count;
+    if (gl_LocalInvocationID.x == 0)
+    {
+        index_buffer_offset = atomicAdd(deref(triangle_counter), meshlet.triangle_count);
+    }
+    memoryBarrierShared();
+    barrier();
     if (is_active)
     {
-        const uint index_buffer_offset = atomicAdd(deref(push.global_triangle_count), 1);
         const uint mesh_triangle_offset = meshlet.triangle_offset + meshlet_triangle_index;
         const uint mesh_index_offset = mesh_triangle_offset * 3;
         uint triangle_id[3] = {0, 0, 0};
@@ -69,10 +75,11 @@ void main()
             uint vertex_id = 0;
             encode_vertex_id(instanced_meshlet_index, micro_index, vertex_id);
             triangle_id[tri_index] = vertex_id;
+            index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + tri_index].value = micro_index;
         }
-        push.index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 0].value = (index_buffer_offset + meshlet_triangle_index) * 3 + 0;
-        push.index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 1].value = (index_buffer_offset + meshlet_triangle_index) * 3 + 1;
-        push.index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 2].value = (index_buffer_offset + meshlet_triangle_index) * 3 + 2;
+        //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 0].value = triangle_id[0];
+        //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 1].value = triangle_id[1];
+        //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 2].value = triangle_id[2];
     }
 }
 #endif

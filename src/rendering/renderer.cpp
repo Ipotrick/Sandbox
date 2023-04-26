@@ -13,8 +13,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     : window{window},
       context{context},
       scene{scene},
-      asset_manager{asset_manager},
-      main_task_list{this->create_main_task_list()}
+      asset_manager{asset_manager}
 {
     entity_meta = daxa::TaskBuffer{{
         .initial_buffers = {
@@ -163,22 +162,36 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     }};
 
     buffers = {
+        entity_meta,
         entity_transforms,
         entity_combined_transforms,
         entity_first_children,
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
+        globals,
         instanciated_meshlets,
         index_buffer,
         ent_meshlet_count_prefix_sum_buffer,
-        ent_meshlet_count_prefix_sum_buffer,
-        ent_meshlet_count_prefix_sum_buffer,
+        ent_meshlet_count_partial_sum_buffer,
         draw_opaque_id_info_buffer};
+
+    depth = daxa::TaskImage{{
+        .name = "depth",
+    }};
+    swapchain_image = daxa::TaskImage{{
+        .swapchain_image = true,
+        .name = "swapchain_image",
+    }};
+
+    images = {
+        depth};
 
     recreate_resizable_images();
 
-    images = {depth};
+    compile_pipelines();
+
+    main_task_list = create_main_task_list();
 }
 
 Renderer::~Renderer()
@@ -203,41 +216,33 @@ Renderer::~Renderer()
 
 void Renderer::compile_pipelines()
 {
+    std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
+        {TRIANGLE_PIPELINE_NAME, TRIANGLE_PIPELINE_INFO},
+    };
+    for (auto [name, info] : rasters)
     {
-        auto compilation_result = this->context->pipeline_manager.add_raster_pipeline(TRIANGLE_PIPELINE_INFO);
+        auto compilation_result = this->context->pipeline_manager.add_raster_pipeline(info);
         std::cout << compilation_result.to_string() << std::endl;
-        this->context->raster_pipelines[TRIANGLE_PIPELINE_NAME] = compilation_result.value();
+        this->context->raster_pipelines[name] = compilation_result.value();
     }
+    std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
+        {PREFIX_SUM_NAME, PREFIX_SUM_PIPELINE_INFO},
+        {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
+        {PREFIX_SUM_TWO_PASS_FINALIZE_NAME, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
+        {FIND_VISIBLE_MESHLETS_PIPELINE_NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
+        {GENERATE_INDEX_BUFFER_NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
+    };
+    for (auto [name, info] : computes)
     {
-        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(PREFIX_SUM_PIPELINE_INFO);
+        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(info);
         std::cout << compilation_result.to_string() << std::endl;
-        this->context->compute_pipelines[PREFIX_SUM_NAME] = compilation_result.value();
-    }
-    {
-        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(PREFIX_SUM_MESHLETS_PIPELINE_INFO);
-        std::cout << compilation_result.to_string() << std::endl;
-        this->context->compute_pipelines[PREFIX_SUM_MESHLETS_NAME] = compilation_result.value();
-    }
-    {
-        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO);
-        std::cout << compilation_result.to_string() << std::endl;
-        this->context->compute_pipelines[PREFIX_SUM_TWO_PASS_FINALIZE_NAME] = compilation_result.value();
-    }
-    {
-        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(FIND_VISIBLE_MESHLETS_PIPELINE_INFO);
-        std::cout << compilation_result.to_string() << std::endl;
-        this->context->compute_pipelines[FIND_VISIBLE_MESHLETS_PIPELINE_NAME] = compilation_result.value();
-    }
-    {
-        auto compilation_result = this->context->pipeline_manager.add_compute_pipeline(GENERATE_INDEX_BUFFER_PIPELINE_INFO);
-        std::cout << compilation_result.to_string() << std::endl;
-        this->context->compute_pipelines[GENERATE_INDEX_BUFFER_NAME] = compilation_result.value();
+        this->context->compute_pipelines[name] = compilation_result.value();
     }
 }
 
 void Renderer::recreate_resizable_images()
 {
-    if (!depth.get_state().images[0].is_empty())
+    if (!depth.get_state().images.empty() && !depth.get_state().images[0].is_empty())
     {
         context->device.destroy_image(depth.get_state().images[0]);
     }
@@ -271,6 +276,16 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .swapchain = this->context->swapchain,
         .name = "Sandbox main TaskList",
     }};
+    for (auto const &tbuffer : buffers)
+    {
+        task_list.use_persistent_buffer(tbuffer);
+    }
+    task_list.use_persistent_buffer(asset_manager->tmeshes);
+    for (auto const &timage : images)
+    {
+        task_list.use_persistent_image(timage);
+    }
+    task_list.use_persistent_image(swapchain_image);
 
     task_list.add_task({
         .uses = {
@@ -280,8 +295,8 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         {
             auto cmd = ti.get_command_list();
             auto staging_buffer = ti.get_device().create_buffer({
-                .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .size = sizeof(ShaderGlobals),
+                .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
                 .name = "ShaderGlobals staging buffer",
             });
             cmd.destroy_buffer_deferred(staging_buffer);
@@ -297,11 +312,12 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
 
     task_list.add_task(PrefixSumMeshletTask{
         .uses = {
+            .meshes = asset_manager->tmeshes.handle(),
             .entity_meta = entity_meta.handle(),
             .entity_meshlists = entity_meshlists.handle(),
             .ent_meshlet_count_prefix_sum_buffer = ent_meshlet_count_prefix_sum_buffer.handle(),
         },
-        .pipeline = context->compute_pipelines.at(PrefixSumMeshletTask{}.name),
+        .pipeline = context->compute_pipelines[PrefixSumMeshletTask{}.name],
         .config = {
             .entity_count = &scene->entity_meta.entity_count,
         },
@@ -314,7 +330,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             .src = ent_meshlet_count_prefix_sum_buffer.handle(),
             .dst = ent_meshlet_count_partial_sum_buffer.handle(),
         },
-        .pipeline = context->compute_pipelines.at(PrefixSumTask{}.name),
+        .pipeline = context->compute_pipelines[PrefixSumTask{}.name],
         .config = {
             .src_stride = &STRIDE,
             .src_offset = &OFFSET,
@@ -327,7 +343,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             .partial_sums = ent_meshlet_count_partial_sum_buffer.handle(),
             .values = ent_meshlet_count_prefix_sum_buffer.handle(),
         },
-        .pipeline = context->compute_pipelines.at(PrefixSumFinalizeTask{}.name),
+        .pipeline = context->compute_pipelines[PrefixSumFinalizeTask{}.name],
         .config = {
             .value_count = &scene->entity_meta.entity_count,
         },
@@ -366,23 +382,23 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .name = "clear triangle count of index buffer",
     });
 
-    //task_list.add_task(GenIndexBufferTask{
-    //    {
-    //        .uses = {
-    //            .meshes = t_meshes,
-    //            .instanciated_meshlets = t_instanciated_meshlets,
-    //            .index_buffer = t_index_buffer,
-    //        },
-    //    },
-    //    context});
-    //t_generate_index_buffer(
-    //    this->context,
-    //    task_list,
-    //    meshes_buffer_tid,
-    //    this->context->instanciated_meshlets.t_id,
-    //    this->context->index_buffer.t_id,
-    //    [=]()
-    //    { return this->asset_manager->total_meshlet_count; });
+    task_list.add_task(GenIndexBufferTask{
+        {
+            .uses = {
+                .meshes = asset_manager->tmeshes.handle(),
+                .instanciated_meshlets = instanciated_meshlets.handle(),
+                .index_buffer_and_count = index_buffer.handle(),
+            },
+        },
+        context});
+    // t_generate_index_buffer(
+    //     this->context,
+    //     task_list,
+    //     meshes_buffer_tid,
+    //     this->context->instanciated_meshlets.t_id,
+    //     this->context->index_buffer.t_id,
+    //     [=]()
+    //     { return this->asset_manager->total_meshlet_count; });
 
     t_draw_triangle({
         .task_list = task_list,
@@ -409,6 +425,7 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     this->context->shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
 
     this->context->meshlet_sums_step2_dispatch_size = (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE;
+    this->context->total_meshlet_count = this->asset_manager->total_meshlet_count;
 
     auto swapchain_image = context->swapchain.acquire_next_image();
     if (swapchain_image.is_empty())

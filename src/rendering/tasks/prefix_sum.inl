@@ -112,6 +112,7 @@ struct PrefixSumFinalizeTask
 struct PrefixSumMeshletTask
 {
     struct Uses {
+        daxa::BufferComputeShaderRead meshes = {};
         daxa::BufferComputeShaderRead entity_meta{};
         daxa::BufferComputeShaderRead entity_meshlists{};
         daxa::BufferComputeShaderWrite ent_meshlet_count_prefix_sum_buffer{};
@@ -121,7 +122,6 @@ struct PrefixSumMeshletTask
     struct Config
     {
         u32 * entity_count = {};
-        BufferId * meshes = {};
     } config = {};
     void callback(daxa::TaskInterface ti)
     {
@@ -130,7 +130,7 @@ struct PrefixSumMeshletTask
         cmd.push_constant(PrefixSumMeshletCountPush{
             .entity_meta_data = ti.get_device().get_device_address(uses.entity_meta.buffer()),
             .entity_meshlists = ti.get_device().get_device_address(uses.entity_meshlists.buffer()),
-            .meshes = ti.get_device().get_device_address(*config.meshes),
+            .meshes = ti.get_device().get_device_address(uses.meshes.buffer()),
             .dst = ti.get_device().get_device_address(uses.ent_meshlet_count_prefix_sum_buffer.buffer()),
         });
         cmd.dispatch((*config.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE, 1, 1);

@@ -93,7 +93,6 @@ Application::Application()
       scene{},
       renderer{&(this->window), &(this->gpu_context), &(this->scene), &(this->asset_manager)}
 {
-    this->renderer.compile_pipelines();
     this->scene_loader = SceneLoader{"./assets/"};
     this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
     // this->scene.set_combined_transforms();

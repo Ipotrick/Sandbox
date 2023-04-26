@@ -31,3 +31,5 @@ SHARED_FUNCTION daxa_u32 round_up_div(daxa_u32 value, daxa_u32 div)
 {
     return (value + div - 1) / div;
 }
+
+#define ENABLE_TASK_USES(STRUCT, NAME) 
