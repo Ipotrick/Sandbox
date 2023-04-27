@@ -37,7 +37,7 @@ struct EntityMetaData
 };
 DAXA_ENABLE_BUFFER_PTR(EntityMetaData)
 
-#if !defined(DAXA_SHADER)
+#if __cplusplus
 struct EntityRef
 {
     daxa_f32mat4x4* transform;

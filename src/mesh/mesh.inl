@@ -40,8 +40,11 @@ struct MeshDrawInfo
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet
 {
+    // Offset into the meshs vertex index array.
     daxa_u32 indirect_vertex_offset;
-    daxa_u32 triangle_offset;
+    // Equivalent to meshoptimizers triangle_offset.
+    // Renamed the field for more clarity.
+    daxa_u32 micro_indices_offset;
     daxa_u32 vertex_count;
     daxa_u32 triangle_count;
 };
@@ -82,15 +85,26 @@ DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
 #if defined(DAXA_SHADER)
 
+#define DEBUG_VERTEX_ID 1
+
 void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 micro_index, out daxa_u32 vertex_id)
 {
+    #if DEBUG_VERTEX_ID
+    vertex_id = (instanciated_meshlet_index * 1000) + micro_index;
+    #else
     vertex_id = (instanciated_meshlet_index << 6) | micro_index;
+    #endif
 }
 
 void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 micro_index)
 {
+    #if DEBUG_VERTEX_ID
+    instanciated_meshlet_index = vertex_id / 1000;
+    micro_index = vertex_id % 1000;
+    #else
     instanciated_meshlet_index = vertex_id >> 6;
     micro_index = vertex_id & 0x3F;
+    #endif
 }
 
 #endif // #if defined(DAXA_SHADER)

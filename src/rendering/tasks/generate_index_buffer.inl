@@ -19,7 +19,6 @@ DAXA_INL_TASK_USE_END()
 #if __cplusplus
 
 #include "../gpu_context.hpp"
-#include "../../../shaders/util.inl"
 
 static constexpr std::string_view GENERATE_INDEX_BUFFER_NAME = "generate_index_buffer";
 
@@ -34,6 +33,7 @@ struct GenIndexBufferTask : GenIndexBufferBase
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
+        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         auto value_count = context->total_meshlet_count;
         cmd.set_pipeline(*context->compute_pipelines.at(GENERATE_INDEX_BUFFER_NAME));
         cmd.dispatch(round_up_div(value_count * MAX_TRIANGLES_PER_MESHLET, GENERATE_INDEX_BUFFER_WORKGROUP_X), 1, 1);
@@ -49,8 +49,8 @@ void main()
 {
     const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.x;
     const daxa_u32 meshlet_triangle_index = gl_LocalInvocationID.x;
-    daxa_RWBufferPtr(daxa_u32) triangle_counter = index_buffer_and_count;
-    daxa_RWBufferPtr(daxa_u32) index_buffer = index_buffer_and_count + 4;
+    daxa_RWBufferPtr(DrawIndexedIndirectInfo) draw_info = daxa_RWBufferPtrDrawIndexedIndirectInfo(daxa_u64(index_buffer_and_count));
+    daxa_RWBufferPtr(daxa_u32) index_buffer = index_buffer_and_count + 8;
 
     InstanciatedMeshlet instanced_meshlet = deref(instanciated_meshlets[instanced_meshlet_index]);
     Meshlet meshlet = meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
@@ -60,22 +60,22 @@ void main()
     const bool is_active = meshlet_triangle_index < meshlet.triangle_count;
     if (gl_LocalInvocationID.x == 0)
     {
-        index_buffer_offset = atomicAdd(deref(triangle_counter), meshlet.triangle_count);
+        index_buffer_offset = atomicAdd(deref(draw_info).index_count, meshlet.triangle_count * 3);
     }
     memoryBarrierShared();
     barrier();
     if (is_active)
     {
-        const uint mesh_triangle_offset = meshlet.triangle_offset + meshlet_triangle_index;
-        const uint mesh_index_offset = mesh_triangle_offset * 3;
+        const uint mesh_index_offset = meshlet.micro_indices_offset + meshlet_triangle_index * 3;
         uint triangle_id[3] = {0, 0, 0};
         for (uint tri_index = 0; tri_index < 3; ++tri_index)
         {
+            const uint mesh_local_index_buffer_index = meshlet_triangle_index * 3 + tri_index;
             const uint micro_index = get_micro_index(micro_index_buffer, mesh_index_offset + tri_index);
             uint vertex_id = 0;
             encode_vertex_id(instanced_meshlet_index, micro_index, vertex_id);
             triangle_id[tri_index] = vertex_id;
-            index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + tri_index].value = micro_index;
+            index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + tri_index].value = vertex_id;
         }
         //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 0].value = triangle_id[0];
         //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 1].value = triangle_id[1];

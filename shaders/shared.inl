@@ -33,3 +33,13 @@ SHARED_FUNCTION daxa_u32 round_up_div(daxa_u32 value, daxa_u32 div)
 }
 
 #define ENABLE_TASK_USES(STRUCT, NAME) 
+
+struct DrawIndexedIndirectInfo
+{
+    daxa_u32 index_count;
+    daxa_u32 instance_count;
+    daxa_u32 first_index;
+    daxa_u32 vertex_offset;
+    daxa_u32 first_instance;
+};
+DAXA_ENABLE_BUFFER_PTR(DrawIndexedIndirectInfo)

@@ -68,9 +68,11 @@ void Scene::record_full_entity_update(
     upload(this->entity_meshlists, b_entity_meshlists, MeshList{}, MAX_ENTITY_COUNT);
 }
 
+
+// TODO FIX
 void Scene::set_combined_transforms()
 {
-    std::vector<EntityId> frontier(16);
+    std::vector<EntityId> frontier{};
     if (this->root_entity.index == INVALID_ENTITY_INDEX)
     {
         return;
@@ -80,6 +82,7 @@ void Scene::set_combined_transforms()
     {
         frontier.push_back(scene_ent);
         EntityId sibling = this->entity_first_children[scene_ent.index];
+        scene_ent = sibling;
     }
     while (!frontier.empty())
     {

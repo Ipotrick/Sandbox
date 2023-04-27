@@ -2,7 +2,6 @@
 
 #include "../sandbox.hpp"
 #include "../window.hpp"
-#include "tasks/draw_opaque_ids.inl"
 
 struct GPUContext
 {
@@ -15,6 +14,7 @@ struct GPUContext
     daxa::Swapchain swapchain = {};
     daxa::PipelineManager pipeline_manager = {};
     ShaderGlobals shader_globals = {};
+    daxa::types::BufferDeviceAddress shader_globals_ptr = {};
     daxa::TransferMemoryPool transient_mem;
 
     // Pipelines:

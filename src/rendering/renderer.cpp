@@ -1,13 +1,13 @@
 #include "renderer.hpp"
 
+#include "tasks/triangle.hpp"
+#include "tasks/find_visible_meshlets.hpp"
+
 #include "../scene/scene.inl"
 
 #include "tasks/generate_index_buffer.inl"
 #include "tasks/prefix_sum.inl"
-
-#include "tasks/triangle.hpp"
-#include "tasks/find_visible_meshlets.hpp"
-#include "tasks/draw_opaque_ids.hpp"
+#include "tasks/draw_opaque_ids.inl"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -119,7 +119,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = TRIANGLE_SIZE * MAX_DRAWN_TRIANGLES + /*reserved space for a counter*/ 16,
+                    .size = TRIANGLE_SIZE * MAX_DRAWN_TRIANGLES + /*reserved space for draw inidrect info*/ 32,
                     .name = "index_buffer",
                 }),
             },
@@ -149,17 +149,17 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .name = "ent_meshlet_count_partial_sum_buffer",
     }};
     // First 16 bytes are reserved for a counter variable.
-    draw_opaque_id_info_buffer = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(DrawOpaqueDrawInfo),
-                    .name = "draw_opaque_id_info_buffer",
-                }),
-            },
-        },
-        .name = "draw_opaque_id_info_buffer",
-    }};
+    //draw_opaque_id_info_buffer = daxa::TaskBuffer{{
+    //    .initial_buffers = {
+    //        .buffers = std::array{
+    //            context->device.create_buffer({
+    //                .size = sizeof(DrawOpaqueDrawInfo),
+    //                .name = "draw_opaque_id_info_buffer",
+    //            }),
+    //        },
+    //    },
+    //    .name = "draw_opaque_id_info_buffer",
+    //}};
 
     buffers = {
         entity_meta,
@@ -173,8 +173,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         instanciated_meshlets,
         index_buffer,
         ent_meshlet_count_prefix_sum_buffer,
-        ent_meshlet_count_partial_sum_buffer,
-        draw_opaque_id_info_buffer};
+        ent_meshlet_count_partial_sum_buffer};
 
     depth = daxa::TaskImage{{
         .name = "depth",
@@ -218,6 +217,7 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {TRIANGLE_PIPELINE_NAME, TRIANGLE_PIPELINE_INFO},
+        {DrawOpaqueIdTask::NAME, DRAW_OPAQUE_IDS_PIPELINE_INFO},
     };
     for (auto [name, info] : rasters)
     {
@@ -286,6 +286,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         task_list.use_persistent_image(timage);
     }
     task_list.use_persistent_image(swapchain_image);
+    auto depth_handle = depth.handle().subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
 
     task_list.add_task({
         .uses = {
@@ -369,14 +370,20 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .task = [=](daxa::TaskInterface ti)
         {
             daxa::CommandList cmd = ti.get_command_list();
-            auto alloc = this->context->transient_mem.allocate(sizeof(u32)).value();
-            *reinterpret_cast<u32 *>(alloc.host_address) = 0;
+            auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectInfo)).value();
+            *reinterpret_cast<DrawIndexedIndirectInfo *>(alloc.host_address) = DrawIndexedIndirectInfo{
+                .index_count = {},
+                .instance_count = 1,
+                .first_index = {},
+                .vertex_offset = {},
+                .first_instance = {},
+            };
             cmd.copy_buffer_to_buffer({
                 .src_buffer = this->context->transient_mem.get_buffer(),
                 .src_offset = alloc.buffer_offset,
                 .dst_buffer = ti.uses[index_buffer].buffer(),
                 .dst_offset = 0,
-                .size = sizeof(u32),
+                .size = sizeof(DrawIndexedIndirectInfo),
             });
         },
         .name = "clear triangle count of index buffer",
@@ -391,14 +398,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             },
         },
         context});
-    // t_generate_index_buffer(
-    //     this->context,
-    //     task_list,
-    //     meshes_buffer_tid,
-    //     this->context->instanciated_meshlets.t_id,
-    //     this->context->index_buffer.t_id,
-    //     [=]()
-    //     { return this->asset_manager->total_meshlet_count; });
 
     t_draw_triangle({
         .task_list = task_list,
@@ -406,6 +405,23 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .t_swapchain_image = swapchain_image,
         .t_depth_image = depth,
         .t_shader_globals = globals,
+    });
+
+    task_list.add_task(DrawOpaqueIdTask{
+        {
+            .uses = {
+                .id_image = swapchain_image.handle(),
+                .depth_image = depth_handle,
+                .globals = globals.handle(),
+                .draw_info_index_buffer = index_buffer.handle(),
+                .instanciated_meshlets = instanciated_meshlets.handle(),
+                .entity_meshlists = entity_meshlists.handle(),
+                .meshes = asset_manager->tmeshes.handle(),
+                .combined_transforms = entity_combined_transforms.handle(),
+            }
+        },
+        context->raster_pipelines[DrawOpaqueIdTask{}.name],
+        context = context,
     });
 
     task_list.submit({.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
@@ -419,6 +435,11 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     if (this->window->size.x == 0 || this->window->size.y == 0)
     {
         return;
+    }
+    auto opt = context->pipeline_manager.reload_all();
+    if (opt.has_value())
+    {
+        std::cout << opt.value().to_string() << std::endl;
     }
     this->context->shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
     this->context->shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
