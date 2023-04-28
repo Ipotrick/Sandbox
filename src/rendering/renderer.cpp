@@ -1,10 +1,8 @@
 #include "renderer.hpp"
 
-#include "tasks/triangle.hpp"
-#include "tasks/find_visible_meshlets.hpp"
-
 #include "../scene/scene.inl"
 
+#include "tasks/find_visible_meshlets.inl"
 #include "tasks/generate_index_buffer.inl"
 #include "tasks/prefix_sum.inl"
 #include "tasks/draw_opaque_ids.inl"
@@ -159,18 +157,6 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "ent_meshlet_count_partial_sum_buffer",
     }};
-    // First 16 bytes are reserved for a counter variable.
-    //draw_opaque_id_info_buffer = daxa::TaskBuffer{{
-    //    .initial_buffers = {
-    //        .buffers = std::array{
-    //            context->device.create_buffer({
-    //                .size = sizeof(DrawOpaqueDrawInfo),
-    //                .name = "draw_opaque_id_info_buffer",
-    //            }),
-    //        },
-    //    },
-    //    .name = "draw_opaque_id_info_buffer",
-    //}};
 
     buffers = {
         entity_meta,
@@ -187,16 +173,44 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         ent_meshlet_count_prefix_sum_buffer,
         ent_meshlet_count_partial_sum_buffer};
 
-    depth = daxa::TaskImage{{
-        .name = "depth",
-    }};
     swapchain_image = daxa::TaskImage{{
         .swapchain_image = true,
         .name = "swapchain_image",
     }};
+    depth = daxa::TaskImage{{
+        .name = "depth",
+    }};
+    debug_image = daxa::TaskImage{{
+        .name = "debug_image",
+    }};
 
     images = {
-        depth};
+        debug_image,
+        depth,
+    };
+
+    frame_buffer_images = {
+        {
+            {
+                .format = daxa::Format::D32_SFLOAT,
+                .aspect = daxa::ImageAspectFlagBits::DEPTH,
+                .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
+                .name = depth.info().name,
+            },
+            depth,
+        },
+        {
+            {
+                .format = daxa::Format::R16G16B16A16_SFLOAT,
+                .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT |
+                         daxa::ImageUsageFlagBits::TRANSFER_DST |
+                         daxa::ImageUsageFlagBits::TRANSFER_SRC |
+                         daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
+                .name = debug_image.info().name,
+            },
+            debug_image,
+        },
+    };
 
     recreate_resizable_images();
 
@@ -228,7 +242,6 @@ Renderer::~Renderer()
 void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
-        {TRIANGLE_PIPELINE_NAME, TRIANGLE_PIPELINE_INFO},
         {DrawOpaqueIdTask::NAME, DRAW_OPAQUE_IDS_PIPELINE_INFO},
     };
     for (auto [name, info] : rasters)
@@ -238,11 +251,11 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
-        {PREFIX_SUM_NAME, PREFIX_SUM_PIPELINE_INFO},
+        {PrefixSumTask{}.name, PREFIX_SUM_PIPELINE_INFO},
         {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
-        {PREFIX_SUM_TWO_PASS_FINALIZE_NAME, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
-        {FIND_VISIBLE_MESHLETS_PIPELINE_NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
-        {GENERATE_INDEX_BUFFER_NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
+        {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
+        {FindVisibleMeshletsTask::NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
+        {GenIndexBufferTask::NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
     };
     for (auto [name, info] : computes)
     {
@@ -254,20 +267,16 @@ void Renderer::compile_pipelines()
 
 void Renderer::recreate_resizable_images()
 {
-    if (!depth.get_state().images.empty() && !depth.get_state().images[0].is_empty())
+    for (auto &[info, timg] : frame_buffer_images)
     {
-        context->device.destroy_image(depth.get_state().images[0]);
+        if (!timg.get_state().images.empty() && !timg.get_state().images[0].is_empty())
+        {
+            context->device.destroy_image(timg.get_state().images[0]);
+        }
+        auto new_info = info;
+        new_info.size = {this->window->get_width(), this->window->get_height(), 1};
+        timg.set_images({.images = std::array{this->context->device.create_image(new_info)}});
     }
-    depth.set_images({
-        .images = std::array{
-            this->context->device.create_image({
-                .format = daxa::Format::D32_SFLOAT,
-                .aspect = daxa::ImageAspectFlagBits::DEPTH,
-                .size = {this->window->get_width(), this->window->get_height(), 1},
-                .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
-                .name = depth.info().name,
-            })},
-    });
 }
 
 void Renderer::window_resized()
@@ -362,18 +371,19 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
     });
 
-    t_find_visible_meshlets(
-        this->context,
-        task_list,
-        ent_meshlet_count_prefix_sum_buffer,
-        entity_meta,
-        entity_meshlists,
-        asset_manager->tmeshes,
-        instanciated_meshlets,
-        [=]()
+    task_list.add_task(FindVisibleMeshletsTask{
         {
-            return this->asset_manager->total_meshlet_count;
-        });
+            .uses = {
+                .prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
+                .entity_meta_data = entity_meta.handle(),
+                .entity_meshlists = entity_meshlists.handle(),
+                .meshes = asset_manager->tmeshes.handle(),
+                .instanciated_meshlets = instanciated_meshlets.handle(),
+            },
+        },
+        context->compute_pipelines[FindVisibleMeshletsTask::NAME],
+        &this->asset_manager->total_meshlet_count,
+    });
 
     task_list.add_task({
         .uses = {
@@ -411,14 +421,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
         context});
 
-    t_draw_triangle({
-        .task_list = task_list,
-        .context = *(this->context),
-        .t_swapchain_image = swapchain_image,
-        .t_depth_image = depth,
-        .t_shader_globals = globals,
-    });
-
     task_list.add_task(DrawOpaqueIdTask{
         {
             .uses = {
@@ -431,7 +433,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .entity_debug = entity_debug.handle(),
                 .meshes = asset_manager->tmeshes.handle(),
                 .combined_transforms = entity_combined_transforms.handle(),
-            }
+            },
         },
         context->raster_pipelines[DrawOpaqueIdTask{}.name],
         context = context,

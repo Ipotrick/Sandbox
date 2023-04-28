@@ -1,7 +1,6 @@
-#include <daxa/daxa.inl>
-
 #extension GL_EXT_debug_printf : enable
 
+#include <daxa/daxa.inl>
 #include "find_visible_meshlets.inl"
 
 DEFINE_PUSHCONSTANT(FindVisibleMeshletsPush, push)
@@ -9,7 +8,7 @@ layout(local_size_x = FIND_VISIBLE_MESHLETS_WORKGROUP_X) in;
 void main()
 {
     const int meshlet_instance_index = int(gl_GlobalInvocationID.x);
-    const int entity_count = int(deref(push.entity_meta_data).entity_count);
+    const int entity_count = int(deref(entity_meta_data).entity_count);
 
     // Binary Serarch the entity the meshlet id belongs to.
     InstanciatedMeshlet instanced_meshlet;
@@ -30,12 +29,12 @@ void main()
     while(true)
     {
         ++iter;
-        const int meshlet_sum_for_entity = int(deref(push.prefix_sum_mehslet_counts[middle]));
+        const int meshlet_sum_for_entity = int(deref(prefix_sum_mehslet_counts[middle]));
         int meshlet_sum_prev_entity = 0;
         if (middle != 0)
         {
             const uint index = middle - 1;
-            meshlet_sum_prev_entity = int(deref(push.prefix_sum_mehslet_counts[index]));
+            meshlet_sum_prev_entity = int(deref(prefix_sum_mehslet_counts[index]));
         }
 
         if (last < first)
@@ -43,7 +42,7 @@ void main()
             instanced_meshlet.entity_index = up_count;
             instanced_meshlet.mesh_index = down_count;
             instanced_meshlet.meshlet_index = iter;
-            deref(push.instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
+            deref(instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
             return;
         }
         if (meshlet_instance_index < meshlet_sum_prev_entity)
@@ -69,13 +68,13 @@ void main()
     // TODO(pahrens): there is a bug here causing the last few threads to think they belong to entity index 11, meshlet 12...
     // middle is now the entity the meshlet id belongs to.
     // Now find the mesh, the meshlet belongs to within the entity.
-    const MeshList mesh_list = deref(push.entity_meshlists[instanced_meshlet.entity_index]);
+    const MeshList mesh_list = deref(entity_meshlists[instanced_meshlet.entity_index]);
     int entity_meshlet_sum = 0;
     for (int mesh_i = 0; mesh_i < mesh_list.count; ++mesh_i)
     {
         const uint mesh_id = mesh_list.mesh_indices[mesh_i];
         int meshlet_count_range_begin = entity_meshlet_sum;
-        entity_meshlet_sum += int(deref(push.meshes[mesh_id]).meshlet_count);
+        entity_meshlet_sum += int(deref(meshes[mesh_id]).meshlet_count);
         int meshlet_count_range_end = entity_meshlet_sum;
 
         if (in_entity_meshlet_index >= meshlet_count_range_begin && in_entity_meshlet_index < meshlet_count_range_end)
@@ -87,5 +86,5 @@ void main()
         }
     }
 
-    deref(push.instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
+    deref(instanciated_meshlets[meshlet_instance_index]) = instanced_meshlet;
 }

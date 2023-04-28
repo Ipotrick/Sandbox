@@ -47,8 +47,10 @@ struct Renderer
     // Render Targets:
     daxa::TaskImage swapchain_image = {};
     daxa::TaskImage depth = {};
+    daxa::TaskImage debug_image = {};
 
     std::vector<daxa::TaskImage> images = {};
+    std::vector<std::pair<daxa::ImageInfo, daxa::TaskImage>> frame_buffer_images = {};
 
     Window *window = {};
     GPUContext *context = {};
