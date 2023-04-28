@@ -3,6 +3,7 @@
 #include <assimp/Importer.hpp>
 #include <assimp/mesh.h>
 #include <assimp/scene.h>
+#include <assimp/postprocess.h>
 #include <assimp/IOStream.hpp>
 #include <assimp/IOSystem.hpp>
 
@@ -66,6 +67,10 @@ struct AssetManager
         constexpr usize MAX_TRIANGLES = 124;
         // No clue what cone culling is.
         constexpr float CONE_WEIGHT = 0.0f;
+        std::vector<u32> optimized_indices = {};
+        optimized_indices.resize(index_buffer.size());
+        meshopt_optimizeVertexCache(optimized_indices.data(), index_buffer.data(), index_buffer.size(), aimesh->mNumVertices);
+        index_buffer = optimized_indices;
         size_t max_meshlets = meshopt_buildMeshletsBound(index_buffer.size(), MAX_VERTICES, MAX_TRIANGLES);
         std::vector<meshopt_Meshlet> meshlets(max_meshlets);
         std::vector<u32> meshlet_indirect_vertices(max_meshlets * MAX_VERTICES);

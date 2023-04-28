@@ -79,7 +79,21 @@ void CameraController::update_matrices(Window &window)
     {
         fov *= 0.25f;
     }
-    glm::mat4 prespective = glm::perspective(glm::radians(fov), (f32)window.get_width() / (f32)window.get_height(), near, far);
+    auto inf_depth_reverse_z_perspective = [](auto fov_rads, auto aspect, auto zNear)
+    {
+		assert(abs(aspect - std::numeric_limits<f32>::epsilon()) > 0.0f);
+
+		f32 const tanHalfFovy = std::tan(fov_rads * 0.5f);
+
+		glm::mat4x4 ret(0.0f);
+		ret[0][0] = tanHalfFovy * aspect;
+		ret[1][1] = tanHalfFovy;
+        ret[2][2] = 0.0f;
+        ret[2][3] = -1.0f;
+        ret[3][2] = zNear;
+		return ret;
+    };
+    glm::mat4 prespective = inf_depth_reverse_z_perspective(glm::radians(fov), f32(window.get_height()) / f32(window.get_width()), near);
     prespective[1][1] *= -1.0f;
     this->cam_info.proj = prespective;
     this->cam_info.view = glm::lookAt(position, position + forward, up);

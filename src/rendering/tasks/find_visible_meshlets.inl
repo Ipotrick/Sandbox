@@ -1,6 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
+#include <daxa/utils/task_list.inl>
 
 #include "../../../shaders/shared.inl"
 #include "../../scene/scene.inl"
