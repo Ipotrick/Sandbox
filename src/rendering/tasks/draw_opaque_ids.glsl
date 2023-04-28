@@ -41,7 +41,7 @@ void main()
     mat4 model_matrix = combined_transforms[instanciated_meshlet.entity_index].value;
 
     vec4 worldPos = model_matrix * vertex_position.xzyw;
-    vec4 pos = globals.value.camera_view_projection * vertex_position.xyzw;
+    vec4 pos = globals.camera_view_projection * vertex_position.xyzw;
 
     kill = 0.0f;
 

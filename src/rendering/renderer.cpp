@@ -103,17 +103,6 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .name = "entity_debug",
     }};
 
-    globals = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(ShaderGlobals),
-                    .name = "globals",
-                }),
-            },
-        },
-        .name = "globals",
-    }};
     instanciated_meshlets = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
@@ -168,7 +157,6 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_parents,
         entity_meshlists,
         entity_debug,
-        globals,
         instanciated_meshlets,
         index_buffer,
         ent_meshlet_count_prefix_sum_buffer,
@@ -333,29 +321,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.use_persistent_image(swapchain_image);
     auto depth_handle = depth.handle().subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
 
-    task_list.add_task({
-        .uses = {
-            BufferHostTransferWrite{globals},
-        },
-        .task = [=](daxa::TaskInterface ti)
-        {
-            auto cmd = ti.get_command_list();
-            auto staging_buffer = ti.get_device().create_buffer({
-                .size = sizeof(ShaderGlobals),
-                .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
-                .name = "ShaderGlobals staging buffer",
-            });
-            cmd.destroy_buffer_deferred(staging_buffer);
-            *ti.get_device().get_host_address_as<ShaderGlobals>(staging_buffer) = context->shader_globals;
-            cmd.copy_buffer_to_buffer({
-                .src_buffer = staging_buffer,
-                .dst_buffer = ti.uses[globals].buffer(),
-                .size = sizeof(ShaderGlobals),
-            });
-        },
-        .name = "buffer uploads",
-    });
-
     task_list.add_task(PrefixSumMeshletTask{
         .uses = {
             .meshes = asset_manager->tmeshes.handle(),
@@ -452,7 +417,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .visbuffer = visbuffer.handle(),
                 .debug_image = debug_image.handle(),
                 .depth_image = depth_handle,
-                .globals = globals.handle(),
                 .draw_info_index_buffer = index_buffer.handle(),
                 .instanciated_meshlets = instanciated_meshlets.handle(),
                 .entity_meshlists = entity_meshlists.handle(),
@@ -487,9 +451,20 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     {
         std::cout << opt.value().to_string() << std::endl;
     }
+    u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % context->swapchain.info().max_allowed_frames_in_flight;
+    
     this->context->shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
     this->context->shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
     this->context->shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+
+    context->device.get_host_address_as<ShaderGlobals>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
+    context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobals) * flight_frame_index;
+    context->shader_globals_set_info = {
+        .slot = SHADER_GLOBALS_SLOT,
+        .buffer = context->shader_globals_buffer,
+        .size = sizeof(ShaderGlobals),
+        .offset = sizeof(ShaderGlobals) * flight_frame_index,
+    };  
 
     this->context->meshlet_sums_step2_dispatch_size = (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE;
     this->context->total_meshlet_count = this->asset_manager->total_meshlet_count;

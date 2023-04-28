@@ -56,10 +56,16 @@ GPUContext::GPUContext(Window const &window)
           .device = this->device,
           .capacity = 4096,
           .name = "transient memory pool",
-      }}
+      }},
+      shader_globals_buffer{this->device.create_buffer({
+        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+        .size = sizeof(ShaderGlobals) * 4,
+        .name = "globals",
+      })}
 {
 }
 
 GPUContext::~GPUContext()
 {
+    device.destroy_buffer(shader_globals_buffer);
 }

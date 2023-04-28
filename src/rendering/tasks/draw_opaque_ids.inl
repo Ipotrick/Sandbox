@@ -11,7 +11,6 @@ DAXA_INL_TASK_USE_BEGIN(DrawOpaqueId, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_IMAGE(visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
 DAXA_INL_TASK_USE_IMAGE(debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
 DAXA_INL_TASK_USE_IMAGE(depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
-DAXA_INL_TASK_USE_BUFFER(globals, daxa_BufferPtr(ShaderGlobals), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
 DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
@@ -69,6 +68,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
     {
         daxa::CommandList cmd = ti.get_command_list();
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_constant_buffer(context->shader_globals_set_info);
         daxa::ImageId visbuffer = uses.visbuffer.image();
         daxa::ImageId debug_image = uses.debug_image.image();
         daxa::ImageId depth_image = uses.depth_image.image();

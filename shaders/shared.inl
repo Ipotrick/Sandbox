@@ -2,6 +2,8 @@
 
 #include <daxa/daxa.inl>
 
+#define SHADER_GLOBALS_SLOT 0
+
 struct ShaderGlobals
 {
     daxa_f32mat4x4 camera_view;
@@ -9,6 +11,13 @@ struct ShaderGlobals
     daxa_f32mat4x4 camera_view_projection;
 };
 DAXA_ENABLE_BUFFER_PTR(ShaderGlobals)
+
+#if DAXA_SHADER
+DAXA_CONSTANT_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
+{
+    ShaderGlobals globals;
+};
+#endif
 
 #define MAX_DRAWN_MESHLETS 1000000
 #define MAX_DRAWN_TRIANGLES 1000000000u

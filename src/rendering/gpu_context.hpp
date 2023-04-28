@@ -13,9 +13,12 @@ struct GPUContext
     daxa::Device device = {};
     daxa::Swapchain swapchain = {};
     daxa::PipelineManager pipeline_manager = {};
-    ShaderGlobals shader_globals = {};
-    daxa::types::BufferDeviceAddress shader_globals_ptr = {};
     daxa::TransferMemoryPool transient_mem;
+
+    ShaderGlobals shader_globals = {};
+    daxa::BufferId shader_globals_buffer = {};
+    daxa::types::BufferDeviceAddress shader_globals_ptr = {};
+    daxa::SetConstantBufferInfo shader_globals_set_info = {};
 
     // Pipelines:
     std::unordered_map<std::string_view, std::shared_ptr<daxa::RasterPipeline>> raster_pipelines = {};

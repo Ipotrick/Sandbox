@@ -35,7 +35,6 @@ struct Renderer
     daxa::TaskBuffer entity_meshlists = {};
     daxa::TaskBuffer entity_debug = {};
 
-    daxa::TaskBuffer globals = {};
     daxa::TaskBuffer instanciated_meshlets = {};
     daxa::TaskBuffer index_buffer = {};
     daxa::TaskBuffer ent_meshlet_count_prefix_sum_buffer = {};
