@@ -92,6 +92,17 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "entity_meshlists",
     }};
+    entity_debug = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(daxa_u32vec4) * MAX_ENTITY_COUNT,
+                    .name = "entity_debug",
+                }),
+            },
+        },
+        .name = "entity_debug",
+    }};
 
     globals = daxa::TaskBuffer{{
         .initial_buffers = {
@@ -169,6 +180,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
+        entity_debug,
         globals,
         instanciated_meshlets,
         index_buffer,
@@ -416,6 +428,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .draw_info_index_buffer = index_buffer.handle(),
                 .instanciated_meshlets = instanciated_meshlets.handle(),
                 .entity_meshlists = entity_meshlists.handle(),
+                .entity_debug = entity_debug.handle(),
                 .meshes = asset_manager->tmeshes.handle(),
                 .combined_transforms = entity_combined_transforms.handle(),
             }

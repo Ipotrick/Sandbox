@@ -39,8 +39,7 @@ void Scene::record_full_entity_update(
     daxa::BufferId b_entity_first_children,
     daxa::BufferId b_entity_next_siblings,
     daxa::BufferId b_entity_parents,
-    daxa::BufferId b_entity_meshlists
-    )
+    daxa::BufferId b_entity_meshlists)
 {
     auto upload = [&](auto& src_field, auto& dst_buffer, auto dummy, usize count)
     {
@@ -68,35 +67,18 @@ void Scene::record_full_entity_update(
     upload(this->entity_meshlists, b_entity_meshlists, MeshList{}, MAX_ENTITY_COUNT);
 }
 
-
-// TODO FIX
 void Scene::set_combined_transforms()
 {
-    std::vector<EntityId> frontier{};
-    if (this->root_entity.index == INVALID_ENTITY_INDEX)
+    for (u32 entity_index = 0; entity_index < entity_meta.entity_count; ++entity_index)
     {
-        return;
-    }
-    EntityId scene_ent = this->entity_first_children[this->root_entity.index];
-    while (scene_ent.index != INVALID_ENTITY_INDEX)
-    {
-        frontier.push_back(scene_ent);
-        EntityId sibling = this->entity_first_children[scene_ent.index];
-        scene_ent = sibling;
-    }
-    while (!frontier.empty())
-    {
-        EntityId ent = frontier.back();
-        frontier.pop_back();
-        EntityId parent = this->entity_parents[ent.index];
-        this->entity_combined_transforms[ent.index] = this->entity_combined_transforms[parent.index] * this->entity_transforms[ent.index];
-        EntityId child = this->entity_first_children[ent.index];
-        while (child.index != INVALID_ENTITY_INDEX)
+        daxa::types::f32mat4x4 combined_transform = entity_transforms[entity_index];
+        EntityId parent = entity_parents[entity_index];
+        while (parent.index != INVALID_ENTITY_INDEX)
         {
-            frontier.push_back(child);
-            auto const old_child = child;
-            EntityId child = this->entity_first_children[old_child.index];
+            combined_transform = entity_transforms[parent.index] * combined_transform;
+            parent = entity_parents[parent.index];
         }
+        entity_combined_transforms[entity_index] = combined_transform;
     }
 }
 

@@ -78,7 +78,7 @@ void prefix_sum_twoppass_finalize(
 
 #if defined(ENTRY_PREFIX_SUM_TWO_PASS_FINALIZE)
 DEFINE_PUSHCONSTANT(PrefixSumTwoPassFinalizePush, push)
-layout(local_size_x = PREFIX_SUM_TWO_PASS_FINALIZE_WORKGROUP_SIZE) in;
+layout(local_size_x = PREFIX_SUM_WORKGROUP_SIZE) in;
 void main()
 {
     const uint global_index = gl_GlobalInvocationID.x;

@@ -75,7 +75,7 @@ void main()
             uint vertex_id = 0;
             encode_vertex_id(instanced_meshlet_index, micro_index, vertex_id);
             triangle_id[tri_index] = vertex_id;
-            index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + tri_index].value = vertex_id;
+            index_buffer[index_buffer_offset + meshlet_triangle_index * 3 + tri_index].value = vertex_id;
         }
         //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 0].value = triangle_id[0];
         //index_buffer[(index_buffer_offset + meshlet_triangle_index) * 3 + 1].value = triangle_id[1];

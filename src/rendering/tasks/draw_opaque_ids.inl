@@ -14,6 +14,7 @@ DAXA_INL_TASK_USE_BUFFER(globals, daxa_BufferPtr(ShaderGlobals), VERTEX_SHADER_R
 DAXA_INL_TASK_USE_BUFFER(draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
 DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_BUFFER(meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_END()
@@ -40,9 +41,9 @@ inline static const daxa::RasterPipelineCompileInfo DRAW_OPAQUE_IDS_PIPELINE_INF
         .depth_attachment_format = daxa::Format::D32_SFLOAT,
         .enable_depth_test = true,
         .enable_depth_write = true,
-        .depth_test_compare_op = daxa::CompareOp::GREATER_OR_EQUAL,
-        .min_depth_bounds = 1.0f,
-        .max_depth_bounds = 0.0f,
+        .depth_test_compare_op = daxa::CompareOp::LESS_OR_EQUAL,
+        .min_depth_bounds = 0.0f,
+        .max_depth_bounds = 1.0f,
     },
     .name = std::string{DrawOpaqueId{}.name},
 };
@@ -72,7 +73,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                 .load_op = daxa::AttachmentLoadOp::CLEAR,
                 .store_op = daxa::AttachmentStoreOp::STORE,
-                .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
+                .clear_value = daxa::ClearValue{daxa::DepthValue{1.0f, 0}},
             },
             .render_area = daxa::Rect2D{
                 .width = (ti.get_device().info_image(id_image).size.x),
@@ -95,6 +96,10 @@ struct DrawOpaqueIdTask : DrawOpaqueId
 #elif DAXA_SHADER
 #extension GL_EXT_debug_printf : enable
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
+
+layout(location = 2) out vec3 wPos;
+layout(location = 1) out float kill;
+
 void main()
 {
     uint vertex_id = gl_VertexIndex;
@@ -126,13 +131,30 @@ void main()
     const vec4 vertex_position = vec4(mesh.value.vertex_positions[vertex_index].value, 1);
     mat4 model_matrix = combined_transforms[instanciated_meshlet.entity_index].value;
 
-    gl_Position = globals.value.camera_view_projection * vertex_position;
+    vec4 worldPos = model_matrix * vertex_position.xzyw;
+    vec4 pos = globals.value.camera_view_projection * vertex_position.xyzw;
+
+    kill = 0.0f;
+    if (pos.z < -10000.0f)
+    {
+        kill = 1.0f;
+        atomicAdd(entity_debug[instanciated_meshlet.entity_index].value.x, 1);
+    }
+
+    wPos = vertex_position.xyz;
+    gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
 layout(location = 0) out vec4 fout_color;
+layout(location = 1) in float kill;
+layout(location = 2) in vec3 wPos;
 void main()
 {
-    fout_color = vec4(0,0,0,1);
+    if (kill > 0.0f)
+    {
+        discard;
+    }
+    fout_color = vec4(fract(wPos * 0.01),1);
 }
 #endif
 

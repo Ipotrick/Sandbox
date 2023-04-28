@@ -33,6 +33,7 @@ struct Renderer
     daxa::TaskBuffer entity_next_silbings = {};
     daxa::TaskBuffer entity_parents = {};
     daxa::TaskBuffer entity_meshlists = {};
+    daxa::TaskBuffer entity_debug = {};
 
     daxa::TaskBuffer globals = {};
     daxa::TaskBuffer instanciated_meshlets = {};

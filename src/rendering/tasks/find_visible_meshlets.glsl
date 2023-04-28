@@ -1,5 +1,7 @@
 #include <daxa/daxa.inl>
 
+#extension GL_EXT_debug_printf : enable
+
 #include "find_visible_meshlets.inl"
 
 DEFINE_PUSHCONSTANT(FindVisibleMeshletsPush, push)
@@ -64,6 +66,7 @@ void main()
 
         middle = (first + last) / 2;
     }
+    // TODO(pahrens): there is a bug here causing the last few threads to think they belong to entity index 11, meshlet 12...
     // middle is now the entity the meshlet id belongs to.
     // Now find the mesh, the meshlet belongs to within the entity.
     const MeshList mesh_list = deref(push.entity_meshlists[instanced_meshlet.entity_index]);

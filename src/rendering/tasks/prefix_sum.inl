@@ -103,9 +103,7 @@ struct PrefixSumFinalizeTask
             .partial_sums = ti.get_device().get_device_address(uses.partial_sums.buffer()),
             .values = ti.get_device().get_device_address(uses.values.buffer()),
         });
-        const u32 workgroups = static_cast<u32>(std::max(0, static_cast<i32>(round_up_div(*config.value_count, PREFIX_SUM_WORKGROUP_SIZE)) - 1));
-        const u32 dispatch_x = workgroups * (PREFIX_SUM_WORKGROUP_SIZE / PREFIX_SUM_TWO_PASS_FINALIZE_WORKGROUP_SIZE);
-        cmd.dispatch(dispatch_x, 1, 1);
+        cmd.dispatch(round_up_div(*config.value_count, PREFIX_SUM_WORKGROUP_SIZE), 1, 1);
     }
 };
 
