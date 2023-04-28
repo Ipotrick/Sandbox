@@ -47,6 +47,7 @@ struct Renderer
     // Render Targets:
     daxa::TaskImage swapchain_image = {};
     daxa::TaskImage depth = {};
+    daxa::TaskImage visbuffer = {};
     daxa::TaskImage debug_image = {};
 
     std::vector<daxa::TaskImage> images = {};

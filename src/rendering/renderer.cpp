@@ -6,6 +6,7 @@
 #include "tasks/generate_index_buffer.inl"
 #include "tasks/prefix_sum.inl"
 #include "tasks/draw_opaque_ids.inl"
+#include "tasks/write_swapchain.inl"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -180,12 +181,16 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     depth = daxa::TaskImage{{
         .name = "depth",
     }};
+    visbuffer = daxa::TaskImage{{
+        .name = "visbuffer",
+    }};
     debug_image = daxa::TaskImage{{
         .name = "debug_image",
     }};
 
     images = {
         debug_image,
+        visbuffer,
         depth,
     };
 
@@ -201,11 +206,21 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         {
             {
+                .format = daxa::Format::R32_UINT,
+                .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT |
+                         daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
+                .name = visbuffer.info().name,
+            },
+            visbuffer,
+        },
+        {
+            {
                 .format = daxa::Format::R16G16B16A16_SFLOAT,
                 .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT |
                          daxa::ImageUsageFlagBits::TRANSFER_DST |
                          daxa::ImageUsageFlagBits::TRANSFER_SRC |
-                         daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
+                         daxa::ImageUsageFlagBits::SHADER_READ_WRITE |
+                         daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
                 .name = debug_image.info().name,
             },
             debug_image,
@@ -256,6 +271,7 @@ void Renderer::compile_pipelines()
         {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
         {FindVisibleMeshletsTask::NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
         {GenIndexBufferTask::NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
+        {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
     };
     for (auto [name, info] : computes)
     {
@@ -291,6 +307,14 @@ void Renderer::window_resized()
 
 auto Renderer::create_main_task_list() -> daxa::TaskList
 {
+    // Renderer progression:
+    //   - update metadata
+    //   - cull entities, generate list of entities to draw
+    //   - generate prefix sum of meshlets of all to be drawn entities.
+    //   - expand meshlet prefix sum into instanciated meshlet list.
+    //   - expand instanciated meshlet list into index buffer
+    //   - draw visbuffer and depth
+    //   - write to swapchain (blend debug texture on swapchain)
     using namespace daxa;
     TaskList task_list{{
         .device = this->context->device,
@@ -419,12 +443,14 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .index_buffer_and_count = index_buffer.handle(),
             },
         },
-        context});
+        context,
+    });
 
     task_list.add_task(DrawOpaqueIdTask{
         {
             .uses = {
-                .id_image = swapchain_image.handle(),
+                .visbuffer = visbuffer.handle(),
+                .debug_image = debug_image.handle(),
                 .depth_image = depth_handle,
                 .globals = globals.handle(),
                 .draw_info_index_buffer = index_buffer.handle(),
@@ -437,6 +463,11 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
         context->raster_pipelines[DrawOpaqueIdTask{}.name],
         context = context,
+    });
+
+    task_list.add_task(WriteSwapchainTask{
+        {.uses = {swapchain_image.handle(), debug_image.handle()}},
+        context->compute_pipelines[WriteSwapchainTask::NAME],
     });
 
     task_list.submit({.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});

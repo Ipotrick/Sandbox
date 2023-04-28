@@ -27,6 +27,16 @@ GPUContext::GPUContext(Window const &window)
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
           .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,
+          .surface_format_selector = [&](daxa::Format format) -> i32
+          {
+                switch (format)
+                {
+                case daxa::Format::R8G8B8A8_UNORM: return 80;
+                case daxa::Format::B8G8R8A8_UNORM: return 60;
+                default: return 0;
+                }
+          },
+          .image_usage = daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
           .name = "Sandbox Swapchain",
       })},
       pipeline_manager{daxa::PipelineManager{{

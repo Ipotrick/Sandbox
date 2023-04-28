@@ -49,19 +49,18 @@ void main()
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-layout(location = 0) out vec4 fout_color;
 layout(location = 1) in float kill;
 layout(location = 2) in vec3 wPos;
 layout(location = 3) flat in uint vout_instanciated_meshlet_index;
+
+layout(location = 0) out uint visibility_id;
+layout(location = 1) out vec4 debug_color;
 void main()
 {
-    if (kill > 0.0f)
-    {
-        discard;
-    }
     float f = float(vout_instanciated_meshlet_index) * 0.13213213232;
     vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
     color = color * 0.5 + 0.5;
-    fout_color = vec4(color,1);
+    visibility_id = 1;
+    debug_color = vec4(color,1);
 }
 #endif
