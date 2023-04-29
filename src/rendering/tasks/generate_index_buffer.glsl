@@ -11,13 +11,15 @@ void main()
 {
     const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.x;
     const daxa_u32 meshlet_triangle_index = gl_LocalInvocationID.x;
-    daxa_RWBufferPtr(DrawIndexedIndirectInfo) draw_info = daxa_RWBufferPtrDrawIndexedIndirectInfo(daxa_u64(index_buffer_and_count));
-    daxa_RWBufferPtr(daxa_u32) index_buffer = index_buffer_and_count + 8;
+    daxa_RWBufferPtr(DrawIndexedIndirectInfo) draw_info = daxa_RWBufferPtrDrawIndexedIndirectInfo(daxa_u64(u_index_buffer_and_count));
+    daxa_RWBufferPtr(daxa_u32) index_buffer = u_index_buffer_and_count + 8;
 
+    daxa_BufferPtr(InstanciatedMeshlet) instanciated_meshlets = 
+        daxa_BufferPtr(InstanciatedMeshlet)(daxa_u64(u_instanciated_meshlets) + 32);
     InstanciatedMeshlet instanced_meshlet = deref(instanciated_meshlets[instanced_meshlet_index]);
-    Meshlet meshlet = meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(meshes[instanced_meshlet.mesh_id]).micro_indices;
-    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(meshes[instanced_meshlet.mesh_id]).indirect_vertices;
+    Meshlet meshlet = u_meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instanced_meshlet.mesh_id]).micro_indices;
+    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(u_meshes[instanced_meshlet.mesh_id]).indirect_vertices;
     const uint triangle_count = meshlet.triangle_count;
     const bool is_active = meshlet_triangle_index < meshlet.triangle_count;
     if (gl_LocalInvocationID.x == 0)

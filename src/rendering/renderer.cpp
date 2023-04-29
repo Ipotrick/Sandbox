@@ -107,7 +107,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(MeshletDrawInfo) * MAX_DRAWN_MESHLETS + /*reserved space for a counter*/ 16,
+                    .size = sizeof(MeshletDrawInfo) * MAX_DRAWN_MESHLETS + /*reserved space for dispatch indirect info*/ 32,
                     .name = "instanciated_meshlets",
                 }),
             },
@@ -215,7 +215,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
     };
 
-    recreate_resizable_images();
+    recreate_framebuffer();
 
     compile_pipelines();
 
@@ -269,7 +269,7 @@ void Renderer::compile_pipelines()
     }
 }
 
-void Renderer::recreate_resizable_images()
+void Renderer::recreate_framebuffer()
 {
     for (auto &[info, timg] : frame_buffer_images)
     {
@@ -290,7 +290,7 @@ void Renderer::window_resized()
         return;
     }
     this->context->swapchain.resize();
-    recreate_resizable_images();
+    recreate_framebuffer();
 }
 
 auto Renderer::create_main_task_list() -> daxa::TaskList
@@ -360,14 +360,38 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
     });
 
+    task_list.add_task({
+        .uses = {
+            daxa::BufferHostTransferWrite{instanciated_meshlets},
+        },
+        .task = [=](daxa::TaskInterface ti)
+        {
+            daxa::CommandList cmd = ti.get_command_list();
+            auto alloc = this->context->transient_mem.allocate(sizeof(DispatchIndirectStruct)).value();
+            *reinterpret_cast<DispatchIndirectStruct *>(alloc.host_address) = DispatchIndirectStruct{
+                .x = 0,
+                .y = 1,
+                .z = 1,
+            };
+            cmd.copy_buffer_to_buffer({
+                .src_buffer = this->context->transient_mem.get_buffer(),
+                .src_offset = alloc.buffer_offset,
+                .dst_buffer = ti.uses[instanciated_meshlets].buffer(),
+                .dst_offset = 0,
+                .size = sizeof(DispatchIndirectStruct),
+            });
+        },
+        .name = "clear instanciated meshlet counter",
+    });
+
     task_list.add_task(FindVisibleMeshletsTask{
         {
             .uses = {
-                .prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
-                .entity_meta_data = entity_meta.handle(),
-                .entity_meshlists = entity_meshlists.handle(),
-                .meshes = asset_manager->tmeshes.handle(),
-                .instanciated_meshlets = instanciated_meshlets.handle(),
+                .u_prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
+                .u_entity_meta_data = entity_meta.handle(),
+                .u_entity_meshlists = entity_meshlists.handle(),
+                .u_meshes = asset_manager->tmeshes.handle(),
+                .u_instanciated_meshlets = instanciated_meshlets.handle(),
             },
         },
         context->compute_pipelines[FindVisibleMeshletsTask::NAME],
@@ -403,9 +427,9 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.add_task(GenIndexBufferTask{
         {
             .uses = {
-                .meshes = asset_manager->tmeshes.handle(),
-                .instanciated_meshlets = instanciated_meshlets.handle(),
-                .index_buffer_and_count = index_buffer.handle(),
+                .u_meshes = asset_manager->tmeshes.handle(),
+                .u_instanciated_meshlets = instanciated_meshlets.handle(),
+                .u_index_buffer_and_count = index_buffer.handle(),
             },
         },
         context,
@@ -414,15 +438,15 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.add_task(DrawOpaqueIdTask{
         {
             .uses = {
-                .visbuffer = visbuffer.handle(),
-                .debug_image = debug_image.handle(),
-                .depth_image = depth_handle,
-                .draw_info_index_buffer = index_buffer.handle(),
-                .instanciated_meshlets = instanciated_meshlets.handle(),
-                .entity_meshlists = entity_meshlists.handle(),
-                .entity_debug = entity_debug.handle(),
-                .meshes = asset_manager->tmeshes.handle(),
-                .combined_transforms = entity_combined_transforms.handle(),
+                .u_visbuffer = visbuffer.handle(),
+                .u_debug_image = debug_image.handle(),
+                .u_depth_image = depth_handle,
+                .u_draw_info_index_buffer = index_buffer.handle(),
+                .u_instanciated_meshlets = instanciated_meshlets.handle(),
+                .u_entity_meshlists = entity_meshlists.handle(),
+                .u_entity_debug = entity_debug.handle(),
+                .u_meshes = asset_manager->tmeshes.handle(),
+                .u_combined_transforms = entity_combined_transforms.handle(),
             },
         },
         context->raster_pipelines[DrawOpaqueIdTask{}.name],

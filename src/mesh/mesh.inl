@@ -35,7 +35,7 @@ struct MeshDrawInfo
 };
 
 #define MAX_TRIANGLES_PER_MESHLET 124
-#define MAX_VERTICES_PER_MESHLET 64
+#define MAX_VERTICES_PER_MESHLET 128
 
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet
@@ -126,6 +126,8 @@ struct Mesh
 {
     daxa_BufferId mesh_buffer;
     daxa_u32 meshlet_count;
+    daxa_u32 vertex_count;
+    daxa_u64 end_ptr;
     daxa_BufferPtr(Meshlet) meshlets;
     daxa_BufferPtr(BoundingSphere) meshlet_bounds;
     daxa_BufferPtr(daxa_u32) micro_indices;

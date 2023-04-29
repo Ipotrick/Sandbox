@@ -11,9 +11,9 @@
 #define GENERATE_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
 
 DAXA_INL_TASK_USE_BEGIN(GenIndexBufferBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
+DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
 #if __cplusplus

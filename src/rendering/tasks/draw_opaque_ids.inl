@@ -8,15 +8,15 @@
 #include "../../mesh/mesh.inl"
 
 DAXA_INL_TASK_USE_BEGIN(DrawOpaqueId, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_IMAGE(visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
-DAXA_INL_TASK_USE_BUFFER(draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
-DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
-DAXA_INL_TASK_USE_BUFFER(meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_IMAGE(u_visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
+DAXA_INL_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
+DAXA_INL_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
+DAXA_INL_TASK_USE_BUFFER(u_draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
+DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_END()
 
 #if __cplusplus
@@ -69,9 +69,9 @@ struct DrawOpaqueIdTask : DrawOpaqueId
         daxa::CommandList cmd = ti.get_command_list();
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         cmd.set_constant_buffer(context->shader_globals_set_info);
-        daxa::ImageId visbuffer = uses.visbuffer.image();
-        daxa::ImageId debug_image = uses.debug_image.image();
-        daxa::ImageId depth_image = uses.depth_image.image();
+        daxa::ImageId visbuffer = uses.u_visbuffer.image();
+        daxa::ImageId debug_image = uses.u_debug_image.image();
+        daxa::ImageId depth_image = uses.u_depth_image.image();
         cmd.begin_renderpass({
             .color_attachments = {
                 daxa::RenderAttachmentInfo{
@@ -102,9 +102,9 @@ struct DrawOpaqueIdTask : DrawOpaqueId
             },
         });
         cmd.set_pipeline(*pipeline);
-        cmd.set_index_buffer(uses.draw_info_index_buffer.buffer(), 32 /*draw info*/);
+        cmd.set_index_buffer(uses.u_draw_info_index_buffer.buffer(), 32 /*draw info*/);
         cmd.draw_indirect({
-            .draw_command_buffer = uses.draw_info_index_buffer.buffer(),
+            .draw_command_buffer = uses.u_draw_info_index_buffer.buffer(),
             .draw_command_buffer_read_offset = 0,
             .draw_count = 1,
             .draw_command_stride = 32,

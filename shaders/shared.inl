@@ -52,3 +52,12 @@ struct DrawIndexedIndirectInfo
     daxa_u32 first_instance;
 };
 DAXA_ENABLE_BUFFER_PTR(DrawIndexedIndirectInfo)
+
+
+struct DispatchIndirectStruct
+{
+    daxa_u32 x;
+    daxa_u32 y;
+    daxa_u32 z;
+};
+DAXA_ENABLE_BUFFER_PTR(DispatchIndirectStruct)

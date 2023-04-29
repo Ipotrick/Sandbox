@@ -63,8 +63,8 @@ struct AssetManager
         }
         // Nvidia optimal numbers.
         // Should work well on amd as well.
-        constexpr usize MAX_VERTICES = 64;
-        constexpr usize MAX_TRIANGLES = 124;
+        constexpr usize MAX_VERTICES = MAX_VERTICES_PER_MESHLET;
+        constexpr usize MAX_TRIANGLES = MAX_TRIANGLES_PER_MESHLET;
         // No clue what cone culling is.
         constexpr float CONE_WEIGHT = 0.0f;
         std::vector<u32> optimized_indices = {};
@@ -137,11 +137,13 @@ struct AssetManager
             .name = std::string("Mesh Buffer of mesh \"") + std::string(unique_name) + "\"",
         });
         mesh.meshlet_count = meshlets.size();
+        mesh.vertex_count = aimesh->mNumVertices;
         mesh.meshlets = device.get_device_address(mesh.mesh_buffer) + meshlet_array_offset;
         mesh.meshlet_bounds = device.get_device_address(mesh.mesh_buffer) + meshlet_bounds_array_offset;
         mesh.micro_indices = device.get_device_address(mesh.mesh_buffer) + micro_index_array_offset;
         mesh.indirect_vertices = device.get_device_address(mesh.mesh_buffer) + indirect_vertex_array_offset;
         mesh.vertex_positions = device.get_device_address(mesh.mesh_buffer) + vertex_positions_array_offset;
+        mesh.end_ptr = device.get_device_address(mesh.mesh_buffer) + allocation_size;
         // Stage buffer upload.
         daxa::BufferId staging_buffer = device.create_buffer({
             .size = allocation_size,

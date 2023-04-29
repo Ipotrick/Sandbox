@@ -8,14 +8,14 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-#define FIND_VISIBLE_MESHLETS_WORKGROUP_X 96
+#define FIND_VISIBLE_MESHLETS_WORKGROUP_X 128
 
 DAXA_INL_TASK_USE_BEGIN(FindVisibleMeshlets, DAXA_CBUFFER_SLOT1)
-    DAXA_INL_TASK_USE_BUFFER(prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(instanciated_meshlets, daxa_RWBufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ_WRITE)
+    DAXA_INL_TASK_USE_BUFFER(u_prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_RWBufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
 struct FindVisibleMeshletsPush
