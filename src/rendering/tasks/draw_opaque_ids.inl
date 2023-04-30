@@ -67,8 +67,8 @@ struct DrawOpaqueIdTask : DrawOpaqueId
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         cmd.set_constant_buffer(context->shader_globals_set_info);
+        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         daxa::ImageId visbuffer = uses.u_visbuffer.image();
         daxa::ImageId debug_image = uses.u_debug_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
@@ -108,7 +108,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
             .draw_command_buffer_read_offset = 0,
             .draw_count = 1,
             .draw_command_stride = 32,
-            .is_indexed = true,
+            .is_indexed = context->settings.indexed_id_rendering != 0,
         });
         cmd.end_renderpass();
     }

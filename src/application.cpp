@@ -152,7 +152,7 @@ auto Application::run() -> i32
             renderer.window_resized();
         }
         this->update();
-        this->renderer.render_frame(this->camera_controller.cam_info);
+        this->renderer.render_frame(this->camera_controller.cam_info, delta_time);
     }
     return 0;
 }
@@ -165,6 +165,11 @@ void Application::update()
     }
     camera_controller.process_input(this->window, this->delta_time);
     camera_controller.update_matrices(this->window);
+    if (window.key_just_pressed(GLFW_KEY_G))
+    {
+        std::cout << "switched indexed_id_rendering from " << renderer.context->settings.indexed_id_rendering << " to " << !(renderer.context->settings.indexed_id_rendering) << std::endl;
+        renderer.context->settings.indexed_id_rendering = !renderer.context->settings.indexed_id_rendering;
+    }
 }
 
 Application::~Application()

@@ -10,7 +10,7 @@
 
 #define GENERATE_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
 
-DAXA_INL_TASK_USE_BEGIN(GenIndexBufferBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BEGIN(GenDrawInfoBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
@@ -27,16 +27,26 @@ static const daxa::ComputePipelineCompileInfo GENERATE_INDEX_BUFFER_PIPELINE_INF
     .name = std::string{GENERATE_INDEX_BUFFER_NAME},
 };
 
-struct GenIndexBufferTask : GenIndexBufferBase
+struct GenDrawInfoTask : GenDrawInfoBase
 {
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
+        cmd.set_constant_buffer(context->shader_globals_set_info);
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
-        auto value_count = context->total_meshlet_count;
-        cmd.set_pipeline(*context->compute_pipelines.at(GenIndexBufferBase::NAME));
-        cmd.dispatch(round_up_div(value_count * MAX_TRIANGLES_PER_MESHLET, GENERATE_INDEX_BUFFER_WORKGROUP_X), 1, 1);
+        cmd.set_pipeline(*context->compute_pipelines.at(GenDrawInfoBase::NAME));
+        if (context->settings.indexed_id_rendering)
+        {
+            cmd.dispatch_indirect({
+                .indirect_buffer = uses.u_instanciated_meshlets.buffer(),
+                .offset = 0,
+            });
+        }
+        else
+        {
+            cmd.dispatch(1,1,1);
+        }
     }
 };
 #endif

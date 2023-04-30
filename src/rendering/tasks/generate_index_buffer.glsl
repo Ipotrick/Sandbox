@@ -9,9 +9,20 @@ shared uint index_buffer_offset;
 layout(local_size_x = GENERATE_INDEX_BUFFER_WORKGROUP_X) in;
 void main()
 {
+    const bool indexed_id_rendering = globals.settings.indexed_id_rendering == 1;
+    if (!indexed_id_rendering)
+    {
+        if (gl_GlobalInvocationID.x == 0)
+        {
+            daxa_RWBufferPtr(DrawIndirectStruct) draw_info = daxa_RWBufferPtr(DrawIndirectStruct)(daxa_u64(u_index_buffer_and_count));
+            daxa_BufferPtr(DispatchIndirectStruct) meshlet_dispatch = daxa_BufferPtr(DispatchIndirectStruct)(daxa_u64(u_instanciated_meshlets));
+            deref(draw_info).vertex_count = 128 * 3 * deref(meshlet_dispatch).x;
+        }
+        return;
+    }
     const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.x;
     const daxa_u32 meshlet_triangle_index = gl_LocalInvocationID.x;
-    daxa_RWBufferPtr(DrawIndexedIndirectInfo) draw_info = daxa_RWBufferPtrDrawIndexedIndirectInfo(daxa_u64(u_index_buffer_and_count));
+    daxa_RWBufferPtr(DrawIndexedIndirectStruct) draw_info = daxa_RWBufferPtr(DrawIndexedIndirectStruct)(daxa_u64(u_index_buffer_and_count));
     daxa_RWBufferPtr(daxa_u32) index_buffer = u_index_buffer_and_count + 8;
 
     daxa_BufferPtr(InstanciatedMeshlet) instanciated_meshlets = 
@@ -34,7 +45,6 @@ void main()
         uint triangle_id[3] = {0, 0, 0};
         for (uint tri_index = 0; tri_index < 3; ++tri_index)
         {
-            const uint mesh_local_index_buffer_index = meshlet_triangle_index * 3 + tri_index;
             const uint micro_index = get_micro_index(micro_index_buffer, mesh_index_offset + tri_index);
             uint vertex_id = 0;
             encode_vertex_id(instanced_meshlet_index, micro_index, vertex_id);

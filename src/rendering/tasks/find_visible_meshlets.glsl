@@ -90,7 +90,11 @@ void main()
         }
     }
 
-    uint out_index = atomicAdd(deref(instanciated_meshlet_counter), 1);
+    bool visible = true;//test_meshlet_instance_index > globals.frame_index;
 
-    deref(instanciated_meshlets[test_meshlet_instance_index]) = instanced_meshlet;
+    if (visible)
+    {
+        uint out_index = atomicAdd(deref(instanciated_meshlet_counter), 1);
+        deref(instanciated_meshlets[out_index]) = instanced_meshlet;
+    }
 }

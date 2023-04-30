@@ -219,6 +219,8 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
 
     compile_pipelines();
 
+    context->settings.indexed_id_rendering = 1;
+
     main_task_list = create_main_task_list();
 }
 
@@ -258,7 +260,7 @@ void Renderer::compile_pipelines()
         {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
         {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
         {FindVisibleMeshletsTask::NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
-        {GenIndexBufferTask::NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
+        {GenDrawInfoTask::NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
         {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
     };
     for (auto [name, info] : computes)
@@ -395,6 +397,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             },
         },
         context->compute_pipelines[FindVisibleMeshletsTask::NAME],
+        context,
         &this->asset_manager->total_meshlet_count,
     });
 
@@ -405,26 +408,46 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .task = [=](daxa::TaskInterface ti)
         {
             daxa::CommandList cmd = ti.get_command_list();
-            auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectInfo)).value();
-            *reinterpret_cast<DrawIndexedIndirectInfo *>(alloc.host_address) = DrawIndexedIndirectInfo{
-                .index_count = {},
-                .instance_count = 1,
-                .first_index = {},
-                .vertex_offset = {},
-                .first_instance = {},
-            };
-            cmd.copy_buffer_to_buffer({
-                .src_buffer = this->context->transient_mem.get_buffer(),
-                .src_offset = alloc.buffer_offset,
-                .dst_buffer = ti.uses[index_buffer].buffer(),
-                .dst_offset = 0,
-                .size = sizeof(DrawIndexedIndirectInfo),
-            });
+            if (context->settings.indexed_id_rendering)
+            {
+                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+                    .index_count = {},
+                    .instance_count = 1,
+                    .first_index = {},
+                    .vertex_offset = {},
+                    .first_instance = {},
+                };
+                cmd.copy_buffer_to_buffer({
+                    .src_buffer = this->context->transient_mem.get_buffer(),
+                    .src_offset = alloc.buffer_offset,
+                    .dst_buffer = ti.uses[index_buffer].buffer(),
+                    .dst_offset = 0,
+                    .size = sizeof(DrawIndexedIndirectStruct),
+                });
+            }
+            else
+            {
+                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndirectStruct)).value();
+                *reinterpret_cast<DrawIndirectStruct *>(alloc.host_address) = DrawIndirectStruct{
+                    .vertex_count = {},
+                    .instance_count = 1,
+                    .first_vertex = {},
+                    .first_instance = {},
+                };
+                cmd.copy_buffer_to_buffer({
+                    .src_buffer = this->context->transient_mem.get_buffer(),
+                    .src_offset = alloc.buffer_offset,
+                    .dst_buffer = ti.uses[index_buffer].buffer(),
+                    .dst_offset = 0,
+                    .size = sizeof(DrawIndirectStruct),
+                });
+            }
         },
         .name = "clear triangle count of index buffer",
     });
 
-    task_list.add_task(GenIndexBufferTask{
+    task_list.add_task(GenDrawInfoTask{
         {
             .uses = {
                 .u_meshes = asset_manager->tmeshes.handle(),
@@ -435,23 +458,26 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context,
     });
 
-    task_list.add_task(DrawOpaqueIdTask{
-        {
-            .uses = {
-                .u_visbuffer = visbuffer.handle(),
-                .u_debug_image = debug_image.handle(),
-                .u_depth_image = depth_handle,
-                .u_draw_info_index_buffer = index_buffer.handle(),
-                .u_instanciated_meshlets = instanciated_meshlets.handle(),
-                .u_entity_meshlists = entity_meshlists.handle(),
-                .u_entity_debug = entity_debug.handle(),
-                .u_meshes = asset_manager->tmeshes.handle(),
-                .u_combined_transforms = entity_combined_transforms.handle(),
+    if (1)
+    {
+        task_list.add_task(DrawOpaqueIdTask{
+            {
+                .uses = {
+                    .u_visbuffer = visbuffer.handle(),
+                    .u_debug_image = debug_image.handle(),
+                    .u_depth_image = depth_handle,
+                    .u_draw_info_index_buffer = index_buffer.handle(),
+                    .u_instanciated_meshlets = instanciated_meshlets.handle(),
+                    .u_entity_meshlists = entity_meshlists.handle(),
+                    .u_entity_debug = entity_debug.handle(),
+                    .u_meshes = asset_manager->tmeshes.handle(),
+                    .u_combined_transforms = entity_combined_transforms.handle(),
+                },
             },
-        },
-        context->raster_pipelines[DrawOpaqueIdTask{}.name],
-        context = context,
-    });
+            context->raster_pipelines[DrawOpaqueIdTask{}.name],
+            context = context,
+        });
+    }
 
     task_list.add_task(WriteSwapchainTask{
         {.uses = {swapchain_image.handle(), debug_image.handle()}},
@@ -464,7 +490,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     return task_list;
 }
 
-void Renderer::render_frame(CameraInfo const &camera_info)
+void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
 {
     if (this->window->size.x == 0 || this->window->size.y == 0)
     {
@@ -477,17 +503,25 @@ void Renderer::render_frame(CameraInfo const &camera_info)
     }
     u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % context->swapchain.info().max_allowed_frames_in_flight;
     
-    this->context->shader_globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-    this->context->shader_globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-    this->context->shader_globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+    this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+    this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
+    this->context->shader_globals.globals.delta_time = delta_time;
+    this->context->shader_globals.globals.settings = this->context->settings;
 
-    context->device.get_host_address_as<ShaderGlobals>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
-    context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobals) * flight_frame_index;
+    if (context->settings != context->prev_settings)
+    {
+        this->main_task_list = create_main_task_list();
+    }
+
+    context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
+    context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobalsBlock) * flight_frame_index;
     context->shader_globals_set_info = {
         .slot = SHADER_GLOBALS_SLOT,
         .buffer = context->shader_globals_buffer,
-        .size = sizeof(ShaderGlobals),
-        .offset = sizeof(ShaderGlobals) * flight_frame_index,
+        .size = sizeof(ShaderGlobalsBlock),
+        .offset = sizeof(ShaderGlobalsBlock) * flight_frame_index,
     };  
 
     this->context->meshlet_sums_step2_dispatch_size = (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE;

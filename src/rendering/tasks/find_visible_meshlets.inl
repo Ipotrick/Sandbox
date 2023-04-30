@@ -44,10 +44,12 @@ inline static const daxa::ComputePipelineCompileInfo FIND_VISIBLE_MESHLETS_PIPEL
 struct FindVisibleMeshletsTask : FindVisibleMeshlets
 {
     std::shared_ptr<daxa::ComputePipeline> pipeline = {};
+    GPUContext * context = {};
     usize * meshlet_count = {};
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
+        cmd.set_constant_buffer(context->shader_globals_set_info);
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         cmd.set_pipeline(*pipeline);
         cmd.push_constant(FindVisibleMeshletsPush{
