@@ -37,6 +37,7 @@ GPUContext::GPUContext(Window const &window)
                 }
           },
           .image_usage = daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
+          .present_mode = daxa::PresentMode::IMMEDIATE,
           .name = "Sandbox Swapchain",
       })},
       pipeline_manager{daxa::PipelineManager{{
@@ -59,7 +60,7 @@ GPUContext::GPUContext(Window const &window)
       }},
       shader_globals_buffer{this->device.create_buffer({
         .size = (sizeof(ShaderGlobalsBlock) * 4 + 64 - 1) / 64 * 64,
-        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE | daxa::MemoryFlagBits::DEDICATED_MEMORY,
         .name = "globals",
       })}
 {

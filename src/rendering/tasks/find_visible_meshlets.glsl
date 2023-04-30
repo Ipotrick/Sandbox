@@ -90,9 +90,51 @@ void main()
         }
     }
 
-    bool visible = true;//test_meshlet_instance_index > globals.frame_index;
+    Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
+    BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
 
-    if (visible)
+    vec3 ndc_min;
+    vec3 ndc_max;
+    // construct bounding box from bounding sphere,
+    // project each vertex of the box to ndc, min and max the coordinates.
+    for (int z = -1; z <= 1; z += 2)
+    {
+        for (int y = -1; y <= 1; y += 2)
+        {
+            for (int x = -1; x <= 1; x += 2)
+            {
+                const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * vec3(x,y,z);
+                const vec4 bounding_box_corner_proj = globals.cull_camera_view_projection * vec4(bounding_box_corner_ws,1);
+                const vec3 bounding_box_corner = bounding_box_corner_proj.xyz / bounding_box_corner_proj.w;
+                if (z == -1 && y == -1 && x == -1)
+                {
+                    ndc_min = bounding_box_corner;
+                    ndc_max = bounding_box_corner;
+                }
+                else
+                {
+                    ndc_min = vec3(
+                        min(bounding_box_corner.x, ndc_min.x),
+                        min(bounding_box_corner.y, ndc_min.y),
+                        min(bounding_box_corner.z, ndc_min.z)
+                    );
+                    ndc_max = vec3(
+                        max(bounding_box_corner.x, ndc_max.x),
+                        max(bounding_box_corner.y, ndc_max.y),
+                        max(bounding_box_corner.z, ndc_max.z)
+                    );
+                }
+            }
+        }
+    }
+
+    const bool out_of_frustum = ndc_max.z < 0.0f ||
+                                ndc_min.x > 1.0f ||
+                                ndc_min.y > 1.0f ||
+                                ndc_max.x < -1.0f ||
+                                ndc_max.y < -1.0f;
+
+    if (!out_of_frustum)
     {
         uint out_index = atomicAdd(deref(instanciated_meshlet_counter), 1);
         deref(instanciated_meshlets[out_index]) = instanced_meshlet;

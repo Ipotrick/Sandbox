@@ -67,10 +67,10 @@ struct AssetManager
         constexpr usize MAX_TRIANGLES = MAX_TRIANGLES_PER_MESHLET;
         // No clue what cone culling is.
         constexpr float CONE_WEIGHT = 0.0f;
-        std::vector<u32> optimized_indices = {};
-        optimized_indices.resize(index_buffer.size());
-        meshopt_optimizeVertexCache(optimized_indices.data(), index_buffer.data(), index_buffer.size(), aimesh->mNumVertices);
-        index_buffer = optimized_indices;
+        //std::vector<u32> optimized_indices = {};
+        //optimized_indices.resize(index_buffer.size());
+        //meshopt_optimizeVertexCache(optimized_indices.data(), index_buffer.data(), index_buffer.size(), aimesh->mNumVertices);
+        //index_buffer = optimized_indices;
         size_t max_meshlets = meshopt_buildMeshletsBound(index_buffer.size(), MAX_VERTICES, MAX_TRIANGLES);
         std::vector<meshopt_Meshlet> meshlets(max_meshlets);
         std::vector<u32> meshlet_indirect_vertices(max_meshlets * MAX_VERTICES);
@@ -132,8 +132,8 @@ struct AssetManager
         allocation_size += vertex_positions_array_bytesize;
         // Create mesh.
         mesh.mesh_buffer = device.create_buffer({
-            // .memory_flags = daxa::MemoryFlagBits::DEDICATED_MEMORY,
             .size = allocation_size,
+            .allocate_info = daxa::MemoryFlagBits::DEDICATED_MEMORY,
             .name = std::string("Mesh Buffer of mesh \"") + std::string(unique_name) + "\"",
         });
         mesh.meshlet_count = meshlets.size();

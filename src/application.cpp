@@ -83,17 +83,17 @@ void CameraController::update_matrices(Window &window)
     {
 		assert(abs(aspect - std::numeric_limits<f32>::epsilon()) > 0.0f);
 
-		f32 const tanHalfFovy = std::tan(fov_rads * 0.5f);
+		f32 const tanHalfFovy = 1.0f / std::tan(fov_rads * 0.5f);
 
 		glm::mat4x4 ret(0.0f);
-		ret[0][0] = tanHalfFovy * aspect;
+		ret[0][0] = tanHalfFovy / aspect;
 		ret[1][1] = tanHalfFovy;
         ret[2][2] = 0.0f;
         ret[2][3] = -1.0f;
         ret[3][2] = zNear;
 		return ret;
     };
-    glm::mat4 prespective = inf_depth_reverse_z_perspective(glm::radians(fov), f32(window.get_height()) / f32(window.get_width()), near);
+    glm::mat4 prespective = inf_depth_reverse_z_perspective(glm::radians(fov), f32(window.get_width()) / f32(window.get_height()), near);
     prespective[1][1] *= -1.0f;
     this->cam_info.proj = prespective;
     this->cam_info.view = glm::lookAt(position, position + forward, up);
@@ -169,6 +169,11 @@ void Application::update()
     {
         std::cout << "switched indexed_id_rendering from " << renderer.context->settings.indexed_id_rendering << " to " << !(renderer.context->settings.indexed_id_rendering) << std::endl;
         renderer.context->settings.indexed_id_rendering = !renderer.context->settings.indexed_id_rendering;
+    }
+    if (window.key_just_pressed(GLFW_KEY_H))
+    {
+        std::cout << "switched update_culling_matrix from " << renderer.context->settings.update_culling_matrix << " to " << !(renderer.context->settings.update_culling_matrix) << std::endl;
+        renderer.context->settings.update_culling_matrix = !renderer.context->settings.update_culling_matrix;
     }
 }
 

@@ -7,6 +7,7 @@
 struct Settings
 {
     daxa_u32 indexed_id_rendering;
+    daxa_u32 update_culling_matrix;
 #if __cplusplus
     auto operator <=>(Settings const & other) const = default;
 #endif
@@ -17,6 +18,7 @@ struct ShaderGlobals
     daxa_f32mat4x4 camera_view;
     daxa_f32mat4x4 camera_projection;
     daxa_f32mat4x4 camera_view_projection;
+    daxa_f32mat4x4 cull_camera_view_projection;
     daxa_u32 frame_index;
     daxa_f32 delta_time;
     Settings settings;

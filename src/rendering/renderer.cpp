@@ -220,6 +220,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     compile_pipelines();
 
     context->settings.indexed_id_rendering = 1;
+    context->settings.update_culling_matrix = 1;
 
     main_task_list = create_main_task_list();
 }
@@ -364,7 +365,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
 
     task_list.add_task({
         .uses = {
-            daxa::BufferHostTransferWrite{instanciated_meshlets},
+            daxa::BufferTransferWrite{instanciated_meshlets},
         },
         .task = [=](daxa::TaskInterface ti)
         {
@@ -403,7 +404,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
 
     task_list.add_task({
         .uses = {
-            daxa::BufferHostTransferWrite{index_buffer},
+            daxa::BufferTransferWrite{index_buffer},
         },
         .task = [=](daxa::TaskInterface ti)
         {
@@ -501,19 +502,24 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     {
         std::cout << opt.value().to_string() << std::endl;
     }
-    u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % context->swapchain.info().max_allowed_frames_in_flight;
+    u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % (context->swapchain.info().max_allowed_frames_in_flight + 1);
+
+    bool const settings_changed = context->settings != context->prev_settings;
+    if (settings_changed)
+    {
+        this->main_task_list = create_main_task_list();
+    }
     
     this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
     this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
     this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    if (context->settings.update_culling_matrix)
+    {
+        this->context->shader_globals.globals.cull_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    }
     this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
     this->context->shader_globals.globals.delta_time = delta_time;
     this->context->shader_globals.globals.settings = this->context->settings;
-
-    if (context->settings != context->prev_settings)
-    {
-        this->main_task_list = create_main_task_list();
-    }
 
     context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
     context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobalsBlock) * flight_frame_index;
@@ -539,4 +545,5 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
         {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
     };
     main_task_list.execute({});
+    context->prev_settings = context->settings; 
 }

@@ -91,6 +91,8 @@ void main()
     float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
     vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
     color = color * 0.5 + 0.5;
+    const float originalZ = gl_FragCoord.z * gl_FragCoord.w;
+    //color = color * vec3(originalZ,originalZ,originalZ) * 10000;
     visibility_id = 1;
     debug_color = vec4(color,1);
 }

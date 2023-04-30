@@ -16,7 +16,7 @@ struct CameraController {
     CameraInfo cam_info;
     
     bool bZoom = false; 
-    f32 fov = 74.0f;
+    f32 fov = 70.0f;
     f32 near =  20.0f;
     f32 cameraSwaySpeed = 0.05f;
     f32 translationSpeed = 1.0f;
