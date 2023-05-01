@@ -9,6 +9,7 @@ shared uint index_buffer_offset;
 layout(local_size_x = GENERATE_INDEX_BUFFER_WORKGROUP_X) in;
 void main()
 {
+    // TODO add tringle visibility tests
     const bool indexed_id_rendering = globals.settings.indexed_id_rendering == 1;
     if (!indexed_id_rendering)
     {
