@@ -1,10 +1,10 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
-#include "find_visible_meshlets.inl"
+#include "fill_meshlet_buffer.inl"
 
-DEFINE_PUSHCONSTANT(FindVisibleMeshletsPush, push)
-layout(local_size_x = FIND_VISIBLE_MESHLETS_WORKGROUP_X) in;
+DEFINE_PUSHCONSTANT(FillMeshletBufferPush, push)
+layout(local_size_x = FILL_MESHLET_BUFFER_WORKGROUP_X) in;
 void main()
 {
     const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);

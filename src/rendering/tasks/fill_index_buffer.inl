@@ -8,9 +8,9 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-#define GENERATE_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
+#define FILL_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
 
-DAXA_INL_TASK_USE_BEGIN(GenDrawInfoBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BEGIN(FillIndexBufferBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
@@ -20,14 +20,14 @@ DAXA_INL_TASK_USE_END()
 
 #include "../gpu_context.hpp"
 
-static constexpr std::string_view GENERATE_INDEX_BUFFER_NAME = "generate_index_buffer";
+static constexpr std::string_view FILL_INDEX_BUFFER_NAME = "fill_index_buffer";
 
-static const daxa::ComputePipelineCompileInfo GENERATE_INDEX_BUFFER_PIPELINE_INFO{
-    .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/generate_index_buffer.glsl"}},
-    .name = std::string{GENERATE_INDEX_BUFFER_NAME},
+static const daxa::ComputePipelineCompileInfo FILL_INDEX_BUFFER_PIPELINE_INFO{
+    .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/fill_index_buffer.glsl"}},
+    .name = std::string{FILL_INDEX_BUFFER_NAME},
 };
 
-struct GenDrawInfoTask : GenDrawInfoBase
+struct FillIndexBufferTask : FillIndexBufferBase
 {
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
@@ -35,7 +35,7 @@ struct GenDrawInfoTask : GenDrawInfoBase
         auto cmd = ti.get_command_list();
         cmd.set_constant_buffer(context->shader_globals_set_info);
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
-        cmd.set_pipeline(*context->compute_pipelines.at(GenDrawInfoBase::NAME));
+        cmd.set_pipeline(*context->compute_pipelines.at(FillIndexBufferBase::NAME));
         if (context->settings.indexed_id_rendering)
         {
             cmd.dispatch_indirect({

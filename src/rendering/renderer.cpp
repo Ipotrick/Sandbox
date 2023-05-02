@@ -2,8 +2,8 @@
 
 #include "../scene/scene.inl"
 
-#include "tasks/find_visible_meshlets.inl"
-#include "tasks/generate_index_buffer.inl"
+#include "tasks/fill_meshlet_buffer.inl"
+#include "tasks/fill_index_buffer.inl"
 #include "tasks/prefix_sum.inl"
 #include "tasks/draw_opaque_ids.inl"
 #include "tasks/write_swapchain.inl"
@@ -260,8 +260,8 @@ void Renderer::compile_pipelines()
         {PrefixSumTask{}.name, PREFIX_SUM_PIPELINE_INFO},
         {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
         {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
-        {FindVisibleMeshletsTask::NAME, FIND_VISIBLE_MESHLETS_PIPELINE_INFO},
-        {GenDrawInfoTask::NAME, GENERATE_INDEX_BUFFER_PIPELINE_INFO},
+        {FillMeshletBufferTask::NAME, FILL_MESHLET_BUFFER_PIPELINE_INFO},
+        {FillIndexBufferTask::NAME, FILL_INDEX_BUFFER_PIPELINE_INFO},
         {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
     };
     for (auto [name, info] : computes)
@@ -387,7 +387,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .name = "clear instanciated meshlet counter",
     });
 
-    task_list.add_task(FindVisibleMeshletsTask{
+    task_list.add_task(FillMeshletBufferTask{
         {
             .uses = {
                 .u_prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
@@ -397,7 +397,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .u_instanciated_meshlets = instanciated_meshlets.handle(),
             },
         },
-        context->compute_pipelines[FindVisibleMeshletsTask::NAME],
+        context->compute_pipelines[FillMeshletBufferTask::NAME],
         context,
         &this->asset_manager->total_meshlet_count,
     });
@@ -448,7 +448,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .name = "clear triangle count of index buffer",
     });
 
-    task_list.add_task(GenDrawInfoTask{
+    task_list.add_task(FillIndexBufferTask{
         {
             .uses = {
                 .u_meshes = asset_manager->tmeshes.handle(),
