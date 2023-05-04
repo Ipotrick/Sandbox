@@ -12,7 +12,7 @@
 
 DAXA_INL_TASK_USE_BEGIN(FillIndexBufferBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_instanciated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_index_buffer_and_count, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
@@ -39,7 +39,7 @@ struct FillIndexBufferTask : FillIndexBufferBase
         if (context->settings.indexed_id_rendering)
         {
             cmd.dispatch_indirect({
-                .indirect_buffer = uses.u_instanciated_meshlets.buffer(),
+                .indirect_buffer = uses.u_instantiated_meshlets.buffer(),
                 .offset = 0,
             });
         }

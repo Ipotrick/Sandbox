@@ -11,9 +11,9 @@ void main()
     const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);
     const int entity_count = int(deref(u_entity_meta_data).entity_count);
 
-    daxa_RWBufferPtr(daxa_u32) instanciated_meshlet_counter = daxa_RWBufferPtr(daxa_u32)(daxa_u64(u_instanciated_meshlets));
-    daxa_RWBufferPtr(InstanciatedMeshlet) instanciated_meshlets = 
-        daxa_RWBufferPtr(InstanciatedMeshlet)(daxa_u64(u_instanciated_meshlets) + 32);
+    daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counter = daxa_RWBufferPtr(daxa_u32)(daxa_u64(u_instantiated_meshlets));
+    daxa_RWBufferPtr(InstanciatedMeshlet) instantiated_meshlets = 
+        daxa_RWBufferPtr(InstanciatedMeshlet)(daxa_u64(u_instantiated_meshlets) + 32);
 
     // Binary Serarch the entity the meshlet id belongs to.
     InstanciatedMeshlet instanced_meshlet;
@@ -47,7 +47,7 @@ void main()
             instanced_meshlet.entity_index = up_count;
             instanced_meshlet.mesh_index = down_count;
             instanced_meshlet.meshlet_index = iter;
-            deref(instanciated_meshlets[test_meshlet_instance_index]) = instanced_meshlet;
+            deref(instantiated_meshlets[test_meshlet_instance_index]) = instanced_meshlet;
             return;
         }
         if (test_meshlet_instance_index < meshlet_sum_prev_entity)
@@ -116,7 +116,7 @@ void main()
     if (is_in_frustum(ndc_bounds))
 #endif
     {
-        uint out_index = atomicAdd(deref(instanciated_meshlet_counter), 1);
-        deref(instanciated_meshlets[out_index]) = instanced_meshlet;
+        uint out_index = atomicAdd(deref(instantiated_meshlet_counter), 1);
+        deref(instantiated_meshlets[out_index]) = instanced_meshlet;
     }
 }

@@ -51,14 +51,14 @@ struct Meshlet
 DAXA_ENABLE_BUFFER_PTR(Meshlet)
 
 /// Can be indexed when drawing meshlets via draw indirect.
-struct MeshletDrawInfo
+struct InstantiatedMeshletInfo
 {
     daxa_u32 object_index;
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
     daxa_u32 pad;          // Alignment 16 access optimization.
 };
-DAXA_ENABLE_BUFFER_PTR(MeshletDrawInfo)
+DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshletInfo)
 
 struct InstanciatedMeshlet
 {
@@ -71,7 +71,7 @@ DAXA_ENABLE_BUFFER_PTR(InstanciatedMeshlet)
 
 struct TriangleId
 {
-    // Bits 7-31: instanciated meshlet id;
+    // Bits 7-31: instantiated meshlet id;
     // Bits 0-6: in meshlet id;
     daxa_u32 value;
 };
@@ -87,23 +87,25 @@ DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
 #define DEBUG_VERTEX_ID 1
 
-void encode_vertex_id(daxa_u32 instanciated_meshlet_index, daxa_u32 micro_index, out daxa_u32 vertex_id)
+void encode_vertex_id(daxa_u32 instantiated_meshlet_index, daxa_u32 triangle_index, daxa_u32 triangle_corner, out daxa_u32 vertex_id)
 {
     #if DEBUG_VERTEX_ID
-    vertex_id = (instanciated_meshlet_index * 1000) + micro_index;
+    vertex_id = instantiated_meshlet_index * 10000 + triangle_index * 10 + triangle_corner;
     #else
-    vertex_id = (instanciated_meshlet_index << 6) | micro_index;
+    vertex_id = (instantiated_meshlet_index << 9) | (triangle_index << 2) | triangle_corner;
     #endif
 }
 
-void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instanciated_meshlet_index, out daxa_u32 micro_index)
+void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_index, out daxa_u32 triangle_index, out daxa_u32 triangle_corner)
 {
     #if DEBUG_VERTEX_ID
-    instanciated_meshlet_index = vertex_id / 1000;
-    micro_index = vertex_id % 1000;
+    instantiated_meshlet_index = vertex_id / 10000;
+    triangle_index = (vertex_id / 10) % 1000;
+    triangle_corner = vertex_id % 10;
     #else
-    instanciated_meshlet_index = vertex_id >> 6;
-    micro_index = vertex_id & 0x3F;
+    instantiated_meshlet_index = vertex_id >> 9;
+    triangle_index = (vertex_id >> 2) & 0x3F;
+    triangle_corner = vertex_id & 0x3f;
     #endif
 }
 
@@ -151,9 +153,9 @@ uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offs
 
 // Meshlet rendering strategy:
 // There will be the following persistent buffers:
-// 0. start a list of instanciated meshlets
+// 0. start a list of instantiated meshlets
 ///   * first content is just the visible meshlets from last frame
-// 1. draw the current list of instanciated meshlets (currently only visible meshlets from last frame)
+// 1. draw the current list of instantiated meshlets (currently only visible meshlets from last frame)
 // 2. generate HIZ buffer from current depth
 // 3. cull vs HIZ
 //    * cull frustum first
