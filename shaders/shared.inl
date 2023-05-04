@@ -4,6 +4,13 @@
 
 #define SHADER_GLOBALS_SLOT 0
 
+#define MAX_DRAWN_MESHLETS 1000000
+#define MAX_DRAWN_TRIANGLES 1000000000u
+#define TRIANGLE_SIZE 12
+
+#define ENABLE_MESHLET_CULLING 1
+#define ENABLE_TRIANGLE_CULLING 1
+
 struct Settings
 {
     daxa_u32 indexed_id_rendering;
@@ -29,10 +36,6 @@ DAXA_CONSTANT_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
 {
     ShaderGlobals globals;
 };
-
-#define MAX_DRAWN_MESHLETS 1000000
-#define MAX_DRAWN_TRIANGLES 1000000000u
-#define TRIANGLE_SIZE 12
 
 #define DEFINE_PUSHCONSTANT(STRUCT, NAME) layout(push_constant, scalar) uniform Push { STRUCT NAME; };
 

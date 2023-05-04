@@ -298,14 +298,35 @@ void Renderer::window_resized()
 
 auto Renderer::create_main_task_list() -> daxa::TaskList
 {
-    // Renderer progression:
-    //   - update metadata
-    //   - cull entities, generate list of entities to draw
-    //   - generate prefix sum of meshlets of all to be drawn entities.
-    //   - expand meshlet prefix sum into instanciated meshlet list.
-    //   - expand instanciated meshlet list into index buffer
-    //   - draw visbuffer and depth
-    //   - write to swapchain (blend debug texture on swapchain)
+    // Rendering process:
+    //  - update metadata
+    //  - clear buffer containing list of drawn meshlets
+    //      - IMPORTANT: This list of drawn meshlets has a counter of visible pixels for each drawn meshlet
+    //                   These counters are written to when anaylizing the id buffer and used to create the list of visible meshlets in the end
+    //    insert list of visible meshlets into list of drawn meshlets
+    //    draw list of visible meshlets from last frame to vis buffer
+    //    build hiz from depth of visbuffer
+    //    cull instances, expand list of to be drawn instances
+    //    cull meshlets, concatinate visible meshlets to list of drawn meshlets
+    //    cull triangles, expand index buffer
+    //    draw unculled meshlets
+    //    analyze visbuffer tiles
+    //      - count visible pixels for each drawn meshlet
+    //      - add bits to materiak mask for tile
+    //      - write material id as depth value to material depth
+    //      - generate the first 4 levels of hiz depth for the tile
+    //  - scan list of drawn meshlets:
+    //      - if a meshlet has a visible triangle count of over 0, append it to visible meshlet list for next frames use.
+    //  - draw opaque:
+    //      - generate g buffer for post processing
+    //      - write final color result
+    //      - method:
+    //          - draw tiles only for tiles that have material present
+    //          - set depth test to equal material depth
+    //  - blurr pass for bloom
+    //      - take last frames bloom into account for temporal effect
+    //      - also anaylze brightness for tonemapping
+    //  - write swapchain
     using namespace daxa;
     TaskList task_list{{
         .device = this->context->device,

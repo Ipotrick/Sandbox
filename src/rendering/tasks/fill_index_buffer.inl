@@ -8,7 +8,7 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-#define FILL_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
+#define FILL_INDEX_BUFFER_WORKGROUP_X 128
 
 DAXA_INL_TASK_USE_BEGIN(FillIndexBufferBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)

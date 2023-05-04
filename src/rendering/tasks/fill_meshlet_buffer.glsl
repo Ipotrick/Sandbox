@@ -1,6 +1,7 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+#include "../../../shaders/cull_util.glsl"
 #include "fill_meshlet_buffer.inl"
 
 DEFINE_PUSHCONSTANT(FillMeshletBufferPush, push)
@@ -90,11 +91,12 @@ void main()
         }
     }
 
+#if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
 
-    vec3 ndc_min;
-    vec3 ndc_max;
+    NdcBounds ndc_bounds;
+    init_ndc_bounds(ndc_bounds);
     // construct bounding box from bounding sphere,
     // project each vertex of the box to ndc, min and max the coordinates.
     for (int z = -1; z <= 1; z += 2)
@@ -104,37 +106,15 @@ void main()
             for (int x = -1; x <= 1; x += 2)
             {
                 const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * vec3(x,y,z);
-                const vec4 bounding_box_corner_proj = globals.cull_camera_view_projection * vec4(bounding_box_corner_ws,1);
-                const vec3 bounding_box_corner = bounding_box_corner_proj.xyz / bounding_box_corner_proj.w;
-                if (z == -1 && y == -1 && x == -1)
-                {
-                    ndc_min = bounding_box_corner;
-                    ndc_max = bounding_box_corner;
-                }
-                else
-                {
-                    ndc_min = vec3(
-                        min(bounding_box_corner.x, ndc_min.x),
-                        min(bounding_box_corner.y, ndc_min.y),
-                        min(bounding_box_corner.z, ndc_min.z)
-                    );
-                    ndc_max = vec3(
-                        max(bounding_box_corner.x, ndc_max.x),
-                        max(bounding_box_corner.y, ndc_max.y),
-                        max(bounding_box_corner.z, ndc_max.z)
-                    );
-                }
+                const vec4 projected_pos = globals.cull_camera_view_projection * vec4(bounding_box_corner_ws, 1);
+                const vec3 ndc_pos = projected_pos.xyz / projected_pos.w;
+                add_vertex_to_ndc_bounds(ndc_bounds, ndc_pos);
             }
         }
     }
 
-    const bool out_of_frustum = ndc_max.z < 0.0f ||
-                                ndc_min.x > 1.0f ||
-                                ndc_min.y > 1.0f ||
-                                ndc_max.x < -1.0f ||
-                                ndc_max.y < -1.0f;
-
-    if (!out_of_frustum)
+    if (is_in_frustum(ndc_bounds))
+#endif
     {
         uint out_index = atomicAdd(deref(instanciated_meshlet_counter), 1);
         deref(instanciated_meshlets[out_index]) = instanced_meshlet;
