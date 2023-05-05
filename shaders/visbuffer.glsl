@@ -1,6 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
+#include "visbuffer.inl"
 
 void encode_pixel_id(uint instantiated_meshlet_index, uint triangle_index, out uint id)
 {

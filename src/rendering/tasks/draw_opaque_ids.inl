@@ -4,6 +4,7 @@
 
 #include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
+#include "../../../shaders/visbuffer.inl"
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
@@ -79,7 +80,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                     .load_op = daxa::AttachmentLoadOp::CLEAR,
                     .store_op = daxa::AttachmentStoreOp::STORE,
-                    .clear_value = daxa::ClearValue{std::array<u32, 4>{0, 0, 0, 0}},
+                    .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_PIXEL_ID, 0, 0, 0}},
                 },
                 daxa::RenderAttachmentInfo{
                     .image_view = debug_image.default_view(),

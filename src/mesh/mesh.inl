@@ -2,6 +2,10 @@
 
 #include <daxa/daxa.inl>
 
+#define INVALID_MESHLET_INDEX (~(0u))
+#define MAX_TRIANGLES_PER_MESHLET 124
+#define MAX_VERTICES_PER_MESHLET 128
+
 struct DrawIndexedIndirectCommand
 {
     daxa_u32 index_count;
@@ -33,9 +37,6 @@ struct MeshDrawInfo
     daxa_u32 object_id;
     daxa_u32 mesh_id;
 };
-
-#define MAX_TRIANGLES_PER_MESHLET 124
-#define MAX_VERTICES_PER_MESHLET 128
 
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet

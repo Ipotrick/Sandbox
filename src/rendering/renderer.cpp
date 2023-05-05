@@ -328,18 +328,29 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     //  - clear buffer containing list of drawn meshlets
     //      - IMPORTANT: This list of drawn meshlets has a counter of visible pixels for each drawn meshlet
     //                   These counters are written to when anaylizing the id buffer and used to create the list of visible meshlets in the end
-    //    insert list of visible meshlets into list of drawn meshlets
-    //    draw list of visible meshlets from last frame to vis buffer
-    //    build hiz from depth of visbuffer
-    //    cull instances, expand list of to be drawn instances
-    //    cull meshlets, concatinate visible meshlets to list of drawn meshlets
-    //    cull triangles, expand index buffer
-    //    draw unculled meshlets
-    //    analyze visbuffer tiles
+    //  - insert list of visible meshlets into list of drawn meshlets
+    //  - draw list of visible meshlets from last frame depth only
+    //  - build hiz from depth initial depth
+    //  - three possible paths:
+    //      - draw indirect indexed count:
+    //          - cull instances, expand list of to be drawn instances
+    //          - cull meshlets, concatinate visible meshlets to list of drawn meshlets
+    //          - cull triangles, expand index buffer
+    //          - draw indexed indirect count
+    //      - draw indirect count:
+    //          - cull instances, expand list of to be drawn instances
+    //          - cull meshlets, concatinate visible meshlets to list of drawn meshlets
+    //          - draw indirect count
+    //      - dispatch tasks indirect count
+    //          - cull instances, expand list of to be drawn instances
+    //          - dispatch task shaders indirect count:
+    //              - cull meshlets, dispatch mesh shaders for non culled meshlets
+    //              - cull triangles, create triangles and give the index buffer to the rasterizer
+    //  - build hiz depth
+    //  - analyze visbuffer tiles
     //      - count visible pixels for each drawn meshlet
     //      - add bits to materiak mask for tile
     //      - write material id as depth value to material depth
-    //      - generate the first 4 levels of hiz depth for the tile
     //  - scan list of drawn meshlets:
     //      - if a meshlet has a visible triangle count of over 0, append it to visible meshlet list for next frames use.
     //  - draw opaque:
