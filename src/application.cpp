@@ -172,8 +172,8 @@ void Application::update()
     }
     if (window.key_just_pressed(GLFW_KEY_H))
     {
-        std::cout << "switched update_culling_matrix from " << renderer.context->settings.update_culling_matrix << " to " << !(renderer.context->settings.update_culling_matrix) << std::endl;
-        renderer.context->settings.update_culling_matrix = !renderer.context->settings.update_culling_matrix;
+        std::cout << "switched update_culling_information from " << renderer.context->settings.update_culling_information << " to " << !(renderer.context->settings.update_culling_information) << std::endl;
+        renderer.context->settings.update_culling_information = !renderer.context->settings.update_culling_information;
     }
 }
 

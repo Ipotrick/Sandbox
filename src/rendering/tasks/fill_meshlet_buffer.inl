@@ -14,6 +14,8 @@ DAXA_INL_TASK_USE_BEGIN(FillMeshletBufferBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
+    DAXA_INL_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
@@ -21,6 +23,7 @@ DAXA_INL_TASK_USE_END()
 struct FillMeshletBufferPush
 {
     daxa_u32 meshlet_count;
+    daxa_u32 cull_alredy_visible_meshlets;
 };
 DAXA_ENABLE_BUFFER_PTR(FillMeshletBufferPush)
 
@@ -46,6 +49,7 @@ struct FillMeshletBufferTask : FillMeshletBufferBase
     std::shared_ptr<daxa::ComputePipeline> pipeline = {};
     GPUContext * context = {};
     usize * meshlet_count = {};
+    bool cull_alredy_visible_meshlets = {};
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
@@ -54,6 +58,7 @@ struct FillMeshletBufferTask : FillMeshletBufferBase
         cmd.set_pipeline(*pipeline);
         cmd.push_constant(FillMeshletBufferPush{
             .meshlet_count = static_cast<u32>(*meshlet_count),
+            .cull_alredy_visible_meshlets = cull_alredy_visible_meshlets,
         });
         cmd.dispatch(round_up_div(*meshlet_count, FILL_MESHLET_BUFFER_WORKGROUP_X), 1, 1);
     }

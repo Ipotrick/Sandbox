@@ -150,6 +150,13 @@ uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offs
 }
 #endif // #if defined(DAXA_SHADER)
 
+struct EntityVisibilityBitfieldOffsets
+{
+    daxa_u32 mesh_bitfield_offset[7];
+    daxa_u32 padd;
+};
+DAXA_ENABLE_BUFFER_PTR(EntityVisibilityBitfieldOffsets)
+
 // mesh.meshlets.get[index]
 
 // Meshlet rendering strategy:

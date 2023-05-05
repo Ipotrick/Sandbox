@@ -5,6 +5,7 @@
 #define SHADER_GLOBALS_SLOT 0
 
 #define MAX_DRAWN_MESHLETS 1000000
+#define VISIBLE_ENTITY_MESHLETS_BITFIELD_SCRATCH 1000000
 #define MAX_DRAWN_TRIANGLES 1000000000u
 #define TRIANGLE_SIZE 12
 
@@ -14,7 +15,7 @@
 struct Settings
 {
     daxa_u32 indexed_id_rendering;
-    daxa_u32 update_culling_matrix;
+    daxa_u32 update_culling_information;
 #if __cplusplus
     auto operator <=>(Settings const & other) const = default;
 #endif

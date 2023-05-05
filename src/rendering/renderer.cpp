@@ -2,6 +2,7 @@
 
 #include "../scene/scene.inl"
 
+#include "tasks/allocate_meshlet_visibility_bitfields.inl"
 #include "tasks/fill_meshlet_buffer.inl"
 #include "tasks/fill_index_buffer.inl"
 #include "tasks/analyze_visbuffer.inl"
@@ -92,6 +93,17 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "entity_meshlists",
     }};
+    entity_visibility_bitfield_offsets = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(EntityVisibilityBitfieldOffsets) * MAX_ENTITY_COUNT,
+                    .name = "entity_visibility_bitfield_offsets",
+                }),
+            },
+        },
+        .name = "entity_visibility_bitfield_offsets",
+    }};
     entity_debug = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
@@ -137,6 +149,17 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "visible_meshlets",
     }};
+    meshlet_visibility_bitfield = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = VISIBLE_ENTITY_MESHLETS_BITFIELD_SCRATCH + /*reserved space for atomic back counter*/ 32,
+                    .name = "meshlet_visibility_bitfield",
+                }),
+            },
+        },
+        .name = "meshlet_visibility_bitfield",
+    }};
     index_buffer = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
@@ -179,6 +202,8 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
+        entity_visibility_bitfield_offsets,
+        meshlet_visibility_bitfield,
         entity_debug,
         instantiated_meshlets,
         instantiated_meshlet_visibility_counters,
@@ -244,7 +269,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     compile_pipelines();
 
     context->settings.indexed_id_rendering = 1;
-    context->settings.update_culling_matrix = 1;
+    context->settings.update_culling_information = 1;
 
     main_task_list = create_main_task_list();
 }
@@ -288,6 +313,7 @@ void Renderer::compile_pipelines()
         {FillIndexBufferTask::NAME, FILL_INDEX_BUFFER_PIPELINE_INFO},
         {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
         {AnalyzeVisbufferTask::NAME, ANALYZE_VISBUFFER_PIPELINE_INFO},
+        {AllocateMeshletVisibilityTask::NAME, ALLOCATE_MESHLET_VISIBILITY_PIPELINE_INFO},
     };
     for (auto [name, info] : computes)
     {
@@ -450,6 +476,8 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .u_prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
                 .u_entity_meta_data = entity_meta.handle(),
                 .u_entity_meshlists = entity_meshlists.handle(),
+                .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
+                .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
                 .u_meshes = asset_manager->tmeshes.handle(),
                 .u_instantiated_meshlets = instantiated_meshlets.handle(),
             },
@@ -457,6 +485,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context->compute_pipelines[FillMeshletBufferTask::NAME],
         context,
         &this->asset_manager->total_meshlet_count,
+        .cull_alredy_visible_meshlets = false,
     });
 
     task_list.add_task({
@@ -534,24 +563,69 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context,
     });
 
+    // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
     task_list.add_task({
         .uses = { daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters} },
         .task = [=](daxa::TaskInterface ti)
         {
             ti.get_command_list().clear_buffer({
                 .buffer = ti.uses[instantiated_meshlet_visibility_counters].buffer(),
-                .clear_value = 0,
                 .size = ti.get_device().info_buffer(ti.uses[instantiated_meshlet_visibility_counters].buffer()).size,
+                .clear_value = 0,
             });
         },
         .name = "clear instantiated meshlet counters buffer",
     });
 
+    if (context->settings.update_culling_information)
+    {
+        // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
+        task_list.add_task({
+            .uses = { 
+                daxa::BufferTransferWrite{entity_visibility_bitfield_offsets},
+                daxa::BufferTransferWrite{meshlet_visibility_bitfield},
+            },
+            .task = [=](daxa::TaskInterface ti)
+            {
+                auto cmd = ti.get_command_list();
+                cmd.clear_buffer({
+                    .buffer = ti.uses[entity_visibility_bitfield_offsets].buffer(),
+                    .size = ti.get_device().info_buffer(ti.uses[entity_visibility_bitfield_offsets].buffer()).size,
+                    .clear_value = 0,
+                });
+                cmd.clear_buffer({
+                    .buffer = ti.uses[meshlet_visibility_bitfield].buffer(),
+                    .size = ti.get_device().info_buffer(ti.uses[meshlet_visibility_bitfield].buffer()).size,
+                    .clear_value = 0,
+                });
+            },
+            .name = "clear entity_visibility_bitfield_offsets and meshlet_visibility_bitfield",
+        });
+
+        task_list.add_task(AllocateMeshletVisibilityTask{
+            {
+                .uses = {
+                    .u_meshlists = entity_meshlists.handle(),
+                    .u_meshes = asset_manager->tmeshes.handle(),
+                    .u_entity_meta = entity_meta.handle(),
+                    .u_visibility_bitfield_sratch = meshlet_visibility_bitfield.handle(),
+                    .u_meshlet_visibilities = entity_visibility_bitfield_offsets.handle(),
+                },
+            },
+            context,
+            scene,
+            context->compute_pipelines[AllocateMeshletVisibilityTask::NAME],
+        });
+    }
+
     task_list.add_task(AnalyzeVisbufferTask{
         {
             .uses = {
                 .u_visbuffer = visbuffer.handle(),
+                .u_instantiated_meshlets = instantiated_meshlets.handle(),
+                .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
                 .u_instantiated_meshlet_counters = instantiated_meshlet_visibility_counters.handle(),
+                .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
             },
         },
         context->compute_pipelines[AnalyzeVisbufferTask::NAME],
@@ -591,7 +665,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
     this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
     this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-    if (context->settings.update_culling_matrix)
+    if (context->settings.update_culling_information)
     {
         this->context->shader_globals.globals.cull_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
     }

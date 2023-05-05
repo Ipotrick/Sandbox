@@ -113,7 +113,21 @@ void main()
         }
     }
 
-    if (is_in_frustum(ndc_bounds))
+    bool culled = !is_in_frustum(ndc_bounds);
+
+    if (push.cull_alredy_visible_meshlets != 0)
+    {
+        EntityVisibilityBitfieldOffsets offsets = deref(u_entity_visibility_bitfield_offsets[instanced_meshlet.entity_index]);
+        const uint uint_base_offset = offsets.mesh_bitfield_offset[instanced_meshlet.mesh_index];
+        const uint uint_offset = uint_base_offset + (instanced_meshlet.meshlet_index / 32);
+        uint mask = 1 << instanced_meshlet.meshlet_index % 32;
+        const uint bitfield_section = deref(u_meshlet_visibility_bitfield[uint_offset]);
+        bool visible = (mask & bitfield_section) != 0;
+        // When visible set to be culled.
+        culled = !visible;
+    }
+
+    if (!culled)
 #endif
     {
         uint out_index = atomicAdd(deref(instantiated_meshlet_counter), 1);

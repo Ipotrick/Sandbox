@@ -6,7 +6,12 @@
 #include "../../mesh/mesh.inl"
 #include "visbuffer.glsl"
 
-void deduplicated_increment_meshlet_visibilities(uint meshlet_indices[4], daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counters)
+void deduplicated_increment_meshlet_visibilities(
+    uint meshlet_indices[4], 
+    daxa_BufferPtr(InstanciatedMeshlet) instantiated_meshlets,
+    daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counters,
+    daxa_RWBufferPtr(daxa_u32) meshlet_visibility_bitfield,
+    daxa_BufferPtr(EntityVisibilityBitfieldOffsets) entity_meshlet_vis_bitfield_offsets)
 {
     // deduplicate meshlet indices:
     uint unique_meshlet_indices[4] = {
@@ -71,6 +76,15 @@ void deduplicated_increment_meshlet_visibilities(uint meshlet_indices[4], daxa_R
                 if (subgroupElect())
                 {
                     atomicAdd(deref(instantiated_meshlet_counters[selected_index]), 1);
+
+                    InstanciatedMeshlet inst_meshlet = deref(instantiated_meshlets[selected_index + 2 /*offset from counter*/]);
+                    EntityVisibilityBitfieldOffsets vis_bits_offsets = deref(entity_meshlet_vis_bitfield_offsets[inst_meshlet.entity_index]);
+                    const uint vis_bitfield_base_offset = vis_bits_offsets.mesh_bitfield_offset[inst_meshlet.mesh_index];
+                    const uint bitfield_local_uint_offset = inst_meshlet.meshlet_index / 32;
+                    const uint bitfield_uint_offset = vis_bitfield_base_offset + bitfield_local_uint_offset;
+                    const uint bitfield_local_uint_shift = inst_meshlet.meshlet_index % 32;
+                    const uint mask = 1 << bitfield_local_uint_shift;
+                    atomicOr(deref(meshlet_visibility_bitfield[bitfield_uint_offset]), mask);
                 }
             }
         }
@@ -119,5 +133,14 @@ void main()
         }
     }
 
-    deduplicated_increment_meshlet_visibilities(inst_meshlet_indices, u_instantiated_meshlet_counters);
+    if (globals.settings.update_culling_information != 0)
+    {
+        deduplicated_increment_meshlet_visibilities(
+            inst_meshlet_indices, 
+            u_instantiated_meshlets,
+            u_instantiated_meshlet_counters,
+            u_meshlet_visibility_bitfield,
+            u_entity_visibility_bitfield_offsets
+        );
+    }
 }
