@@ -3,6 +3,7 @@
 #include <daxa/daxa.inl>
 #include "../../../shaders/cull_util.glsl"
 #include "fill_meshlet_buffer.inl"
+#include "../../mesh/visbuffer_meshlet_util.glsl"
 
 DEFINE_PUSHCONSTANT(FillMeshletBufferPush, push)
 layout(local_size_x = FILL_MESHLET_BUFFER_WORKGROUP_X) in;
@@ -11,12 +12,10 @@ void main()
     const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);
     const int entity_count = int(deref(u_entity_meta_data).entity_count);
 
-    daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counter = daxa_RWBufferPtr(daxa_u32)(daxa_u64(u_instantiated_meshlets));
-    daxa_RWBufferPtr(InstanciatedMeshlet) instantiated_meshlets = 
-        daxa_RWBufferPtr(InstanciatedMeshlet)(daxa_u64(u_instantiated_meshlets) + 32);
+    InstantiatedMeshletsView instantiated_meshlets_view = InstantiatedMeshletsView(u_instantiated_meshlets);
 
     // Binary Serarch the entity the meshlet id belongs to.
-    InstanciatedMeshlet instanced_meshlet;
+    InstantiatedMeshlet instanced_meshlet;
     instanced_meshlet.entity_index = 0xFFFFFFFF;
     instanced_meshlet.mesh_index = 0xFFFFFFFF;
     instanced_meshlet.meshlet_index = 0xFFFFFFFF;
@@ -44,10 +43,7 @@ void main()
 
         if (last < first)
         {
-            instanced_meshlet.entity_index = up_count;
-            instanced_meshlet.mesh_index = down_count;
-            instanced_meshlet.meshlet_index = iter;
-            deref(instantiated_meshlets[test_meshlet_instance_index]) = instanced_meshlet;
+            // ERROR CASE
             return;
         }
         if (test_meshlet_instance_index < meshlet_sum_prev_entity)
@@ -119,18 +115,21 @@ void main()
     {
         EntityVisibilityBitfieldOffsets offsets = deref(u_entity_visibility_bitfield_offsets[instanced_meshlet.entity_index]);
         const uint uint_base_offset = offsets.mesh_bitfield_offset[instanced_meshlet.mesh_index];
-        const uint uint_offset = uint_base_offset + (instanced_meshlet.meshlet_index / 32);
-        uint mask = 1 << instanced_meshlet.meshlet_index % 32;
-        const uint bitfield_section = deref(u_meshlet_visibility_bitfield[uint_offset]);
-        bool visible = (mask & bitfield_section) != 0;
-        // When visible set to be culled.
-        culled = !visible;
+        if (uint_base_offset != (~0))
+        {
+            const uint uint_offset = uint_base_offset + (instanced_meshlet.meshlet_index / 32);
+            uint mask = 1 << instanced_meshlet.meshlet_index % 32;
+            const uint bitfield_section = deref(u_meshlet_visibility_bitfield[uint_offset]);
+            bool visible = (mask & bitfield_section) != 0;
+            // When visible set to be culled.
+            culled = culled || visible;
+        }
     }
 
     if (!culled)
 #endif
     {
-        uint out_index = atomicAdd(deref(instantiated_meshlet_counter), 1);
-        deref(instantiated_meshlets[out_index]) = instanced_meshlet;
+        const uint out_index = atomicAdd(instantiated_meshlets_view.second_pass_meshlet_count, 1) + instantiated_meshlets_view.first_pass_meshlet_count;
+        instantiated_meshlets_view.meshlets[out_index] = instanced_meshlet;
     }
 }

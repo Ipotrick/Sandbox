@@ -17,7 +17,7 @@ DAXA_INL_TASK_USE_BEGIN(FillMeshletBufferBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstanciatedMeshlet), COMPUTE_SHADER_READ_WRITE)
+    DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
 struct FillMeshletBufferPush

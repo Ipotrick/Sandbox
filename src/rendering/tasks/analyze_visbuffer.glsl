@@ -4,14 +4,16 @@
 #include <daxa/daxa.inl>
 #include "analyze_visbuffer.inl"
 #include "../../mesh/mesh.inl"
+#include "../../mesh/visbuffer_meshlet_util.glsl"
 #include "visbuffer.glsl"
 
 void deduplicated_increment_meshlet_visibilities(
     uint meshlet_indices[4], 
-    daxa_BufferPtr(InstanciatedMeshlet) instantiated_meshlets,
+    daxa_BufferPtr(InstantiatedMeshlet) instantiated_meshlets,
     daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counters,
     daxa_RWBufferPtr(daxa_u32) meshlet_visibility_bitfield,
-    daxa_BufferPtr(EntityVisibilityBitfieldOffsets) entity_meshlet_vis_bitfield_offsets)
+    daxa_BufferPtr(EntityVisibilityBitfieldOffsets) entity_meshlet_vis_bitfield_offsets,
+    daxa_RWBufferPtr(InstantiatedMeshlet) instantiated_meshlets_next_frame)
 {
     // deduplicate meshlet indices:
     uint unique_meshlet_indices[4] = {
@@ -75,9 +77,18 @@ void deduplicated_increment_meshlet_visibilities(
             {
                 if (subgroupElect())
                 {
-                    atomicAdd(deref(instantiated_meshlet_counters[selected_index]), 1);
+                    const uint count_before = atomicAdd(deref(instantiated_meshlet_counters[selected_index]), 1);
 
-                    InstanciatedMeshlet inst_meshlet = deref(instantiated_meshlets[selected_index + 2 /*offset from counter*/]);
+                    InstantiatedMeshlet inst_meshlet = deref(instantiated_meshlets[selected_index + 2 /*offset from counter*/]);
+                    if (count_before == 0)
+                    {
+                        // Shader detected that meshlet is visible for the first time.
+                        // Insert the meshlet into the list of visible meshlets once.
+                        InstantiatedMeshletsView next_meshlets_view = InstantiatedMeshletsView(instantiated_meshlets_next_frame);
+                        const uint vis_meshlets_offset = atomicAdd(next_meshlets_view.first_pass_meshlet_count, 1);
+                        next_meshlets_view.meshlets[vis_meshlets_offset] = inst_meshlet;
+                    }
+
                     EntityVisibilityBitfieldOffsets vis_bits_offsets = deref(entity_meshlet_vis_bitfield_offsets[inst_meshlet.entity_index]);
                     const uint vis_bitfield_base_offset = vis_bits_offsets.mesh_bitfield_offset[inst_meshlet.mesh_index];
                     const uint bitfield_local_uint_offset = inst_meshlet.meshlet_index / 32;
@@ -140,7 +151,8 @@ void main()
             u_instantiated_meshlets,
             u_instantiated_meshlet_counters,
             u_meshlet_visibility_bitfield,
-            u_entity_visibility_bitfield_offsets
+            u_entity_visibility_bitfield_offsets,
+            u_instantiated_meshlets_next_frame
         );
     }
 }

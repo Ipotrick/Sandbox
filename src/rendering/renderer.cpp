@@ -2,9 +2,11 @@
 
 #include "../scene/scene.inl"
 
+#include "tasks/misc.hpp"
 #include "tasks/allocate_meshlet_visibility_bitfields.inl"
 #include "tasks/fill_meshlet_buffer.inl"
-#include "tasks/fill_index_buffer.inl"
+#include "tasks/write_draw_opaque_index_buffer.inl"
+#include "tasks/patch_draw_opaque_indirect.inl"
 #include "tasks/analyze_visbuffer.inl"
 #include "tasks/prefix_sum.inl"
 #include "tasks/draw_opaque_ids.inl"
@@ -120,7 +122,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshletInfo) * MAX_DRAWN_MESHLETS + /*reserved space for dispatch indirect info*/ 32,
+                    .size = sizeof(InstantiatedMeshlet) * MAX_DRAWN_MESHLETS + 2 * INDIRECT_COMMAND_BYTE_SIZE,
                     .name = "instantiated_meshlets",
                 }),
             },
@@ -138,16 +140,16 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "instantiated_meshlet_visibility_counters",
     }};
-    visible_meshlets = daxa::TaskBuffer{{
+    instantiated_meshlets_next_frame = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshletInfo) * MAX_DRAWN_MESHLETS + /*reserved space for dispatch indirect info*/ 32,
-                    .name = "visible_meshlets",
+                    .size = sizeof(InstantiatedMeshlet) * MAX_DRAWN_MESHLETS +  + 2 * INDIRECT_COMMAND_BYTE_SIZE,
+                    .name = "instantiated_meshlets_next_frame",
                 }),
             },
         },
-        .name = "visible_meshlets",
+        .name = "instantiated_meshlets_next_frame",
     }};
     meshlet_visibility_bitfield = daxa::TaskBuffer{{
         .initial_buffers = {
@@ -202,6 +204,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
+        instantiated_meshlets_next_frame,
         entity_visibility_bitfield_offsets,
         meshlet_visibility_bitfield,
         entity_debug,
@@ -245,6 +248,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
             {
                 .format = daxa::Format::R32_UINT,
                 .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT |
+                         daxa::ImageUsageFlagBits::TRANSFER_SRC |
                          daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
                 .name = visbuffer.info().name,
             },
@@ -310,7 +314,8 @@ void Renderer::compile_pipelines()
         {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
         {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
         {FillMeshletBufferTask::NAME, FILL_MESHLET_BUFFER_PIPELINE_INFO},
-        {FillIndexBufferTask::NAME, FILL_INDEX_BUFFER_PIPELINE_INFO},
+        {WriteDrawOpaqueIndexBufferTask::NAME, WRITE_DRAW_OPAQUE_INDEX_BUFFER_PIPELINE_INFO},
+        {PatchDrawOpaqueIndirectTask::NAME, PATCH_DRAW_OPAQUE_INDIRECT_PIPELINE_INFO},
         {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
         {AnalyzeVisbufferTask::NAME, ANALYZE_VISBUFFER_PIPELINE_INFO},
         {AllocateMeshletVisibilityTask::NAME, ALLOCATE_MESHLET_VISIBILITY_PIPELINE_INFO},
@@ -407,6 +412,75 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.use_persistent_image(swapchain_image);
     auto depth_handle = depth.handle().subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
 
+    auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
+        .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
+        .name = "draw_opaque_indirect_command_buffer",
+    });
+    
+    task_list.add_task(PatchDrawOpaqueIndirectTask{
+        {.uses = { instantiated_meshlets.handle() }},
+        .context = context,
+    });
+
+    if (context->settings.indexed_id_rendering)
+    {
+        task_list.add_task({
+            .uses = {
+                daxa::BufferTransferWrite{index_buffer},
+            },
+            .task = [=](daxa::TaskInterface ti)
+            {
+                daxa::CommandList cmd = ti.get_command_list();
+                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+                    .index_count = {},
+                    .instance_count = 1,
+                    .first_index = {},
+                    .vertex_offset = {},
+                    .first_instance = {},
+                };
+                cmd.copy_buffer_to_buffer({
+                    .src_buffer = this->context->transient_mem.get_buffer(),
+                    .src_offset = alloc.buffer_offset,
+                    .dst_buffer = ti.uses[index_buffer].buffer(),
+                    .dst_offset = 0,
+                    .size = sizeof(DrawIndexedIndirectStruct),
+                });
+            },
+            .name = "clear triangle count of index buffer",
+        });
+        // First pass id rendering:
+        task_list.add_task(WriteDrawOpaqueIndexBufferTask{
+            {
+                .uses = {
+                    .u_meshes = asset_manager->tmeshes.handle(),
+                    .u_meshlet_list = instantiated_meshlets.handle(),
+                    .u_index_buffer_and_count = index_buffer.handle(),
+                },
+            },
+            context,
+        });
+    }
+
+    task_list.add_task(DrawOpaqueIdTask{
+        {
+            .uses = {
+                .u_visbuffer = visbuffer.handle(),
+                .u_debug_image = debug_image.handle(),
+                .u_depth_image = depth_handle,
+                .u_draw_info_index_buffer = index_buffer.handle(),
+                .u_instantiated_meshlets = instantiated_meshlets.handle(),
+                .u_entity_meshlists = entity_meshlists.handle(),
+                .u_entity_debug = entity_debug.handle(),
+                .u_meshes = asset_manager->tmeshes.handle(),
+                .u_combined_transforms = entity_combined_transforms.handle(),
+            },
+        },
+        context->raster_pipelines[DrawOpaqueIdTask{}.name],
+        context,
+        /*pass:*/ 0 ,
+    });
+
     task_list.add_task(PrefixSumMeshletTask{
         .uses = {
             .meshes = asset_manager->tmeshes.handle(),
@@ -446,30 +520,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
     });
 
-    task_list.add_task({
-        .uses = {
-            daxa::BufferTransferWrite{instantiated_meshlets},
-        },
-        .task = [=](daxa::TaskInterface ti)
-        {
-            daxa::CommandList cmd = ti.get_command_list();
-            auto alloc = this->context->transient_mem.allocate(sizeof(DispatchIndirectStruct)).value();
-            *reinterpret_cast<DispatchIndirectStruct *>(alloc.host_address) = DispatchIndirectStruct{
-                .x = 0,
-                .y = 1,
-                .z = 1,
-            };
-            cmd.copy_buffer_to_buffer({
-                .src_buffer = this->context->transient_mem.get_buffer(),
-                .src_offset = alloc.buffer_offset,
-                .dst_buffer = ti.uses[instantiated_meshlets].buffer(),
-                .dst_offset = 0,
-                .size = sizeof(DispatchIndirectStruct),
-            });
-        },
-        .name = "clear instantiated meshlet counter",
-    });
-
     task_list.add_task(FillMeshletBufferTask{
         {
             .uses = {
@@ -485,65 +535,48 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context->compute_pipelines[FillMeshletBufferTask::NAME],
         context,
         &this->asset_manager->total_meshlet_count,
-        .cull_alredy_visible_meshlets = false,
+        .cull_alredy_visible_meshlets = true,
     });
 
-    task_list.add_task({
-        .uses = {
-            daxa::BufferTransferWrite{index_buffer},
-        },
-        .task = [=](daxa::TaskInterface ti)
-        {
-            daxa::CommandList cmd = ti.get_command_list();
-            if (context->settings.indexed_id_rendering)
-            {
-                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
-                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
-                    .index_count = {},
-                    .instance_count = 1,
-                    .first_index = {},
-                    .vertex_offset = {},
-                    .first_instance = {},
-                };
-                cmd.copy_buffer_to_buffer({
-                    .src_buffer = this->context->transient_mem.get_buffer(),
-                    .src_offset = alloc.buffer_offset,
-                    .dst_buffer = ti.uses[index_buffer].buffer(),
-                    .dst_offset = 0,
-                    .size = sizeof(DrawIndexedIndirectStruct),
-                });
-            }
-            else
-            {
-                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndirectStruct)).value();
-                *reinterpret_cast<DrawIndirectStruct *>(alloc.host_address) = DrawIndirectStruct{
-                    .vertex_count = {},
-                    .instance_count = 1,
-                    .first_vertex = {},
-                    .first_instance = {},
-                };
-                cmd.copy_buffer_to_buffer({
-                    .src_buffer = this->context->transient_mem.get_buffer(),
-                    .src_offset = alloc.buffer_offset,
-                    .dst_buffer = ti.uses[index_buffer].buffer(),
-                    .dst_offset = 0,
-                    .size = sizeof(DrawIndirectStruct),
-                });
-            }
-        },
-        .name = "clear triangle count of index buffer",
-    });
-
-    task_list.add_task(FillIndexBufferTask{
-        {
+    if (context->settings.indexed_id_rendering)
+    {
+        task_list.add_task({
             .uses = {
-                .u_meshes = asset_manager->tmeshes.handle(),
-                .u_instantiated_meshlets = instantiated_meshlets.handle(),
-                .u_index_buffer_and_count = index_buffer.handle(),
+                daxa::BufferTransferWrite{index_buffer},
             },
-        },
-        context,
-    });
+            .task = [=](daxa::TaskInterface ti)
+            {
+                daxa::CommandList cmd = ti.get_command_list();
+                    auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+                    *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+                        .index_count = {},
+                        .instance_count = 1,
+                        .first_index = {},
+                        .vertex_offset = {},
+                        .first_instance = {},
+                    };
+                    cmd.copy_buffer_to_buffer({
+                        .src_buffer = this->context->transient_mem.get_buffer(),
+                        .src_offset = alloc.buffer_offset,
+                        .dst_buffer = ti.uses[index_buffer].buffer(),
+                        .dst_offset = 0,
+                        .size = sizeof(DrawIndexedIndirectStruct),
+                    });
+            },
+            .name = "clear triangle count of index buffer",
+        });
+
+        task_list.add_task(WriteDrawOpaqueIndexBufferTask{
+            {
+                .uses = {
+                    .u_meshes = asset_manager->tmeshes.handle(),
+                    .u_meshlet_list = instantiated_meshlets.handle(),
+                    .u_index_buffer_and_count = index_buffer.handle(),
+                },
+            },
+            context,
+        });
+    }
 
     task_list.add_task(DrawOpaqueIdTask{
         {
@@ -561,24 +594,24 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
         context->raster_pipelines[DrawOpaqueIdTask{}.name],
         context,
-    });
-
-    // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
-    task_list.add_task({
-        .uses = { daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters} },
-        .task = [=](daxa::TaskInterface ti)
-        {
-            ti.get_command_list().clear_buffer({
-                .buffer = ti.uses[instantiated_meshlet_visibility_counters].buffer(),
-                .size = ti.get_device().info_buffer(ti.uses[instantiated_meshlet_visibility_counters].buffer()).size,
-                .clear_value = 0,
-            });
-        },
-        .name = "clear instantiated meshlet counters buffer",
+        /*pass:*/ 1,
     });
 
     if (context->settings.update_culling_information)
     {
+        // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
+        task_list.add_task({
+            .uses = { daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters} },
+            .task = [=](daxa::TaskInterface ti)
+            {
+                ti.get_command_list().clear_buffer({
+                    .buffer = ti.uses[instantiated_meshlet_visibility_counters].buffer(),
+                    .size = ti.get_device().info_buffer(ti.uses[instantiated_meshlet_visibility_counters].buffer()).size,
+                    .clear_value = 0,
+                });
+            },
+            .name = "clear instantiated meshlet counters buffer",
+        });
         // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
         task_list.add_task({
             .uses = { 
@@ -600,6 +633,11 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 });
             },
             .name = "clear entity_visibility_bitfield_offsets and meshlet_visibility_bitfield",
+        });
+
+        task_list.add_task(ClearInstantiatedMeshletsHeaderTask{
+            .uses = {instantiated_meshlets_next_frame.handle()},
+            .context = context,
         });
 
         task_list.add_task(AllocateMeshletVisibilityTask{
@@ -626,6 +664,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
                 .u_instantiated_meshlet_counters = instantiated_meshlet_visibility_counters.handle(),
                 .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
+                .u_instantiated_meshlets_next_frame = instantiated_meshlets_next_frame.handle(),
             },
         },
         context->compute_pipelines[AnalyzeVisbufferTask::NAME],
@@ -691,6 +730,12 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
         return;
     }
     this->swapchain_image.set_images({.images = std::array{swapchain_image}});
+
+    if(this->context->settings.update_culling_information != 0)
+    {
+        // visible meshlets from last frame become the first instantiated meshlets of the current frame.
+        this->instantiated_meshlets_next_frame.swap_buffers(this->instantiated_meshlets);
+    }
 
     this->submit_info = {};
     this->submit_info.signal_timeline_semaphores = {

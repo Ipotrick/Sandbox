@@ -4,6 +4,7 @@
 #include "draw_opaque_ids.inl"
 #include "visbuffer.glsl"
 #include "depth_util.glsl"
+#include "../../mesh/visbuffer_meshlet_util.glsl"
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 #define VERTEX_OUT out
@@ -33,19 +34,18 @@ void main()
     }
     else
     {
-        instantiated_meshlet_index = gl_VertexIndex / (128 * 3);
-        const uint meshlet_local_triangle_corner = gl_VertexIndex % (128 * 3);
-        triangle_index = meshlet_local_triangle_corner / 3;
-        corner_index = meshlet_local_triangle_corner % 3;
+        instantiated_meshlet_index = gl_InstanceIndex;
+        const uint meshlet_local_triangle_corner = gl_VertexIndex;
+        triangle_index = meshlet_local_triangle_corner / 3; // gl_PrimitiveID
+        corner_index = meshlet_local_triangle_corner % 3; // gl_PrimitiveIDIn
     }
 
-    // InstanciatedMeshlet:
+    // InstantiatedMeshlet:
     // daxa_u32 entity_index;
     // daxa_u32 mesh_id;
     // daxa_u32 mesh_index;
     // daxa_u32 meshlet_index;
-    InstanciatedMeshlet instantiated_meshlet = 
-        deref((daxa_BufferPtr(InstanciatedMeshlet)(daxa_u64(u_instantiated_meshlets) + 32) + instantiated_meshlet_index));
+    InstantiatedMeshlet instantiated_meshlet = InstantiatedMeshletsView(u_instantiated_meshlets).meshlets[instantiated_meshlet_index];
 
     // Mesh:
     // daxa_BufferId mesh_buffer;

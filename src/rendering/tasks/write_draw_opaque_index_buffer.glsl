@@ -2,42 +2,31 @@
 
 #include <daxa/daxa.inl>
 
-#include "fill_index_buffer.inl"
+#include "write_draw_opaque_index_buffer.inl"
 #include "../../../shaders/util.glsl"
 #include "../../../shaders/cull_util.glsl"
+#include "../../mesh/visbuffer_meshlet_util.glsl"
 
 shared vec3 transformed_vertex_positions[128];
 shared uint post_cull_triangle_indices[128];
 shared uint post_cull_triangle_count;
 shared uint index_buffer_offset;
-layout(local_size_x = FILL_INDEX_BUFFER_WORKGROUP_X) in;
+layout(local_size_x = WRITE_DRAW_OPAQUE_INFO_BUFFER_WORKGROUP_X) in;
 void main()
 {
-    const bool indexed_id_rendering = globals.settings.indexed_id_rendering == 1;
-    if (!indexed_id_rendering)
-    {
-        if (gl_GlobalInvocationID.x == 0)
-        {
-            daxa_RWBufferPtr(DrawIndirectStruct) draw_info = daxa_RWBufferPtr(DrawIndirectStruct)(daxa_u64(u_index_buffer_and_count));
-            daxa_BufferPtr(DispatchIndirectStruct) meshlet_dispatch = daxa_BufferPtr(DispatchIndirectStruct)(daxa_u64(u_instantiated_meshlets));
-            deref(draw_info).vertex_count = 128 * 3 * deref(meshlet_dispatch).x;
-        }
-        return;
-    }
-    const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.x;
+    const daxa_u32 instanced_meshlet_index = gl_WorkGroupID.y;
     daxa_u32 meshlet_triangle_index = gl_LocalInvocationID.x;
     daxa_RWBufferPtr(DrawIndexedIndirectStruct) draw_info = daxa_RWBufferPtr(DrawIndexedIndirectStruct)(daxa_u64(u_index_buffer_and_count));
     daxa_RWBufferPtr(daxa_u32) index_buffer = u_index_buffer_and_count + 8;
 
-    daxa_BufferPtr(InstanciatedMeshlet) instantiated_meshlets = 
-        daxa_BufferPtr(InstanciatedMeshlet)(daxa_u64(u_instantiated_meshlets) + 32);
-    InstanciatedMeshlet instanced_meshlet = deref(instantiated_meshlets[instanced_meshlet_index]);
-    Meshlet meshlet = u_meshes[instanced_meshlet.mesh_id].value.meshlets[instanced_meshlet.meshlet_index].value;
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instanced_meshlet.mesh_id]).micro_indices;
-    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(u_meshes[instanced_meshlet.mesh_id]).indirect_vertices;
+    ROInstantiatedMeshletsView instantiated_meshlets_view = ROInstantiatedMeshletsView(u_meshlet_list);
+    InstantiatedMeshlet instantiated_meshlet = instantiated_meshlets_view.meshlets[instanced_meshlet_index];
+    Meshlet meshlet = u_meshes[instantiated_meshlet.mesh_id].value.meshlets[instantiated_meshlet.meshlet_index].value;
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
+    daxa_BufferPtr(daxa_u32) indirect_vertices = deref(u_meshes[instantiated_meshlet.mesh_id]).indirect_vertices;
     uint triangle_count = meshlet.triangle_count;
 #if ENABLE_TRIANGLE_CULLING
-    BoundingSphere meshlet_bounds = deref(deref(u_meshes[instanced_meshlet.mesh_id]).meshlet_bounds[instanced_meshlet.meshlet_index]);
+    BoundingSphere meshlet_bounds = deref(deref(u_meshes[instantiated_meshlet.mesh_id]).meshlet_bounds[instantiated_meshlet.meshlet_index]);
     const float threshhold = 150.0f;
     const bool cull_triangles = meshlet_bounds.radius > threshhold;
 #else
@@ -45,9 +34,9 @@ void main()
 #endif
     if (cull_triangles && bool(ENABLE_TRIANGLE_CULLING))
     {
-        Mesh mesh = deref(u_meshes[instanced_meshlet.mesh_id]);
+        Mesh mesh = deref(u_meshes[instantiated_meshlet.mesh_id]);
         [[unroll]]
-        for (uint loop_offset = 0; loop_offset < MAX_VERTICES_PER_MESHLET; loop_offset += FILL_INDEX_BUFFER_WORKGROUP_X)
+        for (uint loop_offset = 0; loop_offset < MAX_VERTICES_PER_MESHLET; loop_offset += WRITE_DRAW_OPAQUE_INFO_BUFFER_WORKGROUP_X)
         {
             const uint thread_index = gl_LocalInvocationID.x + loop_offset;
             if (thread_index < meshlet.vertex_count)
@@ -66,7 +55,7 @@ void main()
         memoryBarrierShared();
 
         [[unroll]]
-        for (uint loop_offset = 0; loop_offset < MAX_VERTICES_PER_MESHLET; loop_offset += FILL_INDEX_BUFFER_WORKGROUP_X)
+        for (uint loop_offset = 0; loop_offset < MAX_VERTICES_PER_MESHLET; loop_offset += WRITE_DRAW_OPAQUE_INFO_BUFFER_WORKGROUP_X)
         {
             const uint thread_index = gl_LocalInvocationID.x + loop_offset;
             if (thread_index < meshlet.triangle_count)
@@ -115,7 +104,7 @@ void main()
         barrier();
     }
     [[unroll]]
-    for (uint loop_offset = 0; loop_offset < MAX_TRIANGLES_PER_MESHLET; loop_offset += FILL_INDEX_BUFFER_WORKGROUP_X)
+    for (uint loop_offset = 0; loop_offset < MAX_TRIANGLES_PER_MESHLET; loop_offset += WRITE_DRAW_OPAQUE_INFO_BUFFER_WORKGROUP_X)
     {
         const uint thread_index = gl_LocalInvocationID.x + loop_offset;
         if (thread_index < triangle_count)

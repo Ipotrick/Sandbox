@@ -6,38 +6,6 @@
 #define MAX_TRIANGLES_PER_MESHLET 124
 #define MAX_VERTICES_PER_MESHLET 128
 
-struct DrawIndexedIndirectCommand
-{
-    daxa_u32 index_count;
-    daxa_u32 instance_count;
-    daxa_u32 first_index;
-    daxa_u32 vertex_offset;
-    daxa_u32 first_instance;
-};
-
-struct Object
-{
-    daxa_f32mat4x4 matrix;
-    daxa_u32 model_index;
-};
-
-/// 
-/// A Model is a collection of meshes with some meta information.
-/// Each model can point to up to 8 meshes.
-///
-struct Model
-{
-    daxa_u32 mesh_indices[8];
-    daxa_u32 mesh_count;
-};
-
-/// An array of draw infos can be indexed with draw indirect
-struct MeshDrawInfo
-{
-    daxa_u32 object_id;
-    daxa_u32 mesh_id;
-};
-
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet
 {
@@ -51,32 +19,14 @@ struct Meshlet
 };
 DAXA_ENABLE_BUFFER_PTR(Meshlet)
 
-/// Can be indexed when drawing meshlets via draw indirect.
-struct InstantiatedMeshletInfo
-{
-    daxa_u32 object_index;
-    daxa_u32 mesh_index;
-    daxa_u32 meshlet_index;
-    daxa_u32 pad;          // Alignment 16 access optimization.
-};
-DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshletInfo)
-
-struct InstanciatedMeshlet
+struct InstantiatedMeshlet
 {
     daxa_u32 entity_index;
     daxa_u32 mesh_id;
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
 };
-DAXA_ENABLE_BUFFER_PTR(InstanciatedMeshlet)
-
-struct TriangleId
-{
-    // Bits 7-31: instantiated meshlet id;
-    // Bits 0-6: in meshlet id;
-    daxa_u32 value;
-};
-DAXA_ENABLE_BUFFER_PTR(TriangleId)
+DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshlet)
 
 struct BoundingSphere{
     daxa_f32vec3 center;

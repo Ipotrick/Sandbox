@@ -13,7 +13,7 @@ DAXA_INL_TASK_USE_IMAGE(u_visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
 DAXA_INL_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
 DAXA_INL_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
 DAXA_INL_TASK_USE_BUFFER(u_draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
-DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstanciatedMeshlet), VERTEX_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlet), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
@@ -65,6 +65,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
 {
     std::shared_ptr<daxa::RasterPipeline> pipeline = {};
     GPUContext *context = {};
+    u32 pass = {};
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
@@ -73,19 +74,20 @@ struct DrawOpaqueIdTask : DrawOpaqueId
         daxa::ImageId visbuffer = uses.u_visbuffer.image();
         daxa::ImageId debug_image = uses.u_debug_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
+        bool const clear_attachments = pass == 0;
         cmd.begin_renderpass({
             .color_attachments = {
                 daxa::RenderAttachmentInfo{
                     .image_view = visbuffer.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = daxa::AttachmentLoadOp::CLEAR,
+                    .load_op = clear_attachments ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_PIXEL_ID, 0, 0, 0}},
                 },
                 daxa::RenderAttachmentInfo{
                     .image_view = debug_image.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = daxa::AttachmentLoadOp::CLEAR,
+                    .load_op = clear_attachments ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<f32, 4>{1.f, 1.f, 1.f, 1.f}},
                 },
@@ -93,7 +95,7 @@ struct DrawOpaqueIdTask : DrawOpaqueId
             .depth_attachment = daxa::RenderAttachmentInfo{
                 .image_view = depth_image.default_view(),
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                .load_op = daxa::AttachmentLoadOp::CLEAR,
+                .load_op = clear_attachments ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                 .store_op = daxa::AttachmentStoreOp::STORE,
                 .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
             },
@@ -103,12 +105,14 @@ struct DrawOpaqueIdTask : DrawOpaqueId
             },
         });
         cmd.set_pipeline(*pipeline);
-        cmd.set_index_buffer(uses.u_draw_info_index_buffer.buffer(), 32 /*draw info*/);
+
+        cmd.set_index_buffer(uses.u_draw_info_index_buffer.buffer(), INDIRECT_COMMAND_BYTE_SIZE * 2);
+        auto const indirect_offset = static_cast<usize>(pass == 0 ? 0 : INDIRECT_COMMAND_BYTE_SIZE);
         cmd.draw_indirect({
             .draw_command_buffer = uses.u_draw_info_index_buffer.buffer(),
-            .draw_command_buffer_read_offset = 0,
+            .draw_command_buffer_read_offset = indirect_offset,
             .draw_count = 1,
-            .draw_command_stride = 32,
+            .draw_command_stride = INDIRECT_COMMAND_BYTE_SIZE,
             .is_indexed = context->settings.indexed_id_rendering != 0,
         });
         cmd.end_renderpass();

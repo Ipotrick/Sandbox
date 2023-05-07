@@ -12,7 +12,6 @@ void main()
     const ivec2 index = ivec2(gl_GlobalInvocationID.xy);
     vec4 result = vec4(0,0,0,1);
 
-
     const vec4 debug_value = texelFetch(debug_image, index, 0);
     result.xyz = result.xyz * (1.0f - debug_value.a) + debug_value.xyz * debug_value.a;
     result.xyz = debug_value.xyz;

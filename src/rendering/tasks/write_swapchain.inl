@@ -8,8 +8,6 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-#define FILL_INDEX_BUFFER_WORKGROUP_X MAX_TRIANGLES_PER_MESHLET
-
 DAXA_INL_TASK_USE_BEGIN(WriteSwapchain, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_IMAGE(swapchain, daxa_RWImage2Df32, COMPUTE_SHADER_WRITE)
 DAXA_INL_TASK_USE_IMAGE(debug_image, daxa_Image2Df32, COMPUTE_SHADER_READ)

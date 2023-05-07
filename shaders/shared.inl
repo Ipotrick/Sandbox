@@ -58,6 +58,8 @@ SHARED_FUNCTION daxa_u32 round_up_div(daxa_u32 value, daxa_u32 div)
 
 #define ENABLE_TASK_USES(STRUCT, NAME) 
 
+#define INDIRECT_COMMAND_BYTE_SIZE 128
+
 struct DrawIndexedIndirectStruct
 {
     daxa_u32 index_count;
@@ -65,6 +67,7 @@ struct DrawIndexedIndirectStruct
     daxa_u32 first_index;
     daxa_u32 vertex_offset;
     daxa_u32 first_instance;
+    daxa_u32 padd[3];
 };
 DAXA_ENABLE_BUFFER_PTR(DrawIndexedIndirectStruct)
 
@@ -74,6 +77,7 @@ struct DrawIndirectStruct
     daxa_u32 instance_count;
     daxa_u32 first_vertex;
     daxa_u32 first_instance;
+    daxa_u32 padd[4];
 };
 DAXA_ENABLE_BUFFER_PTR(DrawIndirectStruct)
 
@@ -82,5 +86,6 @@ struct DispatchIndirectStruct
     daxa_u32 x;
     daxa_u32 y;
     daxa_u32 z;
+    daxa_u32 padd[7];
 };
 DAXA_ENABLE_BUFFER_PTR(DispatchIndirectStruct)
