@@ -4,51 +4,25 @@
 #include <daxa/utils/task_list.hpp>
 #include "../gpu_context.hpp"
 
-struct ClearInstantiatedMeshletsHeaderTask
+template <typename T_USES_BASE, char const *T_FILE_PATH>
+struct WriteIndirectDispatchArgsBaseTask : T_USES_BASE
 {
-    struct Uses
-    {
-        daxa::BufferTransferWrite instantiated_meshlets{};
-    } uses = {};
-    static constexpr inline std::string_view NAME = "ClearInstantiatedMeshletsHeaderTask";
     GPUContext * context = {};
+    daxa::ComputePipelineCompileInfo pipe_info = {
+        .shader_info = daxa::ShaderCompileInfo{
+            .source = daxa::ShaderFile{T_FILE_PATH},
+            .compile_options = {
+                .defines = {{"WRITE_COMMAND"}},
+            },
+        },
+        .name = std::string{T_USES_BASE::NAME},
+    };
+    std::shared_ptr<daxa::ComputePipeline> pipeline = context->pipeline_manager.add_compute_pipeline(pipe_info).value();
     void callback(daxa::TaskInterface ti)
     {
-        daxa::BufferId src_buf = {};
-        daxa::CommandList cmd = ti.get_command_list();
-        auto alloc = ti.get_allocator().allocate(sizeof(INDIRECT_COMMAND_BYTE_SIZE)).value();
-        if (context->settings.indexed_id_rendering != 0)
-        {
-            *reinterpret_cast<DispatchIndirectStruct *>(alloc.host_address) = DispatchIndirectStruct{
-                .x = 0,
-                .y = 1,
-                .z = 1,
-            };
-        }
-        else
-        {
-            *reinterpret_cast<DrawIndirectStruct *>(alloc.host_address) = DrawIndirectStruct{
-                .vertex_count = 0,
-                .instance_count = 1,
-                .first_vertex = 0,
-                .first_instance = 0,
-            };
-        }
-        auto const src = ti.get_allocator().get_buffer();
-        auto const dst = uses.instantiated_meshlets.buffer();
-        cmd.copy_buffer_to_buffer({
-            .src_buffer = src,
-            .src_offset = alloc.buffer_offset,
-            .dst_buffer = dst,
-            .dst_offset = 0,
-            .size = sizeof(INDIRECT_COMMAND_BYTE_SIZE),
-        });
-        cmd.copy_buffer_to_buffer({
-            .src_buffer = src,
-            .src_offset = alloc.buffer_offset,
-            .dst_buffer = dst,
-            .dst_offset = sizeof(INDIRECT_COMMAND_BYTE_SIZE),
-            .size = sizeof(INDIRECT_COMMAND_BYTE_SIZE),
-        });
+        auto cmd = ti.get_command_list();
+        cmd.set_constant_buffer(context->shader_globals_set_info);
+        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.dispatch(1, 1, 1);
     }
 };

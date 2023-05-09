@@ -2,6 +2,8 @@
 
 #include "../scene/scene.inl"
 
+#include "rasterize_visbuffer/filter_visible_meshlets.inl"
+
 #include "tasks/misc.hpp"
 #include "tasks/allocate_meshlet_visibility_bitfields.inl"
 #include "tasks/fill_meshlet_buffer.inl"
@@ -122,34 +124,45 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlet) * MAX_DRAWN_MESHLETS + 2 * INDIRECT_COMMAND_BYTE_SIZE,
+                    .size = sizeof(InstantiatedMeshlets),
                     .name = "instantiated_meshlets",
                 }),
             },
         },
         .name = "instantiated_meshlets",
     }};
+    initial_pass_triangles = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(TriangleDrawList),
+                    .name = "initial_pass_triangles",
+                }),
+            },
+        },
+        .name = "initial_pass_triangles",
+    }};
     instantiated_meshlet_visibility_counters = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(daxa_u32) * MAX_DRAWN_MESHLETS,
+                    .size = sizeof(daxa_u32) * MAX_INSTANTIATED_MESHLETS,
                     .name = "instantiated_meshlet_visibility_counters",
                 }),
             },
         },
         .name = "instantiated_meshlet_visibility_counters",
     }};
-    instantiated_meshlets_next_frame = daxa::TaskBuffer{{
+    instantiated_meshlets_last_frame = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlet) * MAX_DRAWN_MESHLETS +  + 2 * INDIRECT_COMMAND_BYTE_SIZE,
-                    .name = "instantiated_meshlets_next_frame",
+                    .size = sizeof(InstantiatedMeshlet) * MAX_INSTANTIATED_MESHLETS +  + 2 * INDIRECT_COMMAND_BYTE_SIZE,
+                    .name = "instantiated_meshlets_last_frame",
                 }),
             },
         },
-        .name = "instantiated_meshlets_next_frame",
+        .name = "instantiated_meshlets_last_frame",
     }};
     meshlet_visibility_bitfield = daxa::TaskBuffer{{
         .initial_buffers = {
@@ -204,11 +217,12 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
-        instantiated_meshlets_next_frame,
+        instantiated_meshlets_last_frame,
         entity_visibility_bitfield_offsets,
         meshlet_visibility_bitfield,
         entity_debug,
         instantiated_meshlets,
+        initial_pass_triangles,
         instantiated_meshlet_visibility_counters,
         index_buffer,
         ent_meshlet_count_prefix_sum_buffer,
@@ -356,44 +370,35 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
 {
     // Rendering process:
     //  - update metadata
-    //  - clear buffer containing list of drawn meshlets
-    //      - IMPORTANT: This list of drawn meshlets has a counter of visible pixels for each drawn meshlet
-    //                   These counters are written to when anaylizing the id buffer and used to create the list of visible meshlets in the end
-    //  - insert list of visible meshlets into list of drawn meshlets
-    //  - draw list of visible meshlets from last frame depth only
-    //  - build hiz from depth initial depth
-    //  - three possible paths:
-    //      - draw indirect indexed count:
-    //          - cull instances, expand list of to be drawn instances
-    //          - cull meshlets, concatinate visible meshlets to list of drawn meshlets
-    //          - cull triangles, expand index buffer
-    //          - draw indexed indirect count
-    //      - draw indirect count:
-    //          - cull instances, expand list of to be drawn instances
-    //          - cull meshlets, concatinate visible meshlets to list of drawn meshlets
-    //          - draw indirect count
-    //      - dispatch tasks indirect count
-    //          - cull instances, expand list of to be drawn instances
-    //          - dispatch task shaders indirect count:
-    //              - cull meshlets, dispatch mesh shaders for non culled meshlets
-    //              - cull triangles, create triangles and give the index buffer to the rasterizer
-    //  - build hiz depth
-    //  - analyze visbuffer tiles
-    //      - count visible pixels for each drawn meshlet
-    //      - add bits to materiak mask for tile
-    //      - write material id as depth value to material depth
-    //  - scan list of drawn meshlets:
-    //      - if a meshlet has a visible triangle count of over 0, append it to visible meshlet list for next frames use.
-    //  - draw opaque:
-    //      - generate g buffer for post processing
-    //      - write final color result
-    //      - method:
-    //          - draw tiles only for tiles that have material present
-    //          - set depth test to equal material depth
-    //  - blurr pass for bloom
-    //      - take last frames bloom into account for temporal effect
-    //      - also anaylze brightness for tonemapping
-    //  - write swapchain
+    //  - first draw pass:
+    //      - meshshader path:
+    //          - drawTasksIndirect on the previous frames meshlet list
+    //              - cull meshlets that have 0 visible triangles
+    //              - write out not culled meshlets to current frame meshlet list.
+    //              - cull triangles that are not set as visible
+    //      - fallback path:
+    //          - dispatch compute shader on old frames meshlet list
+    //              - cull meshlets that have 0 visible triangles
+    //              - write out not culled meshlets to current frame meshlet list.
+    //              - (potentially) write out triangle buffer for culled triangle compacted draw
+    //          - draw indirect on new meshlist (or poentially triangle list)
+    //  - build HIZ depth
+    //  - second draw pass:
+    //      - meshshader path:
+    //          - drawTasksIndirectCount with one draw per instance
+    //              - cull instances on depth and frustum, dispatch n meshshaders each meshlet in surviving instances
+    //              - cull meshlets on depth and frustum.
+    //              - write out surviving meshlets to meshlist.
+    //              - cull triangles that are not set as visible
+    //      - fallback path:
+    //          - dispatch compute shader on on all instances, build compact buffer of surviving instances
+    //          - dispatch on surviving instances, build prefix sum on meshlet count.
+    //          - dispatch for each meshlet, binary search meshlet identiy, cull meshlet on depth and frustum, write survivers to meshlist
+    //          - dispatch for each surviving meshlet, cull triangles on depth and frustum, write out trangle id buffer
+    //          - draw indirect on triangle id buffer
+    //  - analyze visbuffer
+    //      - set meshlet triangle visibility bitmasks 
+    //  - blit debug image to swapchain
     using namespace daxa;
     TaskList task_list{{
         .device = this->context->device,
@@ -411,6 +416,25 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     }
     task_list.use_persistent_image(swapchain_image);
     auto depth_handle = depth.handle().subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
+
+    // Using the last frames visbuffer and meshlet visibility bitmasks, filter the visible meshlets into a list.
+    // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
+    task_list.add_task(FilterVisibleMeshlets{
+        {.uses={
+            .u_instantiated_meshlets = instantiated_meshlets_last_frame.handle(),
+            .u_meshlet_visibility_bitmasks = meshlet_visibility_bitfield.handle(),
+            .u_filtered_meshlets = instantiated_meshlets.handle(),
+            .u_filtered_triangles = initial_pass_triangles.handle(),
+        }},
+        .context = context,
+    });
+
+    if (!context->settings.enable_mesh_shader)
+    {
+        task_list.add_task(BuildInitialMeshletList{
+
+        })
+    }
 
     auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
         .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
@@ -636,7 +660,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         });
 
         task_list.add_task(ClearInstantiatedMeshletsHeaderTask{
-            .uses = {instantiated_meshlets_next_frame.handle()},
+            .uses = {instantiated_meshlets_last_frame.handle()},
             .context = context,
         });
 
@@ -664,7 +688,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
                 .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
                 .u_instantiated_meshlet_counters = instantiated_meshlet_visibility_counters.handle(),
                 .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
-                .u_instantiated_meshlets_next_frame = instantiated_meshlets_next_frame.handle(),
+                .u_instantiated_meshlets_last_frame = instantiated_meshlets_last_frame.handle(),
             },
         },
         context->compute_pipelines[AnalyzeVisbufferTask::NAME],
@@ -734,7 +758,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     if(this->context->settings.update_culling_information != 0)
     {
         // visible meshlets from last frame become the first instantiated meshlets of the current frame.
-        this->instantiated_meshlets_next_frame.swap_buffers(this->instantiated_meshlets);
+        this->instantiated_meshlets_last_frame.swap_buffers(this->instantiated_meshlets);
     }
 
     this->submit_info = {};

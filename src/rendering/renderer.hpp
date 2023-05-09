@@ -37,8 +37,9 @@ struct Renderer
     daxa::TaskBuffer entity_debug = {};
 
     daxa::TaskBuffer instantiated_meshlets = {};
+    daxa::TaskBuffer initial_pass_triangles = {};
     daxa::TaskBuffer instantiated_meshlet_visibility_counters = {};
-    daxa::TaskBuffer instantiated_meshlets_next_frame = {};
+    daxa::TaskBuffer instantiated_meshlets_last_frame = {};
     daxa::TaskBuffer meshlet_visibility_bitfield = {};
     daxa::TaskBuffer index_buffer = {};
     daxa::TaskBuffer ent_meshlet_count_prefix_sum_buffer = {};

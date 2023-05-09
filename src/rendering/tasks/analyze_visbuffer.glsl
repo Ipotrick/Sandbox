@@ -13,7 +13,7 @@ void deduplicated_increment_meshlet_visibilities(
     daxa_RWBufferPtr(daxa_u32) instantiated_meshlet_counters,
     daxa_RWBufferPtr(daxa_u32) meshlet_visibility_bitfield,
     daxa_BufferPtr(EntityVisibilityBitfieldOffsets) entity_meshlet_vis_bitfield_offsets,
-    daxa_RWBufferPtr(InstantiatedMeshlet) instantiated_meshlets_next_frame)
+    daxa_RWBufferPtr(InstantiatedMeshlet) instantiated_meshlets_last_frame)
 {
     // deduplicate meshlet indices:
     uint unique_meshlet_indices[4] = {
@@ -84,7 +84,7 @@ void deduplicated_increment_meshlet_visibilities(
                     {
                         // Shader detected that meshlet is visible for the first time.
                         // Insert the meshlet into the list of visible meshlets once.
-                        InstantiatedMeshletsView next_meshlets_view = InstantiatedMeshletsView(instantiated_meshlets_next_frame);
+                        InstantiatedMeshletsView next_meshlets_view = InstantiatedMeshletsView(instantiated_meshlets_last_frame);
                         const uint vis_meshlets_offset = atomicAdd(next_meshlets_view.first_pass_meshlet_count, 1);
                         next_meshlets_view.meshlets[vis_meshlets_offset] = inst_meshlet;
                     }
@@ -152,7 +152,7 @@ void main()
             u_instantiated_meshlet_counters,
             u_meshlet_visibility_bitfield,
             u_entity_visibility_bitfield_offsets,
-            u_instantiated_meshlets_next_frame
+            u_instantiated_meshlets_last_frame
         );
     }
 }

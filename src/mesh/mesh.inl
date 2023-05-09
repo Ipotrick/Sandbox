@@ -3,7 +3,11 @@
 #include <daxa/daxa.inl>
 
 #define INVALID_MESHLET_INDEX (~(0u))
+
+// Can never be greater then 128!
 #define MAX_TRIANGLES_PER_MESHLET 124
+
+// Can never be greater then 384!
 #define MAX_VERTICES_PER_MESHLET 128
 
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
@@ -35,9 +39,7 @@ struct BoundingSphere{
 DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
 
 #if defined(DAXA_SHADER)
-
 #define DEBUG_VERTEX_ID 1
-
 void encode_vertex_id(daxa_u32 instantiated_meshlet_index, daxa_u32 triangle_index, daxa_u32 triangle_corner, out daxa_u32 vertex_id)
 {
     #if DEBUG_VERTEX_ID
@@ -46,7 +48,6 @@ void encode_vertex_id(daxa_u32 instantiated_meshlet_index, daxa_u32 triangle_ind
     vertex_id = (instantiated_meshlet_index << 9) | (triangle_index << 2) | triangle_corner;
     #endif
 }
-
 void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_index, out daxa_u32 triangle_index, out daxa_u32 triangle_corner)
 {
     #if DEBUG_VERTEX_ID
@@ -59,7 +60,6 @@ void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_inde
     triangle_corner = vertex_id & 0x3f;
     #endif
 }
-
 #endif // #if defined(DAXA_SHADER)
 
 /// 

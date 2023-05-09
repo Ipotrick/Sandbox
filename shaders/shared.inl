@@ -4,17 +4,30 @@
 
 #define SHADER_GLOBALS_SLOT 0
 
-#define MAX_DRAWN_MESHLETS 1000000
+#define MAX_INSTANTIATED_MESHLETS 1000000
 #define VISIBLE_ENTITY_MESHLETS_BITFIELD_SCRATCH 1000000
 #define MAX_DRAWN_TRIANGLES 1000000000u
 #define TRIANGLE_SIZE 12
 
 #define ENABLE_MESHLET_CULLING 1
 #define ENABLE_TRIANGLE_CULLING 1
+#define ENABLE_SHADER_PRINT_DEBUG 1
+
+#if __cplusplus
+#define DECL_BUFFER_REF struct
+#else
+#define DECL_BUFFER_REFDAXA_BUFFER_REFERENCE_LAYOUT buffer
+#endif
+
+#if __cplusplus
+#define SHADER_ONLY(x) 
+#else
+#define SHADER_ONLY(x) x
+#endif
 
 struct Settings
 {
-    daxa_u32 indexed_id_rendering;
+    daxa_u32 enable_mesh_shader;
     daxa_u32 update_culling_information;
 #if __cplusplus
     auto operator <=>(Settings const & other) const = default;
@@ -58,8 +71,6 @@ SHARED_FUNCTION daxa_u32 round_up_div(daxa_u32 value, daxa_u32 div)
 
 #define ENABLE_TASK_USES(STRUCT, NAME) 
 
-#define INDIRECT_COMMAND_BYTE_SIZE 128
-
 struct DrawIndexedIndirectStruct
 {
     daxa_u32 index_count;
@@ -67,7 +78,6 @@ struct DrawIndexedIndirectStruct
     daxa_u32 first_index;
     daxa_u32 vertex_offset;
     daxa_u32 first_instance;
-    daxa_u32 padd[3];
 };
 DAXA_ENABLE_BUFFER_PTR(DrawIndexedIndirectStruct)
 
@@ -77,7 +87,6 @@ struct DrawIndirectStruct
     daxa_u32 instance_count;
     daxa_u32 first_vertex;
     daxa_u32 first_instance;
-    daxa_u32 padd[4];
 };
 DAXA_ENABLE_BUFFER_PTR(DrawIndirectStruct)
 
@@ -86,6 +95,5 @@ struct DispatchIndirectStruct
     daxa_u32 x;
     daxa_u32 y;
     daxa_u32 z;
-    daxa_u32 padd[7];
 };
 DAXA_ENABLE_BUFFER_PTR(DispatchIndirectStruct)
