@@ -16,16 +16,23 @@ struct InstantiatedMeshlets
 };
 DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshlets)
 
-struct TriangleDrawInfo
-{
-    daxa_u32 meshlet_index;
-    daxa_u32 triangle_index;
-};
-DAXA_ENABLE_BUFFER_PTR(TriangleDrawInfo)
-
 struct TriangleDrawList
 {
     DrawIndirectStruct count;
-    TriangleDrawInfo triangles[MAX_DRAWN_TRIANGLES];
+    daxa_u32 triangle_ids[MAX_DRAWN_TRIANGLES];
 };
 DAXA_ENABLE_BUFFER_PTR(TriangleDrawList)
+
+struct MeshDrawInfo
+{
+    daxa_u32 entity_id;
+    daxa_u32 mesh_index;
+};
+
+struct MeshDrawList
+{
+    DrawIndirectStruct count;
+    DrawIndirectStruct draw_tasks_count[MAX_INSTANTIATED_MESHES];
+    MeshDrawInfo mesh_draw_infos[MAX_INSTANTIATED_MESHES];
+};
+DAXA_ENABLE_BUFFER_PTR(MeshDrawList)

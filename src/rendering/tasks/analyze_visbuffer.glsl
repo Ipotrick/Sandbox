@@ -137,7 +137,7 @@ void main()
             {
                 uint instantiated_meshlet_index;
                 uint triangle_index;
-                decode_pixel_id(vis_id, instantiated_meshlet_index, triangle_index);
+                decode_triangle_id(vis_id, instantiated_meshlet_index, triangle_index);
                 inst_meshlet_indices[quad_i] = instantiated_meshlet_index;
                 triangle_indices[quad_i] = triangle_index;
             }

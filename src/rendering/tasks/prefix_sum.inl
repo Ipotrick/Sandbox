@@ -6,6 +6,19 @@
 #include "../../scene/scene.inl"
 #include "../../../shaders/util.inl"
 
+#if __cplusplus || defined(PREFIX_SUM_BASE)
+DAXA_INL_TASK_USE_BEGIN(PrefixSumBaseBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BUFFER(u_count_buffer, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_WRITE)
+DAXA_INL_TASK_USE_BUFFER(u_src, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_END()
+#endif
+#if __cplusplus || defined(PREFIX_SUM_DISTRIBUTE)
+
+#endif
+#if __cplusplus || defined(PREFIX_SUM_COLLECT)
+
+#endif
+
 struct PrefixSumMeshletCountPush
 {
     daxa_BufferPtr(EntityMetaData) entity_meta_data;

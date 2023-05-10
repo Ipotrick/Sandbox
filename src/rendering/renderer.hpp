@@ -36,6 +36,9 @@ struct Renderer
     daxa::TaskBuffer entity_visibility_bitfield_offsets = {};
     daxa::TaskBuffer entity_debug = {};
 
+    daxa::TaskBuffer mesh_draw_list = {};
+    daxa::TaskBuffer mesh_draw_meshlet_counts = {};
+
     daxa::TaskBuffer instantiated_meshlets = {};
     daxa::TaskBuffer initial_pass_triangles = {};
     daxa::TaskBuffer instantiated_meshlet_visibility_counters = {};

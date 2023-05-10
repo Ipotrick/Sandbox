@@ -37,7 +37,7 @@ void main()
     const InstantiatedMeshlet src_inst_meshlet = deref(u_src_instantiated_meshlets).meshlets[src_meshlet_index];
     if (gl_GlobalInvocationID.x == 0)
     {
-        gs_filtered_meshlet_index = atomidAdd(deref(u_filtered_meshlets).first_count, 1);
+        gs_filtered_meshlet_index = atomidAdd(deref(u_filtered_meshlets).first_count.y, 1);
         gs_triangle_buffer_offset = atomicAdd(deref(u_filtered_triangles).count.vertex_count, gs_triangle_count * 3) / 3;
     }
 

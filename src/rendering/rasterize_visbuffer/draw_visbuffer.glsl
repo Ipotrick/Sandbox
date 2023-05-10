@@ -1,8 +1,7 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
-#include "draw_opaque_ids.inl"
-#include "visbuffer.glsl"
+#include "draw_visbuffer.inl"
 #include "depth_util.glsl"
 #include "../../mesh/visbuffer_meshlet_util.glsl"
 
@@ -18,34 +17,20 @@ layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
 layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
-
 void main()
 {
-    const bool indexed_id_rendering = globals.settings.indexed_id_rendering == 1;
-
-    uint instantiated_meshlet_index = 0;
-    uint triangle_index = 0;
-    uint corner_index = 0;
-
-    if (indexed_id_rendering)
-    {
-        const uint vertex_id = gl_VertexIndex;
-        decode_vertex_id(vertex_id, instantiated_meshlet_index, triangle_index, corner_index);
-    }
-    else
-    {
-        instantiated_meshlet_index = gl_InstanceIndex;
-        const uint meshlet_local_triangle_corner = gl_VertexIndex;
-        triangle_index = meshlet_local_triangle_corner / 3; // gl_PrimitiveID
-        corner_index = meshlet_local_triangle_corner % 3; // gl_PrimitiveIDIn
-    }
+    const uint triangle_corner_index = gl_PrimitiveIDIn;
+    uint inst_meshlet_index;
+    uint triangle_index;
+    const uint triangle_id = deref(u_triangle_list).triangles[gl_PrimitiveID];
+    decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
 
     // InstantiatedMeshlet:
     // daxa_u32 entity_index;
     // daxa_u32 mesh_id;
     // daxa_u32 mesh_index;
     // daxa_u32 meshlet_index;
-    InstantiatedMeshlet instantiated_meshlet = InstantiatedMeshletsView(u_instantiated_meshlets).meshlets[instantiated_meshlet_index];
+    InstantiatedMeshlet instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
 
     // Mesh:
     // daxa_BufferId mesh_buffer;
@@ -78,12 +63,11 @@ void main()
 
     vout_triangle_index = triangle_index;
     vout_entity_index = instantiated_meshlet.entity_index;
-    vout_instantiated_meshlet_index = instantiated_meshlet_index;
+    vout_instantiated_meshlet_index = inst_meshlet_index;
     vout_meshlet_index = instantiated_meshlet.meshlet_index;
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-
 layout(location = 0) out uint visibility_id;
 layout(location = 1) out vec4 debug_color;
 void main()

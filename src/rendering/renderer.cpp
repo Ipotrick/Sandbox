@@ -3,6 +3,8 @@
 #include "../scene/scene.inl"
 
 #include "rasterize_visbuffer/filter_visible_meshlets.inl"
+#include "rasterize_visbuffer/draw_visbuffer.inl"
+#include "rasterize_visbuffer/cull_meshes.inl"
 
 #include "tasks/misc.hpp"
 #include "tasks/allocate_meshlet_visibility_bitfields.inl"
@@ -120,6 +122,29 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .name = "entity_debug",
     }};
 
+    mesh_draw_list = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(MeshDrawList),
+                    .name = "mesh_draw_list",
+                }),
+            },
+        },
+        .name = "mesh_draw_list",
+    }};
+    mesh_draw_meshlet_counts = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(daxa_u32) * MAX_INSTANTIATED_MESHES,
+                    .name = "mesh_draw_meshlet_counts",
+                }),
+            },
+        },
+        .name = "mesh_draw_meshlet_counts",
+    }};
+
     instantiated_meshlets = daxa::TaskBuffer{{
         .initial_buffers = {
             .buffers = std::array{
@@ -217,6 +242,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
+        mesh_draw_list,
         instantiated_meshlets_last_frame,
         entity_visibility_bitfield_offsets,
         meshlet_visibility_bitfield,
@@ -286,7 +312,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
 
     compile_pipelines();
 
-    context->settings.indexed_id_rendering = 1;
+    context->settings.enable_mesh_shader = 0;
     context->settings.update_culling_information = 1;
 
     main_task_list = create_main_task_list();
@@ -315,7 +341,7 @@ Renderer::~Renderer()
 void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
-        {DrawOpaqueIdTask::NAME, DRAW_OPAQUE_IDS_PIPELINE_INFO},
+        {DrawVisbuffer::NAME, DrawVisbuffer::COMPILE_INFO},
     };
     for (auto [name, info] : rasters)
     {
@@ -324,6 +350,9 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
+        {FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::COMPILE_INFO},
+        {CullMeshes::NAME, CullMeshes::COMPILE_INFO},
+        {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::COMPILE_INFO},
         {PrefixSumTask{}.name, PREFIX_SUM_PIPELINE_INFO},
         {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
         {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
@@ -421,20 +450,55 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
     task_list.add_task(FilterVisibleMeshlets{
         {.uses={
-            .u_instantiated_meshlets = instantiated_meshlets_last_frame.handle(),
+            .u_src_instantiated_meshlets = instantiated_meshlets_last_frame.handle(),
             .u_meshlet_visibility_bitmasks = meshlet_visibility_bitfield.handle(),
             .u_filtered_meshlets = instantiated_meshlets.handle(),
             .u_filtered_triangles = initial_pass_triangles.handle(),
         }},
-        .context = context,
+        context,
     });
+    // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
+    task_list.add_task(DrawVisbuffer{
+        {.uses={
+            .u_triangle_list = initial_pass_triangles.handle(),
+            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+            .u_meshes = asset_manager->tmeshes.handle(),
+            .u_vis_image = visbuffer.handle(),
+            .u_debug_image = debug_image.handle(),
+            .u_depth_image = depth_handle,
+        }},
+        context,
+    });
+    // After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
+    // For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
+    // TODO: build hiz 
+    // Cull meshes  
+    auto cull_meshes_command = task_list.create_transient_buffer({
+        .size = sizeof(DispatchIndirectStruct),
+        .name = "cull_meshes_command",
+    });
+    task_list.add_task(CullMeshesCommandWrite{
+        {.uses={
+            .u_entity_meta = entity_meta.handle(),
+            .u_command = cull_meshes_command,
+        }},
+        context,
+    });
+    task_list.add_task(CullMeshes{
+        {.uses={
+            .u_command = cull_meshes_command,
+            .u_meshes = asset_manager->tmeshes.handle(),
+            .u_entity_meta = entity_meta.handle(),
+            .u_entity_meshlists = entity_meshlists.handle(),
+            .u_entity_transforms = entity_transforms.handle(),
+            .u_entity_combined_transforms = entity_combined_transforms.handle(),
+            .u_mesh_draw_list = mesh_draw_list.handle(),
+            .u_mesh_draw_meshlet_counts = mesh_draw_meshlet_counts.handle(),
+        }},
+        context,
+    });
+    // For the non mesh shader path we now need to build a prefix sum over the count of meshlets of surviving meshes.
 
-    if (!context->settings.enable_mesh_shader)
-    {
-        task_list.add_task(BuildInitialMeshletList{
-
-        })
-    }
 
     auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
         .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
