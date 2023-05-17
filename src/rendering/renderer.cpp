@@ -182,7 +182,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlet) * MAX_INSTANTIATED_MESHLETS +  + 2 * INDIRECT_COMMAND_BYTE_SIZE,
+                    .size = sizeof(InstantiatedMeshlet) * MAX_INSTANTIATED_MESHLETS + +2 * INDIRECT_COMMAND_BYTE_SIZE,
                     .name = "instantiated_meshlets_last_frame",
                 }),
             },
@@ -426,7 +426,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     //          - dispatch for each surviving meshlet, cull triangles on depth and frustum, write out trangle id buffer
     //          - draw indirect on triangle id buffer
     //  - analyze visbuffer
-    //      - set meshlet triangle visibility bitmasks 
+    //      - set meshlet triangle visibility bitmasks
     //  - blit debug image to swapchain
     using namespace daxa;
     TaskList task_list{{
@@ -449,64 +449,61 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     // Using the last frames visbuffer and meshlet visibility bitmasks, filter the visible meshlets into a list.
     // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
     task_list.add_task(FilterVisibleMeshlets{
-        {.uses={
-            .u_src_instantiated_meshlets = instantiated_meshlets_last_frame.handle(),
-            .u_meshlet_visibility_bitmasks = meshlet_visibility_bitfield.handle(),
-            .u_filtered_meshlets = instantiated_meshlets.handle(),
-            .u_filtered_triangles = initial_pass_triangles.handle(),
-        }},
+        {.uses = {
+             .u_src_instantiated_meshlets = instantiated_meshlets_last_frame.handle(),
+             .u_meshlet_visibility_bitmasks = meshlet_visibility_bitfield.handle(),
+             .u_filtered_meshlets = instantiated_meshlets.handle(),
+             .u_filtered_triangles = initial_pass_triangles.handle(),
+         }},
         context,
     });
     // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
     task_list.add_task(DrawVisbuffer{
-        {.uses={
-            .u_triangle_list = initial_pass_triangles.handle(),
-            .u_instantiated_meshlets = instantiated_meshlets.handle(),
-            .u_meshes = asset_manager->tmeshes.handle(),
-            .u_vis_image = visbuffer.handle(),
-            .u_debug_image = debug_image.handle(),
-            .u_depth_image = depth_handle,
-        }},
-        context,
+        {.uses = {
+             .u_triangle_list = initial_pass_triangles.handle(),
+             .u_instantiated_meshlets = instantiated_meshlets.handle(),
+             .u_meshes = asset_manager->tmeshes.handle(),
+             .u_vis_image = visbuffer.handle(),
+             .u_debug_image = debug_image.handle(),
+             .u_depth_image = depth_handle,
+         }},
+        .context = context,
     });
     // After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
     // For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
-    // TODO: build hiz 
-    // Cull meshes  
-    auto cull_meshes_command = task_list.create_transient_buffer({
-        .size = sizeof(DispatchIndirectStruct),
-        .name = "cull_meshes_command",
-    });
-    task_list.add_task(CullMeshesCommandWrite{
-        {.uses={
-            .u_entity_meta = entity_meta.handle(),
-            .u_command = cull_meshes_command,
-        }},
+    // TODO: build hiz
+    // Cull meshes
+    tasks_cull_meshes(
         context,
-    });
-    task_list.add_task(CullMeshes{
-        {.uses={
-            .u_command = cull_meshes_command,
+        task_list,
+        {
             .u_meshes = asset_manager->tmeshes.handle(),
             .u_entity_meta = entity_meta.handle(),
             .u_entity_meshlists = entity_meshlists.handle(),
             .u_entity_transforms = entity_transforms.handle(),
             .u_entity_combined_transforms = entity_combined_transforms.handle(),
             .u_mesh_draw_list = mesh_draw_list.handle(),
-            .u_mesh_draw_meshlet_counts = mesh_draw_meshlet_counts.handle(),
-        }},
-        context,
-    });
+        });
     // For the non mesh shader path we now need to build a prefix sum over the count of meshlets of surviving meshes.
+    // prefix sum upsweep
+    // prefix sum upsweep
+    // prefix sum downsweep
+    // cull meshlets
+    // cull triangles
+    // draw opaque
+    // analyze visbuffer
+    
+
+
 
 
     auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
         .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
         .name = "draw_opaque_indirect_command_buffer",
     });
-    
+
     task_list.add_task(PatchDrawOpaqueIndirectTask{
-        {.uses = { instantiated_meshlets.handle() }},
+        {.uses = {instantiated_meshlets.handle()}},
         .context = context,
     });
 
@@ -566,7 +563,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         },
         context->raster_pipelines[DrawOpaqueIdTask{}.name],
         context,
-        /*pass:*/ 0 ,
+        /*pass:*/ 0,
     });
 
     task_list.add_task(PrefixSumMeshletTask{
@@ -635,21 +632,21 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             .task = [=](daxa::TaskInterface ti)
             {
                 daxa::CommandList cmd = ti.get_command_list();
-                    auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
-                    *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
-                        .index_count = {},
-                        .instance_count = 1,
-                        .first_index = {},
-                        .vertex_offset = {},
-                        .first_instance = {},
-                    };
-                    cmd.copy_buffer_to_buffer({
-                        .src_buffer = this->context->transient_mem.get_buffer(),
-                        .src_offset = alloc.buffer_offset,
-                        .dst_buffer = ti.uses[index_buffer].buffer(),
-                        .dst_offset = 0,
-                        .size = sizeof(DrawIndexedIndirectStruct),
-                    });
+                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+                    .index_count = {},
+                    .instance_count = 1,
+                    .first_index = {},
+                    .vertex_offset = {},
+                    .first_instance = {},
+                };
+                cmd.copy_buffer_to_buffer({
+                    .src_buffer = this->context->transient_mem.get_buffer(),
+                    .src_offset = alloc.buffer_offset,
+                    .dst_buffer = ti.uses[index_buffer].buffer(),
+                    .dst_offset = 0,
+                    .size = sizeof(DrawIndexedIndirectStruct),
+                });
             },
             .name = "clear triangle count of index buffer",
         });
@@ -689,7 +686,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     {
         // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
         task_list.add_task({
-            .uses = { daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters} },
+            .uses = {daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters}},
             .task = [=](daxa::TaskInterface ti)
             {
                 ti.get_command_list().clear_buffer({
@@ -702,7 +699,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         });
         // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
         task_list.add_task({
-            .uses = { 
+            .uses = {
                 daxa::BufferTransferWrite{entity_visibility_bitfield_offsets},
                 daxa::BufferTransferWrite{meshlet_visibility_bitfield},
             },
@@ -788,7 +785,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     {
         this->main_task_list = create_main_task_list();
     }
-    
+
     this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
     this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
     this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
@@ -807,7 +804,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
         .buffer = context->shader_globals_buffer,
         .size = sizeof(ShaderGlobalsBlock),
         .offset = sizeof(ShaderGlobalsBlock) * flight_frame_index,
-    };  
+    };
 
     this->context->meshlet_sums_step2_dispatch_size = (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE;
     this->context->total_meshlet_count = this->asset_manager->total_meshlet_count;
@@ -819,7 +816,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     }
     this->swapchain_image.set_images({.images = std::array{swapchain_image}});
 
-    if(this->context->settings.update_culling_information != 0)
+    if (this->context->settings.update_culling_information != 0)
     {
         // visible meshlets from last frame become the first instantiated meshlets of the current frame.
         this->instantiated_meshlets_last_frame.swap_buffers(this->instantiated_meshlets);
@@ -830,5 +827,5 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
         {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
     };
     main_task_list.execute({});
-    context->prev_settings = context->settings; 
+    context->prev_settings = context->settings;
 }

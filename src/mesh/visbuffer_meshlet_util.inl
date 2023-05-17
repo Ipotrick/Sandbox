@@ -27,12 +27,14 @@ struct MeshDrawInfo
 {
     daxa_u32 entity_id;
     daxa_u32 mesh_index;
+    daxa_u32 mesh_id;
+    daxa_u32 padd0[1];
 };
 
 struct MeshDrawList
 {
-    DrawIndirectStruct count;
-    DrawIndirectStruct draw_tasks_count[MAX_INSTANTIATED_MESHES];
-    MeshDrawInfo mesh_draw_infos[MAX_INSTANTIATED_MESHES];
+    DispatchIndirectStruct count;
+    DispatchIndirectStruct mesh_dispatch_indirects[MAX_INSTANTIATED_MESHES];
+    MeshDrawInfo mesh_infos[MAX_INSTANTIATED_MESHES];
 };
 DAXA_ENABLE_BUFFER_PTR(MeshDrawList)

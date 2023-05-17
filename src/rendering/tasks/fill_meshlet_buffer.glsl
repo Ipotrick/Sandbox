@@ -73,7 +73,7 @@ void main()
     int entity_meshlet_sum = 0;
     for (int mesh_i = 0; mesh_i < mesh_list.count; ++mesh_i)
     {
-        const uint mesh_id = mesh_list.mesh_indices[mesh_i];
+        const uint mesh_id = mesh_list.mesh_ids[mesh_i];
         int meshlet_count_range_begin = entity_meshlet_sum;
         entity_meshlet_sum += int(deref(u_meshes[mesh_id]).meshlet_count);
         int meshlet_count_range_end = entity_meshlet_sum;

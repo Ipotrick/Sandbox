@@ -26,7 +26,7 @@ bool entity_id_valid(EntityId id)
 
 struct MeshList
 {
-    daxa_u32 mesh_indices[7];
+    daxa_u32 mesh_ids[7];
     daxa_u32 count;
 };
 DAXA_ENABLE_BUFFER_PTR(MeshList)

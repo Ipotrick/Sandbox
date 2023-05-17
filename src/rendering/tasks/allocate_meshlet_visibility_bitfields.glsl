@@ -16,7 +16,7 @@ void main()
     EntityVisibilityBitfieldOffsets visibility_lists;
     for (uint mesh_index = 0; mesh_index < mesh_list.count; ++mesh_index)
     {
-        const uint mesh_meshlet_count = deref(u_meshes[mesh_list.mesh_indices[mesh_index]]).meshlet_count;
+        const uint mesh_meshlet_count = deref(u_meshes[mesh_list.mesh_ids[mesh_index]]).meshlet_count;
         const uint needed_uints = (mesh_meshlet_count + 32 - 1) / 32;
         visibility_lists.mesh_bitfield_offset[mesh_index] = atomicAdd(deref(u_visibility_bitfield_sratch), needed_uints) + 1 /*first uint is reserved for counter*/;
     }

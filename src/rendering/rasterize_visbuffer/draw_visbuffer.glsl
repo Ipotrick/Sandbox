@@ -6,7 +6,7 @@
 #include "../../mesh/visbuffer_meshlet_util.glsl"
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
-#define VERTEX_OUT out
+#define VERTEX_OUT out 
 #else
 #define VERTEX_OUT in
 #endif
@@ -19,10 +19,10 @@ layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 void main()
 {
-    const uint triangle_corner_index = gl_PrimitiveIDIn;
+    const uint triangle_corner_index = gl_VertexIndex % 3;
     uint inst_meshlet_index;
     uint triangle_index;
-    const uint triangle_id = deref(u_triangle_list).triangles[gl_PrimitiveID];
+    const uint triangle_id = deref(u_triangle_list).triangles[gl_VertexIndex / 3];
     decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
 
     // InstantiatedMeshlet:

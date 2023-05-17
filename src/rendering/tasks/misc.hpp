@@ -12,7 +12,7 @@ struct WriteIndirectDispatchArgsBaseTask : T_USES_BASE
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{T_FILE_PATH},
             .compile_options = {
-                .defines = {{"WRITE_COMMAND"}},
+                .defines = {{T_USES_BASE::NAME}},
             },
         },
         .name = std::string{T_USES_BASE::NAME},

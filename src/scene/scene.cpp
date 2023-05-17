@@ -172,7 +172,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
         {
             aiMesh* mesh_ptr = aiscene->mMeshes[current_node->mMeshes[mesh_i]];
             auto fetch = asset_manager.get_or_create_mesh(mesh_ptr);
-            current_entity.meshes->mesh_indices[mesh_i] = fetch.first;
+            current_entity.meshes->mesh_ids[mesh_i] = fetch.first;
         }
         std::cout << "Node has " << current_node->mNumMeshes << "meshes" << std::endl;
 
