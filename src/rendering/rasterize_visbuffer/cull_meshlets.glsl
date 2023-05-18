@@ -2,25 +2,36 @@
 
 #include <daxa/daxa.inl>
 #include "../../../shaders/cull_util.glsl"
-#include "fill_meshlet_buffer.inl"
+#include "cull_meshlets.inl"
 #include "../../mesh/visbuffer_meshlet_util.glsl"
 
-DEFINE_PUSHCONSTANT(CullMeshletsPush, push)
+#if defined(CullMeshletsCommandWriteBase)
+layout(local_size_x = 1) in;
+void main()
+{
+    const uint count = deref(u_mesh_draw_list).count;
+    DispatchIndirectStruct command;
+    command.x = (count + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
+    command.y = 1;
+    command.z = 1;
+}
+#else
+uint get_meshlet_count(uint index)
+{
+    return deref(u_mesh_draw_list).mesh_dispatch_indirects[index].x;
+}
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
 {
     const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);
-    const int entity_count = int(deref(u_entity_meta_data).entity_count);
+    const int mesh_count = int(deref(u_mesh_draw_list).count);
 
     InstantiatedMeshletsView instantiated_meshlets_view = InstantiatedMeshletsView(u_instantiated_meshlets);
 
     // Binary Serarch the entity the meshlet id belongs to.
-    InstantiatedMeshlet instanced_meshlet;
-    instanced_meshlet.entity_index = 0xFFFFFFFF;
-    instanced_meshlet.mesh_index = 0xFFFFFFFF;
-    instanced_meshlet.meshlet_index = 0xFFFFFFFF;
-    int in_entity_meshlet_index = 0xFFFFFFFF;
-    if (test_meshlet_instance_index >= int(push.meshlet_count))
+    int mesh_draw_index = -1;
+    int meshlet_sum = -1;
+    if (test_meshlet_instance_index >= int(mesh_count))
     {
         return;
     }
@@ -33,12 +44,12 @@ void main()
     while(true)
     {
         ++iter;
-        const int meshlet_sum_for_entity = int(deref(u_prefix_sum_mehslet_counts[middle]));
+        const int meshlet_sum_for_entity = int(get_meshlet_count(middle));
         int meshlet_sum_prev_entity = 0;
         if (middle != 0)
         {
             const uint index = middle - 1;
-            meshlet_sum_prev_entity = int(deref(u_prefix_sum_mehslet_counts[index]));
+            meshlet_sum_prev_entity = int(get_meshlet_count(index));
         }
 
         if (last < first)
@@ -59,33 +70,32 @@ void main()
         else
         {
             // Found ranage.
-            in_entity_meshlet_index = test_meshlet_instance_index - meshlet_sum_prev_entity;
-            instanced_meshlet.entity_index = middle;
+            mesh_draw_index = middle;
+            meshlet_sum = get_meshlet_count(mesh_draw_index);
             break;
         }
 
         middle = (first + last) / 2;
     }
-    // TODO(pahrens): there is a bug here causing the last few threads to think they belong to entity index 11, meshlet 12...
-    // middle is now the entity the meshlet id belongs to.
-    // Now find the mesh, the meshlet belongs to within the entity.
-    const MeshList mesh_list = deref(u_entity_meshlists[instanced_meshlet.entity_index]);
-    int entity_meshlet_sum = 0;
-    for (int mesh_i = 0; mesh_i < mesh_list.count; ++mesh_i)
+    if (mesh_draw_index == -1)
     {
-        const uint mesh_id = mesh_list.mesh_ids[mesh_i];
-        int meshlet_count_range_begin = entity_meshlet_sum;
-        entity_meshlet_sum += int(deref(u_meshes[mesh_id]).meshlet_count);
-        int meshlet_count_range_end = entity_meshlet_sum;
-
-        if (in_entity_meshlet_index >= meshlet_count_range_begin && in_entity_meshlet_index < meshlet_count_range_end)
-        {
-            instanced_meshlet.meshlet_index = in_entity_meshlet_index - meshlet_count_range_begin;
-            instanced_meshlet.mesh_index = mesh_i;
-            instanced_meshlet.mesh_id = mesh_id;
-            break;
-        }
+        // Should not happen.
+        return;
     }
+    if (mesh_draw_index >= MAX_INSTANTIATED_MESHES)
+    {
+        // Should not happen.
+        return;
+    }
+    const uint meshlet_index = test_meshlet_instance_index - meshlet_sum;
+    
+    MeshDrawInfo draw_mesh_info = deref(u_mesh_draw_list).mesh_infos[mesh_draw_index];
+
+    InstantiatedMeshlet inst_meshlet;
+    inst_meshlet.entity_index = draw_mesh_info.entity_id;
+    inst_meshlet.mesh_id = draw_mesh_info.mesh_id;
+    inst_meshlet.mesh_index = draw_mesh_info.mesh_index;
+    inst_meshlet.meshlet_index = meshlet_index;
 
 #if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
@@ -111,7 +121,7 @@ void main()
 
     bool culled = !is_in_frustum(ndc_bounds);
 
-    if (push.cull_alredy_visible_meshlets != 0)
+    if (true)
     {
         EntityVisibilityBitfieldOffsets offsets = deref(u_entity_visibility_bitfield_offsets[instanced_meshlet.entity_index]);
         const uint uint_base_offset = offsets.mesh_bitfield_offset[instanced_meshlet.mesh_index];
@@ -133,3 +143,4 @@ void main()
         instantiated_meshlets_view.meshlets[out_index] = instanced_meshlet;
     }
 }
+#endif

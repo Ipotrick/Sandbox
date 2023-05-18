@@ -25,7 +25,7 @@ static constexpr inline char const DRAW_VISBUFFER_SHADER_PATH[] =
 
 struct DrawVisbuffer : DrawVisbufferBase
 {
-    inline static const daxa::RasterPipelineCompileInfo COMPILE_INFO {
+    inline static const daxa::RasterPipelineCompileInfo PIPELINE_COMPILE_INFO {
         .vertex_shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{DRAW_VISBUFFER_SHADER_PATH},
         },

@@ -44,9 +44,6 @@ struct Renderer
     daxa::TaskBuffer instantiated_meshlet_visibility_counters = {};
     daxa::TaskBuffer instantiated_meshlets_last_frame = {};
     daxa::TaskBuffer meshlet_visibility_bitfield = {};
-    daxa::TaskBuffer index_buffer = {};
-    daxa::TaskBuffer ent_meshlet_count_prefix_sum_buffer = {};
-    daxa::TaskBuffer ent_meshlet_count_partial_sum_buffer = {};
     daxa::TaskBuffer draw_opaque_id_info_buffer = {};
 
     std::vector<daxa::TaskBuffer> buffers = {};

@@ -1,7 +1,6 @@
 #include "gpu_context.hpp"
 
 #include "../mesh/mesh.inl"
-#include "../../shaders/util.inl"
 
 #if defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32

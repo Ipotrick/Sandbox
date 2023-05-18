@@ -8,9 +8,9 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-#define FILL_MESHLET_BUFFER_WORKGROUP_X 128
+#define CULL_MESHLETS_WORKGROUP_X 128
 
-DAXA_INL_TASK_USE_BEGIN(FillMeshletBufferBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BEGIN(CullMeshletsBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
@@ -20,12 +20,12 @@ DAXA_INL_TASK_USE_BEGIN(FillMeshletBufferBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 
-struct FillMeshletBufferPush
+struct CullMeshletsPush
 {
     daxa_u32 meshlet_count;
     daxa_u32 cull_alredy_visible_meshlets;
 };
-DAXA_ENABLE_BUFFER_PTR(FillMeshletBufferPush)
+DAXA_ENABLE_BUFFER_PTR(CullMeshletsPush)
 
 #if __cplusplus
 
@@ -40,11 +40,11 @@ inline static const daxa::ComputePipelineCompileInfo FILL_MESHLET_BUFFER_PIPELIN
             .defines = {{"d"}},
         },
     },
-    .push_constant_size = sizeof(FillMeshletBufferPush),
+    .push_constant_size = sizeof(CullMeshletsPush),
     .name = std::string{FILL_MESHLET_BUFFER_PIPELINE_NAME},
 };
 
-struct FillMeshletBufferTask : FillMeshletBufferBase
+struct CullMeshletsTask : CullMeshletsBase
 {
     std::shared_ptr<daxa::ComputePipeline> pipeline = {};
     GPUContext * context = {};
@@ -56,11 +56,11 @@ struct FillMeshletBufferTask : FillMeshletBufferBase
         cmd.set_constant_buffer(context->shader_globals_set_info);
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         cmd.set_pipeline(*pipeline);
-        cmd.push_constant(FillMeshletBufferPush{
+        cmd.push_constant(CullMeshletsPush{
             .meshlet_count = static_cast<u32>(*meshlet_count),
             .cull_alredy_visible_meshlets = cull_alredy_visible_meshlets,
         });
-        cmd.dispatch(round_up_div(*meshlet_count, FILL_MESHLET_BUFFER_WORKGROUP_X), 1, 1);
+        cmd.dispatch(round_up_div(*meshlet_count, CULL_MESHLETS_WORKGROUP_X), 1, 1);
     }
 };
 

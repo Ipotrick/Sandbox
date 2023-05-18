@@ -33,7 +33,7 @@ struct MeshDrawInfo
 
 struct MeshDrawList
 {
-    DispatchIndirectStruct count;
+    daxa_u32 count;
     DispatchIndirectStruct mesh_dispatch_indirects[MAX_INSTANTIATED_MESHES];
     MeshDrawInfo mesh_infos[MAX_INSTANTIATED_MESHES];
 };

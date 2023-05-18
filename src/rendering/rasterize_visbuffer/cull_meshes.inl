@@ -3,7 +3,6 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_list.inl>
 
-#include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
@@ -26,7 +25,6 @@ DAXA_INL_TASK_USE_END()
 DAXA_INL_TASK_USE_BEGIN(CullMeshesBase, DAXA_CBUFFER_SLOT1)
 BUFFER_COMPUTE_READ(u_command, DispatchIndirectStruct)
 BUFFER_COMPUTE_READ(u_meshes, Mesh)
-BUFFER_COMPUTE_READ(u_meshes, Mesh)
 BUFFER_COMPUTE_READ(u_entity_meta, EntityMetaData)
 BUFFER_COMPUTE_READ(u_entity_meshlists, MeshList)
 BUFFER_COMPUTE_READ(u_entity_transforms, daxa_mat4x4f32)
@@ -48,7 +46,7 @@ using CullMeshesCommandWrite = WriteIndirectDispatchArgsBaseTask<
 
 struct CullMeshes : CullMeshesBase
 {
-    static const inline daxa::ComputePipelineCompileInfo COMPILE_INFO = {
+    static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO = {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{CULL_MESHES_SHADER_PATH},
         },
@@ -100,7 +98,7 @@ void tasks_cull_meshes(GPUContext * context, daxa::TaskList& task_list, CullMesh
         .context = context,
     });
 
-    uses.u_command = command_buffer;
+    uses.u_command.handle = command_buffer;
 
     task_list.add_task(CullMeshes{
         {.uses={uses}},

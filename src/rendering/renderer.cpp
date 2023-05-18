@@ -5,16 +5,19 @@
 #include "rasterize_visbuffer/filter_visible_meshlets.inl"
 #include "rasterize_visbuffer/draw_visbuffer.inl"
 #include "rasterize_visbuffer/cull_meshes.inl"
+#include "rasterize_visbuffer/cull_meshlets.inl"
 
-#include "tasks/misc.hpp"
-#include "tasks/allocate_meshlet_visibility_bitfields.inl"
-#include "tasks/fill_meshlet_buffer.inl"
-#include "tasks/write_draw_opaque_index_buffer.inl"
-#include "tasks/patch_draw_opaque_indirect.inl"
-#include "tasks/analyze_visbuffer.inl"
 #include "tasks/prefix_sum.inl"
-#include "tasks/draw_opaque_ids.inl"
-#include "tasks/write_swapchain.inl"
+
+//#include "tasks/misc.hpp"
+//#include "tasks/allocate_meshlet_visibility_bitfields.inl"
+//#include "tasks/fill_meshlet_buffer.inl"
+//#include "tasks/write_draw_opaque_index_buffer.inl"
+//#include "tasks/patch_draw_opaque_indirect.inl"
+//#include "tasks/analyze_visbuffer.inl"
+//#include "tasks/prefix_sum.inl"
+//#include "tasks/draw_opaque_ids.inl"
+//#include "tasks/write_swapchain.inl"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -182,7 +185,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlet) * MAX_INSTANTIATED_MESHLETS + +2 * INDIRECT_COMMAND_BYTE_SIZE,
+                    .size = sizeof(InstantiatedMeshlets),
                     .name = "instantiated_meshlets_last_frame",
                 }),
             },
@@ -200,39 +203,6 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         },
         .name = "meshlet_visibility_bitfield",
     }};
-    index_buffer = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = TRIANGLE_SIZE * MAX_DRAWN_TRIANGLES + /*reserved space for draw inidrect info*/ 32,
-                    .name = "index_buffer",
-                }),
-            },
-        },
-        .name = "index_buffer",
-    }};
-    ent_meshlet_count_prefix_sum_buffer = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = static_cast<u32>(sizeof(u32)) * round_up_to_multiple(MAX_ENTITY_COUNT, PREFIX_SUM_WORKGROUP_SIZE),
-                    .name = "ent_meshlet_count_prefix_sum_buffer",
-                }),
-            },
-        },
-        .name = "ent_meshlet_count_prefix_sum_buffer",
-    }};
-    ent_meshlet_count_partial_sum_buffer = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = round_up_to_multiple(round_up_div((sizeof(u32) * MAX_ENTITY_COUNT), PREFIX_SUM_WORKGROUP_SIZE), PREFIX_SUM_WORKGROUP_SIZE),
-                    .name = "ent_meshlet_count_partial_sum_buffer",
-                }),
-            },
-        },
-        .name = "ent_meshlet_count_partial_sum_buffer",
-    }};
 
     buffers = {
         entity_meta,
@@ -249,10 +219,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_debug,
         instantiated_meshlets,
         initial_pass_triangles,
-        instantiated_meshlet_visibility_counters,
-        index_buffer,
-        ent_meshlet_count_prefix_sum_buffer,
-        ent_meshlet_count_partial_sum_buffer};
+        instantiated_meshlet_visibility_counters};
 
     swapchain_image = daxa::TaskImage{{
         .swapchain_image = true,
@@ -341,7 +308,7 @@ Renderer::~Renderer()
 void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
-        {DrawVisbuffer::NAME, DrawVisbuffer::COMPILE_INFO},
+        {DrawVisbuffer::NAME, DrawVisbuffer::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : rasters)
     {
@@ -350,18 +317,14 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
-        {FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::COMPILE_INFO},
-        {CullMeshes::NAME, CullMeshes::COMPILE_INFO},
-        {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::COMPILE_INFO},
-        {PrefixSumTask{}.name, PREFIX_SUM_PIPELINE_INFO},
-        {PrefixSumMeshletTask{}.name, PREFIX_SUM_MESHLETS_PIPELINE_INFO},
-        {PrefixSumFinalizeTask{}.name, PREFIX_SUM_TWO_PASS_FINALIZE_PIPELINE_INFO},
-        {FillMeshletBufferTask::NAME, FILL_MESHLET_BUFFER_PIPELINE_INFO},
-        {WriteDrawOpaqueIndexBufferTask::NAME, WRITE_DRAW_OPAQUE_INDEX_BUFFER_PIPELINE_INFO},
-        {PatchDrawOpaqueIndirectTask::NAME, PATCH_DRAW_OPAQUE_INDIRECT_PIPELINE_INFO},
-        {WriteSwapchainTask::NAME, WRITE_SWAPCHAIN_PIPELINE_INFO},
-        {AnalyzeVisbufferTask::NAME, ANALYZE_VISBUFFER_PIPELINE_INFO},
-        {AllocateMeshletVisibilityTask::NAME, ALLOCATE_MESHLET_VISIBILITY_PIPELINE_INFO},
+        {FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::PIPELINE_COMPILE_INFO},
+        {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::PIPELINE_COMPILE_INFO},
+        {CullMeshes::NAME, CullMeshes::PIPELINE_COMPILE_INFO},
+        {PrefixSumCommandWrite::NAME, PrefixSumCommandWrite::PIPELINE_COMPILE_INFO},
+        {PrefixSumUpsweep::NAME, PrefixSumUpsweep::PIPELINE_COMPILE_INFO},
+        {PrefixSumDownsweep::NAME, PrefixSumDownsweep::PIPELINE_COMPILE_INFO},
+        {CullMeshletsCommandWrite::NAME, CullMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
+        {CullMeshlets::NAME, CullMeshlets::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : computes)
     {
@@ -485,281 +448,295 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
             .u_mesh_draw_list = mesh_draw_list.handle(),
         });
     // For the non mesh shader path we now need to build a prefix sum over the count of meshlets of surviving meshes.
-    // prefix sum upsweep
-    // prefix sum upsweep
-    // prefix sum downsweep
-    // cull meshlets
-    // cull triangles
-    // draw opaque
-    // analyze visbuffer
-    
-
-
-
-
-    auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
-        .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
-        .name = "draw_opaque_indirect_command_buffer",
-    });
-
-    task_list.add_task(PatchDrawOpaqueIndirectTask{
-        {.uses = {instantiated_meshlets.handle()}},
+    task_prefix_sum(PrefixSumTaskGroupInfo{
         .context = context,
+        .task_list = task_list,
+        .value_count = entity_meta,
+        .value_count_uint_offset = offsetof(EntityMetaData, entity_count) / sizeof(u32),
+        .values = mesh_draw_list.handle(),
+        .src_uint_offset = offsetof(MeshDrawList, mesh_dispatch_indirects) / sizeof(u32),
+        .src_uint_stride = sizeof(DispatchIndirectStruct) / sizeof(u32),
     });
-
-    if (context->settings.indexed_id_rendering)
-    {
-        task_list.add_task({
-            .uses = {
-                daxa::BufferTransferWrite{index_buffer},
-            },
-            .task = [=](daxa::TaskInterface ti)
-            {
-                daxa::CommandList cmd = ti.get_command_list();
-                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
-                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
-                    .index_count = {},
-                    .instance_count = 1,
-                    .first_index = {},
-                    .vertex_offset = {},
-                    .first_instance = {},
-                };
-                cmd.copy_buffer_to_buffer({
-                    .src_buffer = this->context->transient_mem.get_buffer(),
-                    .src_offset = alloc.buffer_offset,
-                    .dst_buffer = ti.uses[index_buffer].buffer(),
-                    .dst_offset = 0,
-                    .size = sizeof(DrawIndexedIndirectStruct),
-                });
-            },
-            .name = "clear triangle count of index buffer",
-        });
-        // First pass id rendering:
-        task_list.add_task(WriteDrawOpaqueIndexBufferTask{
-            {
-                .uses = {
-                    .u_meshes = asset_manager->tmeshes.handle(),
-                    .u_meshlet_list = instantiated_meshlets.handle(),
-                    .u_index_buffer_and_count = index_buffer.handle(),
-                },
-            },
-            context,
-        });
-    }
-
-    task_list.add_task(DrawOpaqueIdTask{
-        {
-            .uses = {
-                .u_visbuffer = visbuffer.handle(),
-                .u_debug_image = debug_image.handle(),
-                .u_depth_image = depth_handle,
-                .u_draw_info_index_buffer = index_buffer.handle(),
-                .u_instantiated_meshlets = instantiated_meshlets.handle(),
-                .u_entity_meshlists = entity_meshlists.handle(),
-                .u_entity_debug = entity_debug.handle(),
-                .u_meshes = asset_manager->tmeshes.handle(),
-                .u_combined_transforms = entity_combined_transforms.handle(),
-            },
-        },
-        context->raster_pipelines[DrawOpaqueIdTask{}.name],
+    task_cull_meshlets(
         context,
-        /*pass:*/ 0,
-    });
-
-    task_list.add_task(PrefixSumMeshletTask{
-        .uses = {
-            .meshes = asset_manager->tmeshes.handle(),
-            .entity_meta = entity_meta.handle(),
-            .entity_meshlists = entity_meshlists.handle(),
-            .ent_meshlet_count_prefix_sum_buffer = ent_meshlet_count_prefix_sum_buffer.handle(),
-        },
-        .pipeline = context->compute_pipelines[PrefixSumMeshletTask{}.name],
-        .config = {
-            .entity_count = &scene->entity_meta.entity_count,
-        },
-    });
-
-    static constexpr u32 STRIDE = PREFIX_SUM_WORKGROUP_SIZE;
-    static constexpr u32 OFFSET = PREFIX_SUM_WORKGROUP_SIZE - 1;
-    task_list.add_task(PrefixSumTask{
-        .uses = {
-            .src = ent_meshlet_count_prefix_sum_buffer.handle(),
-            .dst = ent_meshlet_count_partial_sum_buffer.handle(),
-        },
-        .pipeline = context->compute_pipelines[PrefixSumTask{}.name],
-        .config = {
-            .src_stride = &STRIDE,
-            .src_offset = &OFFSET,
-            .value_count = &this->context->meshlet_sums_step2_dispatch_size,
-        },
-    });
-
-    task_list.add_task(PrefixSumFinalizeTask{
-        .uses = {
-            .partial_sums = ent_meshlet_count_partial_sum_buffer.handle(),
-            .values = ent_meshlet_count_prefix_sum_buffer.handle(),
-        },
-        .pipeline = context->compute_pipelines[PrefixSumFinalizeTask{}.name],
-        .config = {
-            .value_count = &scene->entity_meta.entity_count,
-        },
-    });
-
-    task_list.add_task(FillMeshletBufferTask{
+        task_list,
         {
-            .uses = {
-                .u_prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
-                .u_entity_meta_data = entity_meta.handle(),
-                .u_entity_meshlists = entity_meshlists.handle(),
-                .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
-                .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
-                .u_meshes = asset_manager->tmeshes.handle(),
-                .u_instantiated_meshlets = instantiated_meshlets.handle(),
-            },
+            .u_mesh_draw_list = u_mesh_draw_list.handle(),
+            .u_entity_meta_data = entity_meta.handle(),
+            .u_entity_meshlists = entity_meshlists.handle(),
+            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
+            .u_meshlet_visibility_bitfield = entity_visibility_bitfield.handle(),
+            .u_meshes = asset_manager->tmeshes.handle(),
+            .u_instantiated_meshlets = instantiated_meshlets.handle(),
         },
-        context->compute_pipelines[FillMeshletBufferTask::NAME],
-        context,
-        &this->asset_manager->total_meshlet_count,
-        .cull_alredy_visible_meshlets = true,
-    });
+    );
+    // TODO: cull triangles
+    // TODO: draw opaque
+    // TODO: analyze visbuffer
 
-    if (context->settings.indexed_id_rendering)
-    {
-        task_list.add_task({
-            .uses = {
-                daxa::BufferTransferWrite{index_buffer},
-            },
-            .task = [=](daxa::TaskInterface ti)
-            {
-                daxa::CommandList cmd = ti.get_command_list();
-                auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
-                *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
-                    .index_count = {},
-                    .instance_count = 1,
-                    .first_index = {},
-                    .vertex_offset = {},
-                    .first_instance = {},
-                };
-                cmd.copy_buffer_to_buffer({
-                    .src_buffer = this->context->transient_mem.get_buffer(),
-                    .src_offset = alloc.buffer_offset,
-                    .dst_buffer = ti.uses[index_buffer].buffer(),
-                    .dst_offset = 0,
-                    .size = sizeof(DrawIndexedIndirectStruct),
-                });
-            },
-            .name = "clear triangle count of index buffer",
-        });
-
-        task_list.add_task(WriteDrawOpaqueIndexBufferTask{
-            {
-                .uses = {
-                    .u_meshes = asset_manager->tmeshes.handle(),
-                    .u_meshlet_list = instantiated_meshlets.handle(),
-                    .u_index_buffer_and_count = index_buffer.handle(),
-                },
-            },
-            context,
-        });
-    }
-
-    task_list.add_task(DrawOpaqueIdTask{
-        {
-            .uses = {
-                .u_visbuffer = visbuffer.handle(),
-                .u_debug_image = debug_image.handle(),
-                .u_depth_image = depth_handle,
-                .u_draw_info_index_buffer = index_buffer.handle(),
-                .u_instantiated_meshlets = instantiated_meshlets.handle(),
-                .u_entity_meshlists = entity_meshlists.handle(),
-                .u_entity_debug = entity_debug.handle(),
-                .u_meshes = asset_manager->tmeshes.handle(),
-                .u_combined_transforms = entity_combined_transforms.handle(),
-            },
-        },
-        context->raster_pipelines[DrawOpaqueIdTask{}.name],
-        context,
-        /*pass:*/ 1,
-    });
-
-    if (context->settings.update_culling_information)
-    {
-        // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
-        task_list.add_task({
-            .uses = {daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters}},
-            .task = [=](daxa::TaskInterface ti)
-            {
-                ti.get_command_list().clear_buffer({
-                    .buffer = ti.uses[instantiated_meshlet_visibility_counters].buffer(),
-                    .size = ti.get_device().info_buffer(ti.uses[instantiated_meshlet_visibility_counters].buffer()).size,
-                    .clear_value = 0,
-                });
-            },
-            .name = "clear instantiated meshlet counters buffer",
-        });
-        // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
-        task_list.add_task({
-            .uses = {
-                daxa::BufferTransferWrite{entity_visibility_bitfield_offsets},
-                daxa::BufferTransferWrite{meshlet_visibility_bitfield},
-            },
-            .task = [=](daxa::TaskInterface ti)
-            {
-                auto cmd = ti.get_command_list();
-                cmd.clear_buffer({
-                    .buffer = ti.uses[entity_visibility_bitfield_offsets].buffer(),
-                    .size = ti.get_device().info_buffer(ti.uses[entity_visibility_bitfield_offsets].buffer()).size,
-                    .clear_value = 0,
-                });
-                cmd.clear_buffer({
-                    .buffer = ti.uses[meshlet_visibility_bitfield].buffer(),
-                    .size = ti.get_device().info_buffer(ti.uses[meshlet_visibility_bitfield].buffer()).size,
-                    .clear_value = 0,
-                });
-            },
-            .name = "clear entity_visibility_bitfield_offsets and meshlet_visibility_bitfield",
-        });
-
-        task_list.add_task(ClearInstantiatedMeshletsHeaderTask{
-            .uses = {instantiated_meshlets_last_frame.handle()},
-            .context = context,
-        });
-
-        task_list.add_task(AllocateMeshletVisibilityTask{
-            {
-                .uses = {
-                    .u_meshlists = entity_meshlists.handle(),
-                    .u_meshes = asset_manager->tmeshes.handle(),
-                    .u_entity_meta = entity_meta.handle(),
-                    .u_visibility_bitfield_sratch = meshlet_visibility_bitfield.handle(),
-                    .u_meshlet_visibilities = entity_visibility_bitfield_offsets.handle(),
-                },
-            },
-            context,
-            scene,
-            context->compute_pipelines[AllocateMeshletVisibilityTask::NAME],
-        });
-    }
-
-    task_list.add_task(AnalyzeVisbufferTask{
-        {
-            .uses = {
-                .u_visbuffer = visbuffer.handle(),
-                .u_instantiated_meshlets = instantiated_meshlets.handle(),
-                .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
-                .u_instantiated_meshlet_counters = instantiated_meshlet_visibility_counters.handle(),
-                .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
-                .u_instantiated_meshlets_last_frame = instantiated_meshlets_last_frame.handle(),
-            },
-        },
-        context->compute_pipelines[AnalyzeVisbufferTask::NAME],
-        context,
-    });
-
-    task_list.add_task(WriteSwapchainTask{
-        {.uses = {swapchain_image.handle(), debug_image.handle()}},
-        context->compute_pipelines[WriteSwapchainTask::NAME],
-    });
+    //auto draw_opaque_indirect_command_buffer = task_list.create_transient_buffer({
+    //    .size = static_cast<u32>(std::max(sizeof(DrawIndexedIndirectStruct), sizeof(DrawIndirectStruct))),
+    //    .name = "draw_opaque_indirect_command_buffer",
+    //});
+//
+    //task_list.add_task(PatchDrawOpaqueIndirectTask{
+    //    {.uses = {instantiated_meshlets.handle()}},
+    //    .context = context,
+    //});
+//
+    //if (context->settings.indexed_id_rendering)
+    //{
+    //    task_list.add_task({
+    //        .uses = {
+    //            daxa::BufferTransferWrite{index_buffer},
+    //        },
+    //        .task = [=](daxa::TaskInterface ti)
+    //        {
+    //            daxa::CommandList cmd = ti.get_command_list();
+    //            auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+    //            *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+    //                .index_count = {},
+    //                .instance_count = 1,
+    //                .first_index = {},
+    //                .vertex_offset = {},
+    //                .first_instance = {},
+    //            };
+    //            cmd.copy_buffer_to_buffer({
+    //                .src_buffer = this->context->transient_mem.get_buffer(),
+    //                .src_offset = alloc.buffer_offset,
+    //                .dst_buffer = ti.uses[index_buffer].buffer(),
+    //                .dst_offset = 0,
+    //                .size = sizeof(DrawIndexedIndirectStruct),
+    //            });
+    //        },
+    //        .name = "clear triangle count of index buffer",
+    //    });
+    //    // First pass id rendering:
+    //    task_list.add_task(WriteDrawOpaqueIndexBufferTask{
+    //        {
+    //            .uses = {
+    //                .u_meshes = asset_manager->tmeshes.handle(),
+    //                .u_meshlet_list = instantiated_meshlets.handle(),
+    //                .u_index_buffer_and_count = index_buffer.handle(),
+    //            },
+    //        },
+    //        context,
+    //    });
+    //}
+//
+    //task_list.add_task(DrawOpaqueIdTask{
+    //    {
+    //        .uses = {
+    //            .u_visbuffer = visbuffer.handle(),
+    //            .u_debug_image = debug_image.handle(),
+    //            .u_depth_image = depth_handle,
+    //            .u_draw_info_index_buffer = index_buffer.handle(),
+    //            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+    //            .u_entity_meshlists = entity_meshlists.handle(),
+    //            .u_entity_debug = entity_debug.handle(),
+    //            .u_meshes = asset_manager->tmeshes.handle(),
+    //            .u_combined_transforms = entity_combined_transforms.handle(),
+    //        },
+    //    },
+    //    context->raster_pipelines[DrawOpaqueIdTask{}.name],
+    //    context,
+    //    /*pass:*/ 0,
+    //});
+//
+    //task_list.add_task(PrefixSumMeshletTask{
+    //    .uses = {
+    //        .meshes = asset_manager->tmeshes.handle(),
+    //        .entity_meta = entity_meta.handle(),
+    //        .entity_meshlists = entity_meshlists.handle(),
+    //        .ent_meshlet_count_prefix_sum_buffer = ent_meshlet_count_prefix_sum_buffer.handle(),
+    //    },
+    //    .pipeline = context->compute_pipelines[PrefixSumMeshletTask{}.name],
+    //    .config = {
+    //        .entity_count = &scene->entity_meta.entity_count,
+    //    },
+    //});
+//
+    //static constexpr u32 STRIDE = PREFIX_SUM_WORKGROUP_SIZE;
+    //static constexpr u32 OFFSET = PREFIX_SUM_WORKGROUP_SIZE - 1;
+    //task_list.add_task(PrefixSumTask{
+    //    .uses = {
+    //        .src = ent_meshlet_count_prefix_sum_buffer.handle(),
+    //        .dst = ent_meshlet_count_partial_sum_buffer.handle(),
+    //    },
+    //    .pipeline = context->compute_pipelines[PrefixSumTask{}.name],
+    //    .config = {
+    //        .src_stride = &STRIDE,
+    //        .src_offset = &OFFSET,
+    //        .value_count = &this->context->meshlet_sums_step2_dispatch_size,
+    //    },
+    //});
+//
+    //task_list.add_task(PrefixSumFinalizeTask{
+    //    .uses = {
+    //        .partial_sums = ent_meshlet_count_partial_sum_buffer.handle(),
+    //        .values = ent_meshlet_count_prefix_sum_buffer.handle(),
+    //    },
+    //    .pipeline = context->compute_pipelines[PrefixSumFinalizeTask{}.name],
+    //    .config = {
+    //        .value_count = &scene->entity_meta.entity_count,
+    //    },
+    //});
+//
+    //task_list.add_task(CullMeshletsTask{
+    //    {
+    //        .uses = {
+    //            .u_prefix_sum_mehslet_counts = ent_meshlet_count_prefix_sum_buffer.handle(),
+    //            .u_entity_meta_data = entity_meta.handle(),
+    //            .u_entity_meshlists = entity_meshlists.handle(),
+    //            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
+    //            .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
+    //            .u_meshes = asset_manager->tmeshes.handle(),
+    //            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+    //        },
+    //    },
+    //    context->compute_pipelines[CullMeshletsTask::NAME],
+    //    context,
+    //    &this->asset_manager->total_meshlet_count,
+    //    .cull_alredy_visible_meshlets = true,
+    //});
+//
+    //if (context->settings.indexed_id_rendering)
+    //{
+    //    task_list.add_task({
+    //        .uses = {
+    //            daxa::BufferTransferWrite{index_buffer},
+    //        },
+    //        .task = [=](daxa::TaskInterface ti)
+    //        {
+    //            daxa::CommandList cmd = ti.get_command_list();
+    //            auto alloc = this->context->transient_mem.allocate(sizeof(DrawIndexedIndirectStruct)).value();
+    //            *reinterpret_cast<DrawIndexedIndirectStruct *>(alloc.host_address) = DrawIndexedIndirectStruct{
+    //                .index_count = {},
+    //                .instance_count = 1,
+    //                .first_index = {},
+    //                .vertex_offset = {},
+    //                .first_instance = {},
+    //            };
+    //            cmd.copy_buffer_to_buffer({
+    //                .src_buffer = this->context->transient_mem.get_buffer(),
+    //                .src_offset = alloc.buffer_offset,
+    //                .dst_buffer = ti.uses[index_buffer].buffer(),
+    //                .dst_offset = 0,
+    //                .size = sizeof(DrawIndexedIndirectStruct),
+    //            });
+    //        },
+    //        .name = "clear triangle count of index buffer",
+    //    });
+//
+    //    task_list.add_task(WriteDrawOpaqueIndexBufferTask{
+    //        {
+    //            .uses = {
+    //                .u_meshes = asset_manager->tmeshes.handle(),
+    //                .u_meshlet_list = instantiated_meshlets.handle(),
+    //                .u_index_buffer_and_count = index_buffer.handle(),
+    //            },
+    //        },
+    //        context,
+    //    });
+    //}
+//
+    //task_list.add_task(DrawOpaqueIdTask{
+    //    {
+    //        .uses = {
+    //            .u_visbuffer = visbuffer.handle(),
+    //            .u_debug_image = debug_image.handle(),
+    //            .u_depth_image = depth_handle,
+    //            .u_draw_info_index_buffer = index_buffer.handle(),
+    //            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+    //            .u_entity_meshlists = entity_meshlists.handle(),
+    //            .u_entity_debug = entity_debug.handle(),
+    //            .u_meshes = asset_manager->tmeshes.handle(),
+    //            .u_combined_transforms = entity_combined_transforms.handle(),
+    //        },
+    //    },
+    //    context->raster_pipelines[DrawOpaqueIdTask{}.name],
+    //    context,
+    //    /*pass:*/ 1,
+    //});
+//
+    //if (context->settings.update_culling_information)
+    //{
+    //    // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
+    //    task_list.add_task({
+    //        .uses = {daxa::BufferTransferWrite{instantiated_meshlet_visibility_counters}},
+    //        .task = [=](daxa::TaskInterface ti)
+    //        {
+    //            ti.get_command_list().clear_buffer({
+    //                .buffer = ti.uses[instantiated_meshlet_visibility_counters].buffer(),
+    //                .size = ti.get_device().info_buffer(ti.uses[instantiated_meshlet_visibility_counters].buffer()).size,
+    //                .clear_value = 0,
+    //            });
+    //        },
+    //        .name = "clear instantiated meshlet counters buffer",
+    //    });
+    //    // TODO: replace with compute indirect clear, that only clears the dirty part of the buffers.
+    //    task_list.add_task({
+    //        .uses = {
+    //            daxa::BufferTransferWrite{entity_visibility_bitfield_offsets},
+    //            daxa::BufferTransferWrite{meshlet_visibility_bitfield},
+    //        },
+    //        .task = [=](daxa::TaskInterface ti)
+    //        {
+    //            auto cmd = ti.get_command_list();
+    //            cmd.clear_buffer({
+    //                .buffer = ti.uses[entity_visibility_bitfield_offsets].buffer(),
+    //                .size = ti.get_device().info_buffer(ti.uses[entity_visibility_bitfield_offsets].buffer()).size,
+    //                .clear_value = 0,
+    //            });
+    //            cmd.clear_buffer({
+    //                .buffer = ti.uses[meshlet_visibility_bitfield].buffer(),
+    //                .size = ti.get_device().info_buffer(ti.uses[meshlet_visibility_bitfield].buffer()).size,
+    //                .clear_value = 0,
+    //            });
+    //        },
+    //        .name = "clear entity_visibility_bitfield_offsets and meshlet_visibility_bitfield",
+    //    });
+//
+    //    task_list.add_task(ClearInstantiatedMeshletsHeaderTask{
+    //        .uses = {instantiated_meshlets_last_frame.handle()},
+    //        .context = context,
+    //    });
+//
+    //    task_list.add_task(AllocateMeshletVisibilityTask{
+    //        {
+    //            .uses = {
+    //                .u_meshlists = entity_meshlists.handle(),
+    //                .u_meshes = asset_manager->tmeshes.handle(),
+    //                .u_entity_meta = entity_meta.handle(),
+    //                .u_visibility_bitfield_sratch = meshlet_visibility_bitfield.handle(),
+    //                .u_meshlet_visibilities = entity_visibility_bitfield_offsets.handle(),
+    //            },
+    //        },
+    //        context,
+    //        scene,
+    //        context->compute_pipelines[AllocateMeshletVisibilityTask::NAME],
+    //    });
+    //}
+//
+    //task_list.add_task(AnalyzeVisbufferTask{
+    //    {
+    //        .uses = {
+    //            .u_visbuffer = visbuffer.handle(),
+    //            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+    //            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
+    //            .u_instantiated_meshlet_counters = instantiated_meshlet_visibility_counters.handle(),
+    //            .u_meshlet_visibility_bitfield = meshlet_visibility_bitfield.handle(),
+    //            .u_instantiated_meshlets_last_frame = instantiated_meshlets_last_frame.handle(),
+    //        },
+    //    },
+    //    context->compute_pipelines[AnalyzeVisbufferTask::NAME],
+    //    context,
+    //});
+//
+    //task_list.add_task(WriteSwapchainTask{
+    //    {.uses = {swapchain_image.handle(), debug_image.handle()}},
+    //    context->compute_pipelines[WriteSwapchainTask::NAME],
+    //});
 
     task_list.submit({.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
     task_list.present({});

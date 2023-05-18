@@ -3,7 +3,6 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_list.inl>
 
-#include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
@@ -26,7 +25,7 @@ static constexpr inline char const FILTER_VISIBLE_MESHLETS_SHADER_PATH[] =
 
 struct FilterVisibleMeshlets : FilterVisibleMeshletsBase
 {
-    static const inline daxa::ComputePipelineCompileInfo COMPILE_INFO = {
+    static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO = {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{FILTER_VISIBLE_MESHLETS_SHADER_PATH},
         },
