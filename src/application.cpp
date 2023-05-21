@@ -165,11 +165,6 @@ void Application::update()
     }
     camera_controller.process_input(this->window, this->delta_time);
     camera_controller.update_matrices(this->window);
-    if (window.key_just_pressed(GLFW_KEY_G))
-    {
-        std::cout << "switched indexed_id_rendering from " << renderer.context->settings.indexed_id_rendering << " to " << !(renderer.context->settings.indexed_id_rendering) << std::endl;
-        renderer.context->settings.indexed_id_rendering = !renderer.context->settings.indexed_id_rendering;
-    }
     if (window.key_just_pressed(GLFW_KEY_H))
     {
         std::cout << "switched update_culling_information from " << renderer.context->settings.update_culling_information << " to " << !(renderer.context->settings.update_culling_information) << std::endl;

@@ -3,7 +3,7 @@
 #include <daxa/daxa.inl>
 #include "draw_visbuffer.inl"
 #include "depth_util.glsl"
-#include "../../mesh/visbuffer_meshlet_util.glsl"
+#include "../../mesh/visbuffer_meshlet_util.inl"
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 #define VERTEX_OUT out 
@@ -16,14 +16,29 @@ layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
 layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
 layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
 
+DAXA_USE_PUSH_CONSTANT(DrawVisbufferPush, push)
+
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 void main()
 {
     const uint triangle_corner_index = gl_VertexIndex % 3;
     uint inst_meshlet_index;
     uint triangle_index;
-    const uint triangle_id = deref(u_triangle_list).triangles[gl_VertexIndex / 3];
-    decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
+    switch (push.tris_or_meshlets)
+    {
+        case DRAW_VISBUFFER_TRIANGLES:
+        {
+            const uint triangle_id = deref(u_draw_command).triangle_ids[gl_VertexIndex / 3];
+            decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
+            break;
+        }
+        case DRAW_VISBUFFER_MESHLETS:
+        {
+            inst_meshlet_index = gl_InstanceIndex;
+            triangle_index = gl_VertexIndex / 3;
+        }
+        default: break;
+    }
 
     // InstantiatedMeshlet:
     // daxa_u32 entity_index;
@@ -49,6 +64,7 @@ void main()
     // daxa_u32 triangle_count;
     Meshlet meshlet = mesh.meshlets[instantiated_meshlet.meshlet_index].value;
 
+    // Discard triangle indices that are out of bounds of the meshlets triangle list.
     if (triangle_index >= meshlet.triangle_count)
     {
         gl_Position = vec4(2,2,2,1);
@@ -56,7 +72,7 @@ void main()
     }
 
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
-    const uint micro_index = get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + corner_index);
+    const uint micro_index = get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + triangle_corner_index);
     const uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const vec4 pos = globals.camera_view_projection * vertex_position;

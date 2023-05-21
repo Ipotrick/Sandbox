@@ -8,7 +8,8 @@
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
 DAXA_INL_TASK_USE_BEGIN(DrawVisbufferBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_triangle_list, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
+// When drawing triangles, this draw command has triangle ids appended to the end of the command.
+DAXA_INL_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
 DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), SHADER_READ)
 DAXA_INL_TASK_USE_IMAGE(u_vis_image, daxa_RWImage2Du32, COLOR_ATTACHMENT)
@@ -16,12 +17,20 @@ DAXA_INL_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
 DAXA_INL_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
 DAXA_INL_TASK_USE_END()
 
+#define DRAW_VISBUFFER_TRIANGLES 1
+#define DRAW_VISBUFFER_MESHLETS 0
+
+struct DrawVisbufferPush
+{
+    daxa_u32 tris_or_meshlets;
+};
+
 #if __cplusplus
 #include "../gpu_context.hpp"
 #include "../tasks/misc.hpp"
 
 static constexpr inline char const DRAW_VISBUFFER_SHADER_PATH[] =
-    "./src/rendering/rasterize_visbuffer/filter_visible_meshlets.glsl";
+    "./src/rendering/rasterize_visbuffer/draw_visbuffer.glsl";
 
 struct DrawVisbuffer : DrawVisbufferBase
 {
@@ -57,10 +66,12 @@ struct DrawVisbuffer : DrawVisbufferBase
             .min_depth_bounds = 0.0f,
             .max_depth_bounds = 1.0f,
         },
+        .push_constant_size = sizeof(DrawVisbufferPush),
         .name = std::string{DrawVisbufferBase::NAME},
     };
-    bool clear_attachments = {};
     GPUContext *context = {};
+    bool clear_attachments = {};
+    bool tris_or_meshlets = {};
     void callback(daxa::TaskInterface ti)
     {
         daxa::ImageId vis_image = uses.u_vis_image.image();
@@ -97,8 +108,11 @@ struct DrawVisbuffer : DrawVisbufferBase
             },
         });
         cmd.set_pipeline(*context->raster_pipelines.at(DrawVisbufferBase::NAME));
+        cmd.push_constant(DrawVisbufferPush{
+            .tris_or_meshlets = (tris_or_meshlets ? 1u : 0u),
+        });
         cmd.draw_indirect({
-            .draw_command_buffer = uses.u_triangle_list.buffer(),
+            .draw_command_buffer = uses.u_draw_command.buffer(),
             .draw_count = 1,
             .draw_command_stride = sizeof(DrawIndirectStruct),
         });

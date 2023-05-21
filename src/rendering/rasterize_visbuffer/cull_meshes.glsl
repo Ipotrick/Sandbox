@@ -2,8 +2,8 @@
 
 #include "cull_meshes.inl"
 
-#if defined(CullMeshesCommandBase)
-layout(local_size_x = 1)
+#if defined(CullMeshesCommandBase_COMMAND)
+layout(local_size_x = 1) in;
 void main()
 {
     const uint entity_count = deref(u_entity_meta).entity_count;
@@ -13,11 +13,11 @@ void main()
     deref(u_command).z = 1;
 }
 #else
-layout(local_size_x = CULL_MESHES_WORKGROUP_X)
+layout(local_size_x = CULL_MESHES_WORKGROUP_X) in;
 void main()
 {
     const uint entity_index = gl_GlobalInvocationID.x;
-    if (entity_index >= deref(u_entity_meta.entity_count))
+    if (entity_index >= deref(u_entity_meta).entity_count)
     {
         return;
     }
@@ -31,7 +31,7 @@ void main()
     for (uint mesh_index = 0; mesh_index < culled_meshes.count; ++mesh_index)
     {
         MeshDrawInfo draw_info;
-        draw_info.entity_id = entity_id;
+        draw_info.entity_id = entity_index;
         draw_info.mesh_index = mesh_index;
         draw_info.mesh_id = culled_meshes.mesh_ids[mesh_index];
         DispatchIndirectStruct mesh_dispatch_info;

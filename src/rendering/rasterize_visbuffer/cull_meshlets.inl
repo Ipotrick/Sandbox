@@ -7,17 +7,16 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
-#include "../tasks/misc.hpp"
 
 #define CULL_MESHLETS_WORKGROUP_X 128
 
-#if __cplusplus || defined(CullMeshletsCommandWriteBase)
+#if __cplusplus || defined(CullMeshletsCommandWriteBase_COMMAND)
 DAXA_INL_TASK_USE_BEGIN(CullMeshletsCommandWriteBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_mesh_draw_list, daxa_BufferPtr(MeshDrawList), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
 DAXA_INL_TASK_USE_END()
 #endif
-#if __cplusplus || !defined(CullMeshletsCommandWriteBase)
+#if __cplusplus || !defined(CullMeshletsCommandWriteBase_COMMAND)
 DAXA_INL_TASK_USE_BEGIN(CullMeshletsBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_mesh_draw_list, daxa_BufferPtr(MeshDrawList), COMPUTE_SHADER_READ)
@@ -26,15 +25,16 @@ DAXA_INL_TASK_USE_BEGIN(CullMeshletsBase, DAXA_CBUFFER_SLOT1)
     DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
+    DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
 DAXA_INL_TASK_USE_END()
 #endif
 
 #if __cplusplus
 
 #include "../gpu_context.hpp"
+#include "../tasks/misc.hpp"
 
-inline static constexpr char const CULL_MESHLETS_SHADER_PATH[] = "./src/rendering/tasks/fill_meshlet_buffer.glsl";
+inline static constexpr char const CULL_MESHLETS_SHADER_PATH[] = "./src/rendering/rasterize_visbuffer/cull_meshlets.glsl";
 
 using CullMeshletsCommandWrite = WriteIndirectDispatchArgsBaseTask<
     CullMeshletsCommandWriteBase,

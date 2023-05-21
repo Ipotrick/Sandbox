@@ -9,12 +9,23 @@
 
 #define FILTER_VISIBLE_MESHLETS_DISPATCH_X MAX_TRIANGLES_PER_MESHLET
 
-DAXA_INL_TASK_USE_BEGIN(FilterVisibleMeshletsBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_src_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_meshlet_visibility_bitmasks, daxa_BufferPtr(daxa_uvec4), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_filtered_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
-DAXA_INL_TASK_USE_BUFFER(u_filtered_triangles, daxa_RWBufferPtr(TriangleDrawList), COMPUTE_SHADER_READ_WRITE)
+#if __cplusplus || defined(FilterVisibleMeshletsCommandWriteBase_COMMAND)
+DAXA_INL_TASK_USE_BEGIN(FilterVisibleMeshletsCommandWriteBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets_prev, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
 DAXA_INL_TASK_USE_END()
+#endif
+
+#if __cplusplus || !defined(FilterVisibleMeshletsCommandWriteBase_COMMAND)
+DAXA_INL_TASK_USE_BEGIN(FilterVisibleMeshletsBase, DAXA_CBUFFER_SLOT1)
+DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets_prev, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_prev, daxa_BufferPtr(daxa_u32vec4), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets_prev, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
+DAXA_INL_TASK_USE_BUFFER(u_triangle_draw_list, daxa_RWBufferPtr(TriangleDrawList), COMPUTE_SHADER_READ_WRITE)
+DAXA_INL_TASK_USE_END()
+#endif
 
 #if __cplusplus
 #include "../gpu_context.hpp"
@@ -22,6 +33,11 @@ DAXA_INL_TASK_USE_END()
 
 static constexpr inline char const FILTER_VISIBLE_MESHLETS_SHADER_PATH[] =
     "./src/rendering/rasterize_visbuffer/filter_visible_meshlets.glsl";
+
+using FilterVisibleMeshletsCommandWrite = WriteIndirectDispatchArgsBaseTask<
+    FilterVisibleMeshletsCommandWriteBase,
+    FILTER_VISIBLE_MESHLETS_SHADER_PATH
+>;
 
 struct FilterVisibleMeshlets : FilterVisibleMeshletsBase
 {
@@ -39,10 +55,26 @@ struct FilterVisibleMeshlets : FilterVisibleMeshletsBase
         cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
         cmd.set_pipeline(*context->compute_pipelines.at(FilterVisibleMeshlets::NAME));
         cmd.dispatch_indirect({
-            .indirect_buffer = uses.u_src_instantiated_meshlets.buffer(),
-            .offset = offsetof(InstantiatedMeshlets, total_count),
+            .indirect_buffer = uses.u_command.buffer(),
         });
     }
 };
+
+void task_filter_visible_meshlets(GPUContext* context, daxa::TaskList& task_list, FilterVisibleMeshlets::Uses uses)
+{
+    auto command = task_list.create_transient_buffer({sizeof(DispatchIndirectStruct), "filter_visible_meshlets_command"});
+    task_list.add_task(FilterVisibleMeshletsCommandWrite{
+        {.uses={
+            .u_instantiated_meshlets_prev = uses.u_instantiated_meshlets_prev,
+            .u_command = command,
+        }},
+        context,
+    });
+    uses.u_command.handle = command;
+    task_list.add_task(FilterVisibleMeshlets{
+        {.uses=uses},
+        context,
+    });
+}
 
 #endif

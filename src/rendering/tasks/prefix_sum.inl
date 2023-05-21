@@ -1,10 +1,11 @@
 #pragma once
 
 #include <daxa/daxa.inl>
+#include <daxa/utils/task_list.inl>
 
+#include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
 #include "../../scene/scene.inl"
-#include "misc.hpp"
 
 #define PREFIX_SUM_BLOCK_SIZE 1024
 #define PREFIX_SUM_WORKGROUP_SIZE PREFIX_SUM_BLOCK_SIZE
@@ -14,8 +15,9 @@ struct DispatchIndirectValueCount
     DispatchIndirectStruct command;
     daxa_u32 value_count;
 };
+DAXA_ENABLE_BUFFER_PTR(DispatchIndirectValueCount)
 
-#if __cplusplus || defined(PrefixSumWriteCommandBase)
+#if __cplusplus || defined(PrefixSumWriteCommandBase_COMMAND)
 DAXA_INL_TASK_USE_BEGIN(PrefixSumWriteCommandBase, DAXA_CBUFFER_SLOT1)
 DAXA_INL_TASK_USE_BUFFER(u_value_count, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
 DAXA_INL_TASK_USE_BUFFER(u_upsweep_command0, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
@@ -41,6 +43,7 @@ DAXA_INL_TASK_USE_END()
 struct PrefixSumWriteCommandPush
 {
     daxa_u32 uint_offset;
+    daxa_u32 uint_stride;
 };
 
 struct PrefixSumPush
@@ -52,6 +55,7 @@ struct PrefixSumPush
 #if __cplusplus
 
 #include "../gpu_context.hpp"
+#include "misc.hpp"
 
 static constexpr inline char const PREFIX_SUM_SHADER_PATH[] = "./src/rendering/tasks/prefix_sum.glsl";
 

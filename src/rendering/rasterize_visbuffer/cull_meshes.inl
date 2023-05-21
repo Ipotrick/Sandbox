@@ -6,29 +6,30 @@
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
+#include "../../scene/scene.inl"
 
 /// 
-/// CullMeshes goes throu all entities and their meshlists.
+/// CullMeshes goes through all entities and their meshlists.
 /// It checks if the meshes are visible and if they are they get inserted into a visible meshlist.
 /// It also generates a list of meshlet counts for each mesh, that the following meshlet culling uses.
 ///
 
 #define CULL_MESHES_WORKGROUP_X 128
 
-#if __cplusplus || defined(CullMeshesCommandBase)
+#if __cplusplus || defined(CullMeshesCommandBase_COMMAND)
 DAXA_INL_TASK_USE_BEGIN(CullMeshesCommandBase, DAXA_CBUFFER_SLOT1)
-BUFFER_COMPUTE_READ(u_entity_meta, EntityMetaData)
-BUFFER_COMPUTE_WRITE(u_command, DispatchIndirectStruct)
+DAXA_INL_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
 DAXA_INL_TASK_USE_END()
 #endif
-#if __cplusplus || !defined(CullMeshesCommandBase)
+#if __cplusplus || !defined(CullMeshesCommandBase_COMMAND)
 DAXA_INL_TASK_USE_BEGIN(CullMeshesBase, DAXA_CBUFFER_SLOT1)
-BUFFER_COMPUTE_READ(u_command, DispatchIndirectStruct)
-BUFFER_COMPUTE_READ(u_meshes, Mesh)
-BUFFER_COMPUTE_READ(u_entity_meta, EntityMetaData)
-BUFFER_COMPUTE_READ(u_entity_meshlists, MeshList)
-BUFFER_COMPUTE_READ(u_entity_transforms, daxa_mat4x4f32)
-BUFFER_COMPUTE_READ(u_entity_combined_transforms, daxa_mat4x4f32)
+DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
+DAXA_INL_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
 BUFFER_COMPUTE_WRITE(u_mesh_draw_list, MeshDrawList)
 DAXA_INL_TASK_USE_END()
 #endif

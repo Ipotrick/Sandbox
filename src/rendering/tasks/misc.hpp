@@ -11,7 +11,7 @@ struct WriteIndirectDispatchArgsBaseTask : T_USES_BASE
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{T_FILE_PATH},
             .compile_options = {
-                .defines = {{std::string(T_USES_BASE::NAME), "1"}},
+                .defines = {{std::string(T_USES_BASE::NAME) + std::string("_COMMAND"), "1"}},
             },
         },
         .name = std::string{T_USES_BASE::NAME},
@@ -34,7 +34,7 @@ struct WriteIndirectDispatchArgsPushBaseTask : T_USES_BASE
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{T_FILE_PATH},
             .compile_options = {
-                .defines = {{std::string(T_USES_BASE::NAME), "1"}},
+                .defines = {{std::string(T_USES_BASE::NAME) + std::string("_COMMAND"), "1"}},
             },
         },
         .name = std::string{T_USES_BASE::NAME},

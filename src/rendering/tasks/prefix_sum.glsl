@@ -2,32 +2,33 @@
 
 #include "prefix_sum.inl"
 
-#if defined(PrefixSumWriteCommandBase)
-DEFINE_PUSHCONSTANT(PrefixSumWriteCommandPush, push)
-layout(local_size_x = 1)
+DAXA_USE_PUSH_CONSTANT(PrefixSumPush, push)
+
+#if defined(PrefixSumWriteCommandBase_COMMAND)
+layout(local_size_x = 1) in;
 void main()
 {
-    const uint value_count = deref(u_value_count[push.uint_offset]);
-    const uint block_count = (value_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE;
-    DispatchIndirectValueCount command_and_count;
+    //const uint value_count = deref(u_value_count[push.uint_offset]);
+    //const uint block_count = (value_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE;
+    //DispatchIndirectValueCount command_and_count;
 
-    command_and_count.command.x = block_count
-    command_and_count.command.y = 1;
-    command_and_count.command.z = 1;
-    command_and_count.value_count = value_count;
-    deref(u_upsweep_command0) = command_and_count;
-    
-    command_and_count.command.x = block_count.x = max((block_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE, 1) - 1;
-    command_and_count.command.y = 1;
-    command_and_count.command.z = 1;
-    command_and_count.value_count = block_count;
-    deref(u_upsweep_command1) = command_and_count;
-
-    command_and_count.command.x = block_count;
-    command_and_count.command.y = 1;
-    command_and_count.command.z = 1;
-    command_and_count.value_count = value_count;
-    deref(u_downsweep_command) = command_and_count;
+    // command_and_count.command.x = block_count
+    // command_and_count.command.y = 1;
+    // command_and_count.command.z = 1;
+    // command_and_count.value_count = value_count;
+    // deref(u_upsweep_command0) = command_and_count;
+    // 
+    // command_and_count.command.x = max((block_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE, 1) - 1;
+    // command_and_count.command.y = 1;
+    // command_and_count.command.z = 1;
+    // command_and_count.value_count = block_count;
+    // deref(u_upsweep_command1) = command_and_count;
+// 
+    // command_and_count.command.x = block_count;
+    // command_and_count.command.y = 1;
+    // command_and_count.command.z = 1;
+    // command_and_count.value_count = value_count;
+    // deref(u_downsweep_command) = command_and_count;
 }
 #endif
 
@@ -64,14 +65,13 @@ void prefix_sum(
 }
 
 #if defined(UPSWEEP)
-DEFINE_PUSHCONSTANT(PrefixSumPush, push)
 layout(local_size_x = PREFIX_SUM_BLOCK_SIZE) in;
 void main()
 {
     const uint global_index = gl_GlobalInvocationID.x;
     const uint warp_id = gl_SubgroupID;
     const uint warp_index = gl_SubgroupInvocationID;
-    const uint src_index = global_index * push.stride + push.uint_offset;
+    const uint src_index = global_index * push.uint_stride + push.uint_offset;
     const uint value_count = deref(u_command).value_count;
 
     uint value = 0;
@@ -95,16 +95,15 @@ void prefix_sum_twoppass_finalize(
     uint workgroup_index,
     daxa_BufferPtr(daxa_u32) block_sums,
     daxa_RWBufferPtr(daxa_u32) values,
-    u32 offset,
-    u32 stride)
+    uint offset,
+    uint stride)
 {
-    uint block_sum = deref(block_sums[workgroup_index]);
+    const uint block_sum = deref(block_sums[workgroup_index]);
     const uint real_index = offset + stride * value_index;
     deref(values[real_index]) = deref(values[real_index]) + block_sum;
 }
 
 #if defined(DOWNSWEEP)
-DEFINE_PUSHCONSTANT(PrefixSumTwoPassFinalizePush, push)
 layout(local_size_x = PREFIX_SUM_BLOCK_SIZE) in;
 void main()
 {

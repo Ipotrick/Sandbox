@@ -1,11 +1,11 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
-#include "../../../shaders/cull_util.glsl"
 #include "cull_meshlets.inl"
-#include "../../mesh/visbuffer_meshlet_util.glsl"
 
-#if defined(CullMeshletsCommandWriteBase)
+#include "cull_util.glsl"
+
+#if defined(CullMeshletsCommandWriteBase_COMMAND)
 layout(local_size_x = 1) in;
 void main()
 {
@@ -26,8 +26,6 @@ void main()
     const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);
     const int mesh_count = int(deref(u_mesh_draw_list).count);
 
-    InstantiatedMeshletsView instantiated_meshlets_view = InstantiatedMeshletsView(u_instantiated_meshlets);
-
     // Binary Serarch the entity the meshlet id belongs to.
     int mesh_draw_index = -1;
     int meshlet_sum = -1;
@@ -36,7 +34,7 @@ void main()
         return;
     }
     int first = 0;
-    int last = entity_count - 1;
+    int last = mesh_count - 1;
     int middle = (first + last) / 2;
     int up_count = 0;
     int down_count = 0;
@@ -71,7 +69,7 @@ void main()
         {
             // Found ranage.
             mesh_draw_index = middle;
-            meshlet_sum = get_meshlet_count(mesh_draw_index);
+            meshlet_sum = int(get_meshlet_count(mesh_draw_index));
             break;
         }
 
@@ -91,11 +89,11 @@ void main()
     
     MeshDrawInfo draw_mesh_info = deref(u_mesh_draw_list).mesh_infos[mesh_draw_index];
 
-    InstantiatedMeshlet inst_meshlet;
-    inst_meshlet.entity_index = draw_mesh_info.entity_id;
-    inst_meshlet.mesh_id = draw_mesh_info.mesh_id;
-    inst_meshlet.mesh_index = draw_mesh_info.mesh_index;
-    inst_meshlet.meshlet_index = meshlet_index;
+    InstantiatedMeshlet instanced_meshlet;
+    instanced_meshlet.entity_index = draw_mesh_info.entity_id;
+    instanced_meshlet.mesh_id = draw_mesh_info.mesh_id;
+    instanced_meshlet.mesh_index = draw_mesh_info.mesh_index;
+    instanced_meshlet.meshlet_index = meshlet_index;
 
 #if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
@@ -139,8 +137,8 @@ void main()
     if (!culled)
 #endif
     {
-        const uint out_index = atomicAdd(instantiated_meshlets_view.second_pass_meshlet_count, 1) + instantiated_meshlets_view.first_pass_meshlet_count;
-        instantiated_meshlets_view.meshlets[out_index] = instanced_meshlet;
+        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_pass_count, 1) + deref(u_instantiated_meshlets).first_pass_count;
+        deref(u_instantiated_meshlets).meshlets[out_index] = instanced_meshlet;
     }
 }
 #endif
