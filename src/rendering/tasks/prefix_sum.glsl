@@ -2,33 +2,33 @@
 
 #include "prefix_sum.inl"
 
-DAXA_USE_PUSH_CONSTANT(PrefixSumPush, push)
+DAXA_DECL_PUSH_CONSTANT(PrefixSumPush, push)
 
 #if defined(PrefixSumWriteCommandBase_COMMAND)
 layout(local_size_x = 1) in;
 void main()
 {
-    //const uint value_count = deref(u_value_count[push.uint_offset]);
-    //const uint block_count = (value_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE;
-    //DispatchIndirectValueCount command_and_count;
+    const uint value_count = deref(u_value_count[push.uint_offset]);
+    const uint block_count = (value_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE;
+    DispatchIndirectValueCount command_and_count;
+    
+    command_and_count.command.x = block_count;
+    command_and_count.command.y = 1;
+    command_and_count.command.z = 1;
+    command_and_count.value_count = value_count;
+    deref(u_upsweep_command0) = command_and_count;
+     
+    command_and_count.command.x = max((block_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE, 1) - 1;
+    command_and_count.command.y = 1;
+    command_and_count.command.z = 1;
+    command_and_count.value_count = block_count;
+    deref(u_upsweep_command1) = command_and_count;
 
-    // command_and_count.command.x = block_count
-    // command_and_count.command.y = 1;
-    // command_and_count.command.z = 1;
-    // command_and_count.value_count = value_count;
-    // deref(u_upsweep_command0) = command_and_count;
-    // 
-    // command_and_count.command.x = max((block_count + PREFIX_SUM_BLOCK_SIZE - 1) / PREFIX_SUM_BLOCK_SIZE, 1) - 1;
-    // command_and_count.command.y = 1;
-    // command_and_count.command.z = 1;
-    // command_and_count.value_count = block_count;
-    // deref(u_upsweep_command1) = command_and_count;
-// 
-    // command_and_count.command.x = block_count;
-    // command_and_count.command.y = 1;
-    // command_and_count.command.z = 1;
-    // command_and_count.value_count = value_count;
-    // deref(u_downsweep_command) = command_and_count;
+    command_and_count.command.x = block_count;
+    command_and_count.command.y = 1;
+    command_and_count.command.z = 1;
+    command_and_count.value_count = value_count;
+    deref(u_downsweep_command) = command_and_count;
 }
 #endif
 

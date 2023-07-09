@@ -1,7 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.hpp>
-#include <daxa/utils/task_list.hpp>
+#include <daxa/utils/task_graph.hpp>
 #include "../gpu_context.hpp"
 
 template <typename T_USES_BASE, char const *T_FILE_PATH>
@@ -20,8 +20,8 @@ struct WriteIndirectDispatchArgsBaseTask : T_USES_BASE
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(T_USES_BASE::NAME));
         cmd.dispatch(1, 1, 1);
     }
@@ -44,8 +44,8 @@ struct WriteIndirectDispatchArgsPushBaseTask : T_USES_BASE
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(T_USES_BASE::NAME));
         cmd.push_constant(push);
         cmd.dispatch(1, 1, 1);

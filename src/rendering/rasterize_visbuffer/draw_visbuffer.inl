@@ -1,21 +1,21 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
-DAXA_INL_TASK_USE_BEGIN(DrawVisbufferBase, DAXA_CBUFFER_SLOT1)
+DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferBase, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
-DAXA_INL_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
-DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), SHADER_READ)
-DAXA_INL_TASK_USE_IMAGE(u_vis_image, daxa_RWImage2Du32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
-DAXA_INL_TASK_USE_END()
+DAXA_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), SHADER_READ)
+DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)
+DAXA_DECL_TASK_USES_END()
 
 #define DRAW_VISBUFFER_TRIANGLES 1
 #define DRAW_VISBUFFER_MESHLETS 0

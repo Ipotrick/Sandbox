@@ -124,8 +124,8 @@ Application::Application()
         this->renderer.entity_parents.get_state().buffers[0],
         this->renderer.entity_meshlists.get_state().buffers[0]);
     cmd2.pipeline_barrier({
-        .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
-        .waiting_pipeline_access = daxa::AccessConsts::READ,
+        .src_access = daxa::AccessConsts::TRANSFER_WRITE,
+        .dst_access = daxa::AccessConsts::READ,
     });
     cmd2.complete();
     this->gpu_context.device.submit_commands({

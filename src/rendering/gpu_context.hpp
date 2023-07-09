@@ -9,7 +9,7 @@ struct GPUContext
     ~GPUContext();
 
     // common unique:
-    daxa::Context context = {};
+    daxa::Instance context = {};
     daxa::Device device = {};
     daxa::Swapchain swapchain = {};
     daxa::PipelineManager pipeline_manager = {};

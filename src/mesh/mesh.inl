@@ -21,7 +21,7 @@ struct Meshlet
     daxa_u32 vertex_count;
     daxa_u32 triangle_count;
 };
-DAXA_ENABLE_BUFFER_PTR(Meshlet)
+DAXA_DECL_BUFFER_PTR(Meshlet)
 
 struct InstantiatedMeshlet
 {
@@ -30,13 +30,13 @@ struct InstantiatedMeshlet
     daxa_u32 mesh_index;
     daxa_u32 meshlet_index;
 };
-DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshlet)
+DAXA_DECL_BUFFER_PTR(InstantiatedMeshlet)
 
 struct BoundingSphere{
     daxa_f32vec3 center;
     daxa_f32 radius;
 };
-DAXA_ENABLE_BUFFER_PTR(BoundingSphere)
+DAXA_DECL_BUFFER_PTR(BoundingSphere)
 
 #if defined(DAXA_SHADER)
 #define DEBUG_VERTEX_ID 1
@@ -87,7 +87,7 @@ struct Mesh
     daxa_BufferPtr(daxa_u32) indirect_vertices;
     daxa_BufferPtr(daxa_f32vec3) vertex_positions;
 };
-DAXA_ENABLE_BUFFER_PTR(Mesh)
+DAXA_DECL_BUFFER_PTR(Mesh)
 
 #if defined(DAXA_SHADER)
 uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offset)
@@ -105,7 +105,7 @@ struct EntityVisibilityBitfieldOffsets
     daxa_u32 mesh_bitfield_offset[7];
     daxa_u32 padd;
 };
-DAXA_ENABLE_BUFFER_PTR(EntityVisibilityBitfieldOffsets)
+DAXA_DECL_BUFFER_PTR(EntityVisibilityBitfieldOffsets)
 
 // mesh.meshlets.get[index]
 

@@ -246,7 +246,6 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         {
             {
                 .format = daxa::Format::D32_SFLOAT,
-                .aspect = daxa::ImageAspectFlagBits::DEPTH,
                 .usage = daxa::ImageUsageFlagBits::DEPTH_STENCIL_ATTACHMENT | daxa::ImageUsageFlagBits::SHADER_READ_ONLY,
                 .name = depth.info().name,
             },
@@ -353,7 +352,7 @@ void Renderer::recreate_framebuffer()
 void Renderer::clear_select_buffers()
 {
     using namespace daxa;
-    TaskList list{{
+    TaskGraph list{{
         .device = this->context->device,
         .swapchain = this->context->swapchain,
         .name = "clear task list",
@@ -387,7 +386,7 @@ void Renderer::window_resized()
     recreate_framebuffer();
 }
 
-auto Renderer::create_main_task_list() -> daxa::TaskList
+auto Renderer::create_main_task_list() -> daxa::TaskGraph
 {
     // Rendering process:
     //  - update metadata
@@ -421,10 +420,10 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     //      - set meshlet triangle visibility bitmasks
     //  - blit debug image to swapchain
     using namespace daxa;
-    TaskList task_list{{
+    TaskGraph task_list{{
         .device = this->context->device,
         .swapchain = this->context->swapchain,
-        .name = "Sandbox main TaskList",
+        .name = "Sandbox main TaskGraph",
     }};
     for (auto const &tbuffer : buffers)
     {
@@ -436,7 +435,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         task_list.use_persistent_image(timage);
     }
     task_list.use_persistent_image(swapchain_image);
-    auto depth_handle = depth.handle().subslice({.image_aspect = daxa::ImageAspectFlagBits::DEPTH});
 
     // Using the last frames visbuffer and meshlet visibility bitmasks, filter the visible meshlets into a list.
     // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
@@ -444,21 +442,21 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context,
         task_list,
         {
-            .u_entity_visibility_bitfield_offsets_prev = entity_visibility_bitfield_offsets.handle(),
-            .u_entity_visibility_bitfield_prev = entity_visibility_bitfield.handle(),
-            .u_instantiated_meshlets_prev = instantiated_meshlets_last_frame.handle(),
-            .u_instantiated_meshlets = instantiated_meshlets.handle(),
-            .u_triangle_draw_list = triangle_draw_list.handle(),
+            .u_entity_visibility_bitfield_offsets_prev = entity_visibility_bitfield_offsets,
+            .u_entity_visibility_bitfield_prev = entity_visibility_bitfield,
+            .u_instantiated_meshlets_prev = instantiated_meshlets_last_frame,
+            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_triangle_draw_list = triangle_draw_list,
         });
     // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
     task_list.add_task(DrawVisbuffer{
         {.uses = {
-             .u_draw_command = initial_pass_triangles.handle(),
-             .u_instantiated_meshlets = instantiated_meshlets.handle(),
-             .u_meshes = asset_manager->tmeshes.handle(),
-             .u_vis_image = visbuffer.handle(),
-             .u_debug_image = debug_image.handle(),
-             .u_depth_image = depth_handle,
+             .u_draw_command = initial_pass_triangles,
+             .u_instantiated_meshlets = instantiated_meshlets,
+             .u_meshes = asset_manager->tmeshes,
+             .u_vis_image = visbuffer,
+             .u_debug_image = debug_image,
+             .u_depth_image = depth,
          }},
         .context = context,
         .clear_attachments = true,
@@ -472,12 +470,12 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context,
         task_list,
         {
-            .u_meshes = asset_manager->tmeshes.handle(),
-            .u_entity_meta = entity_meta.handle(),
-            .u_entity_meshlists = entity_meshlists.handle(),
-            .u_entity_transforms = entity_transforms.handle(),
-            .u_entity_combined_transforms = entity_combined_transforms.handle(),
-            .u_mesh_draw_list = mesh_draw_list.handle(),
+            .u_meshes = asset_manager->tmeshes,
+            .u_entity_meta = entity_meta,
+            .u_entity_meshlists = entity_meshlists,
+            .u_entity_transforms = entity_transforms,
+            .u_entity_combined_transforms = entity_combined_transforms,
+            .u_mesh_draw_list = mesh_draw_list,
         });
     // For the non mesh shader path we now need to build a prefix sum over the count of meshlets of surviving meshes.
     task_prefix_sum(PrefixSumTaskGroupInfo{
@@ -485,7 +483,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         .task_list = task_list,
         .value_count = entity_meta,
         .value_count_uint_offset = offsetof(EntityMetaData, entity_count) / sizeof(u32),
-        .values = mesh_draw_list.handle(),
+        .values = mesh_draw_list,
         .src_uint_offset = offsetof(MeshDrawList, mesh_dispatch_indirects) / sizeof(u32),
         .src_uint_stride = sizeof(DispatchIndirectStruct) / sizeof(u32),
     });
@@ -493,13 +491,13 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
         context,
         task_list,
         {
-            .u_mesh_draw_list = mesh_draw_list.handle(),
-            .u_entity_meta_data = entity_meta.handle(),
-            .u_entity_meshlists = entity_meshlists.handle(),
-            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets.handle(),
-            .u_meshlet_visibility_bitfield = entity_visibility_bitfield.handle(),
-            .u_meshes = asset_manager->tmeshes.handle(),
-            .u_instantiated_meshlets = instantiated_meshlets.handle(),
+            .u_mesh_draw_list = mesh_draw_list,
+            .u_entity_meta_data = entity_meta,
+            .u_entity_meshlists = entity_meshlists,
+            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets,
+            .u_meshlet_visibility_bitfield = entity_visibility_bitfield,
+            .u_meshes = asset_manager->tmeshes,
+            .u_instantiated_meshlets = instantiated_meshlets,
         });
     auto second_visbuffer_draw_command = task_list.create_transient_buffer({
         .size = sizeof(DrawIndirectStruct),
@@ -508,7 +506,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.add_task({
         .uses = {
             BufferTransferWrite{second_visbuffer_draw_command},
-            BufferTransferRead{instantiated_meshlets.handle()},
+            BufferTransferRead{instantiated_meshlets},
         },
         .task = [=](daxa::TaskInterface ti)
         {
@@ -533,11 +531,11 @@ auto Renderer::create_main_task_list() -> daxa::TaskList
     task_list.add_task(DrawVisbuffer{
         {.uses = {
              .u_draw_command = second_visbuffer_draw_command,
-             .u_instantiated_meshlets = instantiated_meshlets.handle(),
-             .u_meshes = asset_manager->tmeshes.handle(),
-             .u_vis_image = visbuffer.handle(),
-             .u_debug_image = debug_image.handle(),
-             .u_depth_image = depth_handle,
+             .u_instantiated_meshlets = instantiated_meshlets,
+             .u_meshes = asset_manager->tmeshes,
+             .u_vis_image = visbuffer,
+             .u_debug_image = debug_image,
+             .u_depth_image = depth,
          }},
         .context = context,
         .clear_attachments = false,
@@ -557,10 +555,14 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     {
         return;
     }
-    auto opt = context->pipeline_manager.reload_all();
-    if (opt.has_value())
+    auto reloaded_result = context->pipeline_manager.reload_all();
+    if (auto reload_err = std::get_if<daxa::PipelineReloadError>(&reloaded_result))
     {
-        std::cout << opt.value().to_string() << std::endl;
+        std::cout << "Failed to reload " << reload_err->message << '\n';
+    }
+    if (auto _ = std::get_if<daxa::PipelineReloadSuccess>(&reloaded_result))
+    {
+        std::cout << "Successfully reloaded!\n";
     }
     u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % (context->swapchain.info().max_allowed_frames_in_flight + 1);
 

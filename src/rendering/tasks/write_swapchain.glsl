@@ -5,7 +5,7 @@
 
 #include "write_swapchain.inl"
 
-DAXA_USE_PUSH_CONSTANT(WriteSwapchainPush, push)
+DAXA_DECL_PUSH_CONSTANT(WriteSwapchainPush, push)
 layout(local_size_x = WRITE_SWAPCHAIN_WG_X, local_size_y = WRITE_SWAPCHAIN_WG_Y) in;
 void main()
 {

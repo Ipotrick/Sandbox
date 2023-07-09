@@ -19,7 +19,7 @@
   "builtin-baseline": "739824a6d3179d85820eedc0637e81c0c68b874c",
   "vcpkg-configuration": {
     "overlay-ports": [
-      "S:/repos/Daxa/cmake/vcpkg-port"
+      "D:/repos/Daxa/cmake/vcpkg-port"
     ]
   }
 }

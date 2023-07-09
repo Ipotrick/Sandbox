@@ -24,7 +24,7 @@ struct Renderer
     void recreate_framebuffer();
     void clear_select_buffers();
     void window_resized();
-    auto create_main_task_list() -> daxa::TaskList;
+    auto create_main_task_list() -> daxa::TaskGraph;
     void render_frame(CameraInfo const &camera_info, f32 const delta_time);
 
     daxa::TaskBuffer zero_buffer = {};
@@ -67,6 +67,6 @@ struct Renderer
     GPUContext *context = {};
     Scene *scene = {};
     AssetManager *asset_manager = {};
-    daxa::TaskList main_task_list;
+    daxa::TaskGraph main_task_list;
     daxa::CommandSubmitInfo submit_info = {};
 };

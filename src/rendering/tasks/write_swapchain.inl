@@ -1,17 +1,17 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-DAXA_INL_TASK_USE_BEGIN(WriteSwapchain, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_IMAGE(swapchain, daxa_RWImage2Df32, COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_IMAGE(debug_image, daxa_Image2Df32, COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(WriteSwapchain, 1)
+DAXA_TASK_USE_IMAGE(swapchain, daxa_RWImage2Df32, COMPUTE_SHADER_WRITE)
+DAXA_TASK_USE_IMAGE(debug_image, daxa_Image2Df32, COMPUTE_SHADER_READ)
+DAXA_DECL_TASK_USES_END()
 
 struct WriteSwapchainPush
 {
@@ -38,7 +38,7 @@ struct WriteSwapchainTask : WriteSwapchain
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*pipeline);
         u32 const dispatch_x = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.x, WRITE_SWAPCHAIN_WG_X);
         u32 const dispatch_y = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.y, WRITE_SWAPCHAIN_WG_Y);

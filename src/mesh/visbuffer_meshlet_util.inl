@@ -13,14 +13,14 @@ struct InstantiatedMeshlets
     daxa_u32 second_pass_count;
     InstantiatedMeshlet meshlets[MAX_INSTANTIATED_MESHLETS];
 };
-DAXA_ENABLE_BUFFER_PTR(InstantiatedMeshlets)
+DAXA_DECL_BUFFER_PTR(InstantiatedMeshlets)
 
 struct TriangleDrawList
 {
     DrawIndirectStruct count;
     daxa_u32 triangle_ids[MAX_DRAWN_TRIANGLES];
 };
-DAXA_ENABLE_BUFFER_PTR(TriangleDrawList)
+DAXA_DECL_BUFFER_PTR(TriangleDrawList)
 
 struct MeshDrawInfo
 {
@@ -36,4 +36,4 @@ struct MeshDrawList
     DispatchIndirectStruct mesh_dispatch_indirects[MAX_INSTANTIATED_MESHES];
     MeshDrawInfo mesh_infos[MAX_INSTANTIATED_MESHES];
 };
-DAXA_ENABLE_BUFFER_PTR(MeshDrawList)
+DAXA_DECL_BUFFER_PTR(MeshDrawList)

@@ -1,7 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
@@ -15,29 +15,29 @@ struct DispatchIndirectValueCount
     DispatchIndirectStruct command;
     daxa_u32 value_count;
 };
-DAXA_ENABLE_BUFFER_PTR(DispatchIndirectValueCount)
+DAXA_DECL_BUFFER_PTR(DispatchIndirectValueCount)
 
 #if __cplusplus || defined(PrefixSumWriteCommandBase_COMMAND)
-DAXA_INL_TASK_USE_BEGIN(PrefixSumWriteCommandBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_value_count, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_upsweep_command0, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_BUFFER(u_upsweep_command1, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_BUFFER(u_downsweep_command, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(PrefixSumWriteCommandBase, 1)
+DAXA_TASK_USE_BUFFER(u_value_count, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_upsweep_command0, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
+DAXA_TASK_USE_BUFFER(u_upsweep_command1, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
+DAXA_TASK_USE_BUFFER(u_downsweep_command, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
+DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || defined(UPSWEEP)
-DAXA_INL_TASK_USE_BEGIN(PrefixSumBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_src, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_dst, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(PrefixSumBase, 1)
+DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_src, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_dst, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || defined(DOWNSWEEP)
-DAXA_INL_TASK_USE_BEGIN(PrefixSumDownsweepBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_block_sums, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_values, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(PrefixSumDownsweepBase, 1)
+DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_block_sums, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_values, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_WRITE)
+DAXA_DECL_TASK_USES_END()
 #endif
 
 struct PrefixSumWriteCommandPush
@@ -83,8 +83,8 @@ struct PrefixSumUpsweep : PrefixSumBase
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(PrefixSumBase::NAME));
         cmd.push_constant(push);
         cmd.dispatch_indirect({
@@ -110,8 +110,8 @@ struct PrefixSumDownsweep : PrefixSumDownsweepBase
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(PrefixSumDownsweepBase::NAME));
         cmd.push_constant(push);
         cmd.dispatch_indirect({
@@ -123,10 +123,10 @@ struct PrefixSumDownsweep : PrefixSumDownsweepBase
 struct PrefixSumTaskGroupInfo
 {
     GPUContext * context;
-    daxa::TaskList& task_list;
-    daxa::TaskBufferHandle value_count;
+    daxa::TaskGraph& task_list;
+    daxa::TaskBufferView value_count;
     u32 value_count_uint_offset;
-    daxa::TaskBufferHandle values;
+    daxa::TaskBufferView values;
     u32 src_uint_offset;
     u32 src_uint_stride;
 };

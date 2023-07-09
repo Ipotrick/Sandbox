@@ -16,7 +16,7 @@ layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
 layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
 layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
 
-DAXA_USE_PUSH_CONSTANT(DrawVisbufferPush, push)
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 void main()

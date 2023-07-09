@@ -1,7 +1,7 @@
 {
   "name": "daxa",
   "version-string": "local",
-  "port-version": 3,
+  "port-version": 100,
   "description": "Daxa C++ Vulkan Abstraction",
   "homepage": "https://github.com/Ipotrick/Daxa",
   "dependencies": [

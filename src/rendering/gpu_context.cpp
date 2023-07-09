@@ -21,7 +21,7 @@ using HWND = void *;
 #endif
 
 GPUContext::GPUContext(Window const &window)
-    : context{daxa::create_context({.enable_validation = false})},
+    : context{daxa::create_instance({.enable_validation = false})},
       device{this->context.create_device({.name = "Sandbox Device"})},
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
@@ -35,8 +35,8 @@ GPUContext::GPUContext(Window const &window)
                 default: return 0;
                 }
           },
-          .image_usage = daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
           .present_mode = daxa::PresentMode::IMMEDIATE,
+          .image_usage = daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
           .name = "Sandbox Swapchain",
       })},
       pipeline_manager{daxa::PipelineManager{{

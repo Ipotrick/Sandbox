@@ -1,6 +1,6 @@
 #pragma once
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
@@ -8,17 +8,17 @@
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
-DAXA_INL_TASK_USE_BEGIN(DrawOpaqueId, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_IMAGE(u_visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
-DAXA_INL_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
-DAXA_INL_TASK_USE_BUFFER(u_draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
-DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlet), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
-DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(DrawOpaqueId, 1)
+DAXA_TASK_USE_IMAGE(u_visbuffer, daxa_RWImage2Df32, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_debug_image, daxa_RWImage2Df32, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_depth_image, daxa_RWImage2Df32, DEPTH_ATTACHMENT)
+DAXA_TASK_USE_BUFFER(u_draw_info_index_buffer, daxa_BufferPtr(daxa_u32), INDEX_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlet), VERTEX_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), VERTEX_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_debug, daxa_RWBufferPtr(daxa_u32vec4), VERTEX_SHADER_READ_WRITE)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
+DAXA_DECL_TASK_USES_END()
 
 #if __cplusplus
 
@@ -69,8 +69,8 @@ struct DrawOpaqueIdTask : DrawOpaqueId
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         daxa::ImageId visbuffer = uses.u_visbuffer.image();
         daxa::ImageId debug_image = uses.u_debug_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();

@@ -13,7 +13,7 @@ struct EntityId
     daxa::types::u32 index = INVALID_ENTITY_INDEX;
 #endif
 };
-DAXA_ENABLE_BUFFER_PTR(EntityId)
+DAXA_DECL_BUFFER_PTR(EntityId)
 
 
 #if !defined(DAXA_SHADER)
@@ -29,13 +29,13 @@ struct MeshList
     daxa_u32 mesh_ids[7];
     daxa_u32 count;
 };
-DAXA_ENABLE_BUFFER_PTR(MeshList)
+DAXA_DECL_BUFFER_PTR(MeshList)
 
 struct EntityMetaData
 {
     daxa_u32 entity_count;
 };
-DAXA_ENABLE_BUFFER_PTR(EntityMetaData)
+DAXA_DECL_BUFFER_PTR(EntityMetaData)
 
 #if __cplusplus
 struct EntityRef

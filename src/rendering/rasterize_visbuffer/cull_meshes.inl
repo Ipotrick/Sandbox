@@ -1,7 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
@@ -17,21 +17,21 @@
 #define CULL_MESHES_WORKGROUP_X 128
 
 #if __cplusplus || defined(CullMeshesCommandBase_COMMAND)
-DAXA_INL_TASK_USE_BEGIN(CullMeshesCommandBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(CullMeshesCommandBase, 1)
+DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
+DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || !defined(CullMeshesCommandBase_COMMAND)
-DAXA_INL_TASK_USE_BEGIN(CullMeshesBase, DAXA_CBUFFER_SLOT1)
-DAXA_INL_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
-DAXA_INL_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
+DAXA_DECL_TASK_USES_BEGIN(CullMeshesBase, 1)
+DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
 BUFFER_COMPUTE_WRITE(u_mesh_draw_list, MeshDrawList)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_END()
 #endif
 
 #if __cplusplus
@@ -57,8 +57,8 @@ struct CullMeshes : CullMeshesBase
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(CullMeshesBase::NAME));
         cmd.dispatch_indirect({
             .indirect_buffer = uses.u_command.buffer(),
@@ -66,7 +66,7 @@ struct CullMeshes : CullMeshesBase
     }
 };
 
-void tasks_cull_meshes(GPUContext * context, daxa::TaskList& task_list, CullMeshesBase::Uses uses)
+void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMeshesBase::Uses uses)
 {
     task_list.add_task({
         .uses = {

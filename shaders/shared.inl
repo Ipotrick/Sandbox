@@ -47,9 +47,9 @@ struct ShaderGlobals
     daxa_f32 delta_time;
     Settings settings;
 };
-DAXA_ENABLE_BUFFER_PTR(ShaderGlobals)
+DAXA_DECL_BUFFER_PTR(ShaderGlobals)
 
-DAXA_CONSTANT_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
+DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
 {
     ShaderGlobals globals;
 };
@@ -82,7 +82,7 @@ struct DrawIndexedIndirectStruct
     daxa_u32 vertex_offset;
     daxa_u32 first_instance;
 };
-DAXA_ENABLE_BUFFER_PTR(DrawIndexedIndirectStruct)
+DAXA_DECL_BUFFER_PTR(DrawIndexedIndirectStruct)
 
 struct DrawIndirectStruct
 {
@@ -91,7 +91,7 @@ struct DrawIndirectStruct
     daxa_u32 first_vertex;
     daxa_u32 first_instance;
 };
-DAXA_ENABLE_BUFFER_PTR(DrawIndirectStruct)
+DAXA_DECL_BUFFER_PTR(DrawIndirectStruct)
 
 struct DispatchIndirectStruct
 {
@@ -99,7 +99,7 @@ struct DispatchIndirectStruct
     daxa_u32 y;
     daxa_u32 z;
 };
-DAXA_ENABLE_BUFFER_PTR(DispatchIndirectStruct)
+DAXA_DECL_BUFFER_PTR(DispatchIndirectStruct)
 
-#define BUFFER_COMPUTE_READ(NAME, TYPE) DAXA_INL_TASK_USE_BUFFER(NAME, daxa_BufferPtr(TYPE), COMPUTE_SHADER_READ)
-#define BUFFER_COMPUTE_WRITE(NAME, TYPE) DAXA_INL_TASK_USE_BUFFER(NAME, daxa_RWBufferPtr(TYPE), COMPUTE_SHADER_WRITE)
+#define BUFFER_COMPUTE_READ(NAME, TYPE) DAXA_TASK_USE_BUFFER(NAME, daxa_BufferPtr(TYPE), COMPUTE_SHADER_READ)
+#define BUFFER_COMPUTE_WRITE(NAME, TYPE) DAXA_TASK_USE_BUFFER(NAME, daxa_RWBufferPtr(TYPE), COMPUTE_SHADER_WRITE)

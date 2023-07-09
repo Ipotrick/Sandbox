@@ -171,8 +171,8 @@ struct AssetManager
         {
             this->asset_update_cmd_list = this->device.create_command_list({.name = "asset update cmd list"});
             this->asset_update_cmd_list.value().pipeline_barrier({
-                .awaited_pipeline_access = daxa::AccessConsts::HOST_WRITE,
-                .waiting_pipeline_access = daxa::AccessConsts::TRANSFER_READ,
+                .src_access = daxa::AccessConsts::HOST_WRITE,
+                .dst_access = daxa::AccessConsts::TRANSFER_READ,
             });
         }
         auto &cmd = this->asset_update_cmd_list.value();
@@ -220,8 +220,8 @@ struct AssetManager
                 host_ptr[mesh_i] = meshes[mesh_i];
             }
             cmd.pipeline_barrier({
-                .awaited_pipeline_access = daxa::AccessConsts::HOST_WRITE,
-                .waiting_pipeline_access = daxa::AccessConsts::TRANSFER_READ,
+                .src_access = daxa::AccessConsts::HOST_WRITE,
+                .dst_access = daxa::AccessConsts::TRANSFER_READ,
             });
             cmd.copy_buffer_to_buffer({
                 .src_buffer = staging_buffer,
@@ -229,8 +229,8 @@ struct AssetManager
                 .size = sizeof(Mesh) * meshes.size(),
             });
             cmd.pipeline_barrier({
-                .awaited_pipeline_access = daxa::AccessConsts::TRANSFER_WRITE,
-                .waiting_pipeline_access = daxa::AccessConsts::READ,
+                .src_access = daxa::AccessConsts::TRANSFER_WRITE,
+                .dst_access = daxa::AccessConsts::READ,
             });
             cmd.complete();
             return cmd;

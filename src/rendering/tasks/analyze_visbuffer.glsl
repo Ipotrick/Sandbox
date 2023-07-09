@@ -102,7 +102,7 @@ void deduplicated_increment_meshlet_visibilities(
     }
 }
 
-DAXA_USE_PUSH_CONSTANT(AnalyzeVisbufferPush, push)
+DAXA_DECL_PUSH_CONSTANT(AnalyzeVisbufferPush, push)
 layout(local_size_x = ANALYZE_VIS_BUFFER_WORKGROUP_X, local_size_y = ANALYZE_VIS_BUFFER_WORKGROUP_Y) in;
 void main()
 {

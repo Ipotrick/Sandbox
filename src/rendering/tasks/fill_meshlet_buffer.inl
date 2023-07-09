@@ -1,7 +1,7 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include <daxa/utils/task_list.inl>
+#include <daxa/utils/task_graph.inl>
 
 #include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
@@ -10,22 +10,22 @@
 
 #define CULL_MESHLETS_WORKGROUP_X 128
 
-DAXA_INL_TASK_USE_BEGIN(CullMeshletsBase, DAXA_CBUFFER_SLOT1)
-    DAXA_INL_TASK_USE_BUFFER(u_prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
-    DAXA_INL_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
-DAXA_INL_TASK_USE_END()
+DAXA_DECL_TASK_USES_BEGIN(CullMeshletsBase, 1)
+    DAXA_TASK_USE_BUFFER(u_prefix_sum_mehslet_counts, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
+DAXA_DECL_TASK_USES_END()
 
 struct CullMeshletsPush
 {
     daxa_u32 meshlet_count;
     daxa_u32 cull_alredy_visible_meshlets;
 };
-DAXA_ENABLE_BUFFER_PTR(CullMeshletsPush)
+DAXA_DECL_BUFFER_PTR(CullMeshletsPush)
 
 #if __cplusplus
 
@@ -53,8 +53,8 @@ struct CullMeshletsTask : CullMeshletsBase
     void callback(daxa::TaskInterface ti)
     {
         daxa::CommandList cmd = ti.get_command_list();
-        cmd.set_constant_buffer(context->shader_globals_set_info);
-        cmd.set_constant_buffer(ti.uses.constant_buffer_set_info());
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*pipeline);
         cmd.push_constant(CullMeshletsPush{
             .meshlet_count = static_cast<u32>(*meshlet_count),
