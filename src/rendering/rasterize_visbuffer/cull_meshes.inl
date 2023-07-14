@@ -20,6 +20,7 @@
 DAXA_DECL_TASK_USES_BEGIN(CullMeshesCommandBase, 1)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
+BUFFER_COMPUTE_WRITE(u_mesh_draw_list, MeshDrawList)
 DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || !defined(CullMeshesCommandBase_COMMAND)
@@ -68,24 +69,6 @@ struct CullMeshes : CullMeshesBase
 
 void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMeshesBase::Uses uses)
 {
-    task_list.add_task({
-        .uses = {
-            daxa::BufferTransferWrite{uses.u_mesh_draw_list.handle},
-        },
-        .task = [=](daxa::TaskInterface ti){
-            auto cmd = ti.get_command_list();
-            auto alloc = ti.get_allocator().allocate(sizeof(DispatchIndirectStruct)).value();
-            *reinterpret_cast<DispatchIndirectStruct*>(alloc.host_address) = {0,1,1};
-            cmd.copy_buffer_to_buffer({
-                .src_buffer = ti.get_allocator().get_buffer(),
-                .src_offset = alloc.buffer_offset,
-                .dst_buffer = ti.uses[uses.u_mesh_draw_list.handle].buffer(),
-                .dst_offset = offsetof(MeshDrawList, count),
-            });
-        },
-        .name = "clear u_mesh_draw_list",
-    });
-
     auto command_buffer = task_list.create_transient_buffer({
         .size = sizeof(DispatchIndirectStruct),
         .name = "CullMeshesCommand",
@@ -95,6 +78,7 @@ void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMes
         {.uses={
             .u_entity_meta = uses.u_entity_meta,
             .u_command = command_buffer,
+            .u_mesh_draw_list = uses.u_mesh_draw_list,
         }},
         .context = context,
     });

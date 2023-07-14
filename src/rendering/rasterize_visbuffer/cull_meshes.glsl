@@ -11,6 +11,7 @@ void main()
     deref(u_command).x = dispatch_x;
     deref(u_command).y = 1;
     deref(u_command).z = 1;
+    deref(u_mesh_draw_list).count = 0;
 }
 #else
 layout(local_size_x = CULL_MESHES_WORKGROUP_X) in;

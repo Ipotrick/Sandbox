@@ -37,6 +37,7 @@ struct WriteIndirectDispatchArgsPushBaseTask : T_USES_BASE
                 .defines = {{std::string(T_USES_BASE::NAME) + std::string("_COMMAND"), "1"}},
             },
         },
+        .push_constant_size = sizeof(T_PUSH),
         .name = std::string{T_USES_BASE::NAME},
     };
     GPUContext * context = {};

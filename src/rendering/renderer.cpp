@@ -322,8 +322,8 @@ void Renderer::compile_pipelines()
         {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::PIPELINE_COMPILE_INFO},
         {CullMeshes::NAME, CullMeshes::PIPELINE_COMPILE_INFO},
         {PrefixSumCommandWrite::NAME, PrefixSumCommandWrite::PIPELINE_COMPILE_INFO},
-        {PrefixSumUpsweep::NAME, PrefixSumUpsweep::PIPELINE_COMPILE_INFO},
-        {PrefixSumDownsweep::NAME, PrefixSumDownsweep::PIPELINE_COMPILE_INFO},
+        {PrefixSumUpsweepTask::NAME, PrefixSumUpsweepTask::PIPELINE_COMPILE_INFO},
+        {PrefixSumDownsweepTask::NAME, PrefixSumDownsweepTask::PIPELINE_COMPILE_INFO},
         {CullMeshletsCommandWrite::NAME, CullMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
         {CullMeshlets::NAME, CullMeshlets::PIPELINE_COMPILE_INFO},
     };
@@ -477,75 +477,84 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_entity_combined_transforms = entity_combined_transforms,
             .u_mesh_draw_list = mesh_draw_list,
         });
-    // For the non mesh shader path we now need to build a prefix sum over the count of meshlets of surviving meshes.
+    // For the non-meshshader path, we do a prefix sum + binary search to map compute threads to meshlets and entities.
+    auto ent_meshlet_count_prefix_sums = task_list.create_transient_buffer({
+        .size = sizeof(u32) * MAX_DRAWN_MESHES,
+        .name = "ent_meshlet_count_prefix_sums",
+    });
     task_prefix_sum(PrefixSumTaskGroupInfo{
         .context = context,
         .task_list = task_list,
-        .value_count = entity_meta,
+        .max_value_count = MAX_DRAWN_MESHES,
         .value_count_uint_offset = offsetof(EntityMetaData, entity_count) / sizeof(u32),
-        .values = mesh_draw_list,
+        .value_count_buf = entity_meta,
         .src_uint_offset = offsetof(MeshDrawList, mesh_dispatch_indirects) / sizeof(u32),
         .src_uint_stride = sizeof(DispatchIndirectStruct) / sizeof(u32),
+        .src_buf = mesh_draw_list,
+        .dst_uint_offset = 0,
+        .dst_uint_stride = 1,
+        .dst_buf = ent_meshlet_count_prefix_sums,
     });
-    task_cull_meshlets(
-        context,
-        task_list,
-        {
-            .u_mesh_draw_list = mesh_draw_list,
-            .u_entity_meta_data = entity_meta,
-            .u_entity_meshlists = entity_meshlists,
-            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets,
-            .u_meshlet_visibility_bitfield = entity_visibility_bitfield,
-            .u_meshes = asset_manager->tmeshes,
-            .u_instantiated_meshlets = instantiated_meshlets,
-        });
-    auto second_visbuffer_draw_command = task_list.create_transient_buffer({
-        .size = sizeof(DrawIndirectStruct),
-        .name = "second_visbuffer_draw_command",
-    });
-    task_list.add_task({
-        .uses = {
-            BufferTransferWrite{second_visbuffer_draw_command},
-            BufferTransferRead{instantiated_meshlets},
-        },
-        .task = [=](daxa::TaskInterface ti)
-        {
-            auto ab = ti.get_allocator().get_buffer();
-            auto cmd = ti.get_command_list();
-            auto alloc0 = ti.get_allocator().allocate(sizeof(u32)).value();
-            *reinterpret_cast<u32 *>(alloc0.host_address) = MAX_TRIANGLES_PER_MESHLET * 3;
-            auto alloc1 = ti.get_allocator().allocate(sizeof(daxa_u32vec2)).value();
-            *reinterpret_cast<daxa_u32vec2 *>(alloc1.host_address) = daxa_u32vec2(0, 0);
-            cmd.copy_buffer_to_buffer({ab, alloc0.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), 0, sizeof(u32)});
-            cmd.copy_buffer_to_buffer({ab, alloc1.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), offsetof(DrawIndirectStruct, first_vertex), sizeof(u32)});
-            cmd.copy_buffer_to_buffer({
-                ti.uses[instantiated_meshlets].buffer(),
-                offsetof(InstantiatedMeshlets, second_pass_count),
-                ti.uses[second_visbuffer_draw_command].buffer(),
-                offsetof(DrawIndirectStruct, instance_count),
-                .size = static_cast<u32>(sizeof(u32)),
-            });
-        },
-        .name = "write second_visbuffer_draw_command",
-    });
-    task_list.add_task(DrawVisbuffer{
-        {.uses = {
-             .u_draw_command = second_visbuffer_draw_command,
-             .u_instantiated_meshlets = instantiated_meshlets,
-             .u_meshes = asset_manager->tmeshes,
-             .u_vis_image = visbuffer,
-             .u_debug_image = debug_image,
-             .u_depth_image = depth,
-         }},
-        .context = context,
-        .clear_attachments = false,
-        .tris_or_meshlets = DRAW_VISBUFFER_MESHLETS,
-    });
+    //task_cull_meshlets(
+    //    context,
+    //    task_list,
+    //    {
+    //        .u_mesh_draw_list = mesh_draw_list,
+    //        .u_entity_meta_data = entity_meta,
+    //        .u_entity_meshlists = entity_meshlists,
+    //        .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets,
+    //        .u_meshlet_visibility_bitfield = entity_visibility_bitfield,
+    //        .u_meshes = asset_manager->tmeshes,
+    //        .u_instantiated_meshlets = instantiated_meshlets,
+    //    });
+    //auto second_visbuffer_draw_command = task_list.create_transient_buffer({
+    //    .size = sizeof(DrawIndirectStruct),
+    //    .name = "second_visbuffer_draw_command",
+    //});
+    //task_list.add_task({
+    //    .uses = {
+    //        BufferTransferWrite{second_visbuffer_draw_command},
+    //        BufferTransferRead{instantiated_meshlets},
+    //    },
+    //    .task = [=](daxa::TaskInterface ti)
+    //    {
+    //        auto ab = ti.get_allocator().get_buffer();
+    //        auto cmd = ti.get_command_list();
+    //        auto alloc0 = ti.get_allocator().allocate(sizeof(u32)).value();
+    //        *reinterpret_cast<u32 *>(alloc0.host_address) = MAX_TRIANGLES_PER_MESHLET * 3;
+    //        auto alloc1 = ti.get_allocator().allocate(sizeof(daxa_u32vec2)).value();
+    //        *reinterpret_cast<daxa_u32vec2 *>(alloc1.host_address) = daxa_u32vec2(0, 0);
+    //        cmd.copy_buffer_to_buffer({ab, alloc0.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), 0, sizeof(u32)});
+    //        cmd.copy_buffer_to_buffer({ab, alloc1.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), offsetof(DrawIndirectStruct, first_vertex), sizeof(u32)});
+    //        cmd.copy_buffer_to_buffer({
+    //            ti.uses[instantiated_meshlets].buffer(),
+    //            offsetof(InstantiatedMeshlets, second_pass_count),
+    //            ti.uses[second_visbuffer_draw_command].buffer(),
+    //            offsetof(DrawIndirectStruct, instance_count),
+    //            .size = static_cast<u32>(sizeof(u32)),
+    //        });
+    //    },
+    //    .name = "write second_visbuffer_draw_command",
+    //});
+    //task_list.add_task(DrawVisbuffer{
+    //    {.uses = {
+    //         .u_draw_command = second_visbuffer_draw_command,
+    //         .u_instantiated_meshlets = instantiated_meshlets,
+    //         .u_meshes = asset_manager->tmeshes,
+    //         .u_vis_image = visbuffer,
+    //         .u_debug_image = debug_image,
+    //         .u_depth_image = depth,
+    //     }},
+    //    .context = context,
+    //    .clear_attachments = false,
+    //    .tris_or_meshlets = DRAW_VISBUFFER_MESHLETS,
+    //});
     // TODO: analyze visbuffer
 
-    task_list.submit({.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
+    task_list.submit({});//{.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
     task_list.present({});
     task_list.complete({});
+    //std::cout << task_list.get_debug_string() << std::endl;
     return task_list;
 }
 

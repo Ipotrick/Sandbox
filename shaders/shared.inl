@@ -17,12 +17,6 @@
 #define ENABLE_SHADER_PRINT_DEBUG 1
 
 #if __cplusplus
-#define DECL_BUFFER_REF struct
-#else
-#define DECL_BUFFER_REFDAXA_BUFFER_REFERENCE_LAYOUT buffer
-#endif
-
-#if __cplusplus
 #define SHADER_ONLY(x) 
 #else
 #define SHADER_ONLY(x) x

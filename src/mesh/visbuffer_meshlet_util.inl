@@ -30,6 +30,7 @@ struct MeshDrawInfo
     daxa_u32 padd0[1];
 };
 
+// Intended to be read by vkCmdDrawMeshTasksIndirectCountEXT.
 struct MeshDrawList
 {
     daxa_u32 count;
