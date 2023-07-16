@@ -43,6 +43,10 @@ void main()
 
     const uint mesh_id = deref(u_entity_meshlists[entity_index]).mesh_ids[mesh_index];
     const uint meshlet_count = deref(u_meshes[mesh_id]).meshlet_count;
+    if (mesh_index >= meshlet_count || (meshlet_count == 0))
+    {
+        return;
+    }
     // TODO: Cull mesh.
     
     // How does this work?
@@ -83,8 +87,8 @@ void main()
         MeshletCullIndirectArg arg;
         arg.entity_id = entity_index;
         arg.mesh_id = mesh_id;
-        arg.meshlet_index = meshlet_offset;
-        arg.dummy = 0;
+        arg.entity_meshlist_index = mesh_index;
+        arg.meshlet_index_start_offset = meshlet_offset;
         deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[writeout_power][arg_array_offset]) = arg;
         meshlet_offset += indirect_arg_meshlet_count;
     }

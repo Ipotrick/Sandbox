@@ -15,8 +15,8 @@ struct MeshletCullIndirectArg
 {
     daxa_u32 entity_id;
     daxa_u32 mesh_id;
-    daxa_u32 meshlet_index;
-    daxa_u32 dummy;
+    daxa_u32 entity_meshlist_index;
+    daxa_u32 meshlet_index_start_offset;
 };
 DAXA_DECL_BUFFER_PTR(MeshletCullIndirectArg)
 

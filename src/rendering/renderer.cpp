@@ -491,37 +491,19 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_entity_combined_transforms = entity_combined_transforms,
             .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
         });
-    // For the non-meshshader path, we do a prefix sum + binary search to map compute threads to meshlets and entities.
-    //auto ent_meshlet_count_prefix_sums = task_list.create_transient_buffer({
-    //    .size = sizeof(u32) * MAX_DRAWN_MESHES,
-    //    .name = "ent_meshlet_count_prefix_sums",
-    //});
-    //task_prefix_sum(PrefixSumTaskGroupInfo{
-    //    .context = context,
-    //    .task_list = task_list,
-    //    .max_value_count = MAX_DRAWN_MESHES,
-    //    .value_count_uint_offset = offsetof(EntityMetaData, entity_count) / sizeof(u32),
-    //    .value_count_buf = entity_meta,
-    //    .src_uint_offset = offsetof(MeshDrawList, mesh_dispatch_indirects) / sizeof(u32),
-    //    .src_uint_stride = sizeof(DispatchIndirectStruct) / sizeof(u32),
-    //    .src_buf = mesh_draw_list,
-    //    .dst_uint_offset = 0,
-    //    .dst_uint_stride = 1,
-    //    .dst_buf = ent_meshlet_count_prefix_sums,
-    //});
-    //task_cull_meshlets(
-    //    context,
-    //    task_list,
-    //    {
-    //        .u_mesh_draw_list = mesh_draw_list,
-    //        .u_meshlet_count_prefix_sum = ent_meshlet_count_prefix_sums,
-    //        .u_entity_meta_data = entity_meta,
-    //        .u_entity_meshlists = entity_meshlists,
-    //        .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets,
-    //        .u_meshlet_visibility_bitfield = entity_visibility_bitfield,
-    //        .u_meshes = asset_manager->tmeshes,
-    //        .u_instantiated_meshlets = instantiated_meshlets,
-    //    });
+    task_cull_meshlets(
+        context,
+        task_list,
+        {
+            .u_mesh_draw_list = mesh_draw_list,
+            .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
+            .u_entity_meta_data = entity_meta,
+            .u_entity_meshlists = entity_meshlists,
+            .u_entity_visibility_bitfield_offsets = entity_visibility_bitfield_offsets,
+            .u_meshlet_visibility_bitfield = entity_visibility_bitfield,
+            .u_meshes = asset_manager->tmeshes,
+            .u_instantiated_meshlets = instantiated_meshlets,
+        });
     //auto second_visbuffer_draw_command = task_list.create_transient_buffer({
     //    .size = sizeof(DrawIndirectStruct),
     //    .name = "second_visbuffer_draw_command",

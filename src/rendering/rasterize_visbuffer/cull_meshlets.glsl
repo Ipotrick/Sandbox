@@ -6,96 +6,34 @@
 #include "cull_util.glsl"
 
 #if defined(CullMeshletsCommandWriteBase_COMMAND)
-layout(local_size_x = 1) in;
+layout(local_size_x = 32) in;
 void main()
 {
-    const uint count = deref(u_mesh_draw_list).count;
-    const uint meshlet_count = deref(u_meshlet_count_prefix_sum[count-1]);
+    const uint index = gl_LocalInvocationID.x;
+    const uint indirect_arg_count = deref(u_meshlet_cull_indirect_args).indirect_arg_counts[index];
+    const uint threads_per_indirect_arg = 1 << index;
+    const uint needed_threads = threads_per_indirect_arg * indirect_arg_count;
+    const uint needed_workgroups = (needed_threads + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
     DispatchIndirectStruct command;
-    command.x = (count + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
+    command.x = needed_workgroups;
     command.y = 1;
     command.z = 1;
-    deref(u_command) = command;
+    deref(u_commands[index]) = command;
 }
 #else
-uint get_meshlet_count(uint index)
-{
-    return deref(u_meshlet_count_prefix_sum[index]);
-}
+DAXA_DECL_PUSH_CONSTANT(CullMeshletsPush,push)
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
 {
-    const int test_meshlet_instance_index = int(gl_GlobalInvocationID.x);
-    const int mesh_count = int(deref(u_mesh_draw_list).count);
-
-    // Binary Serarch the entity the meshlet id belongs to.
-    int mesh_draw_index = -1;
-    int meshlet_sum = -1;
-    if (test_meshlet_instance_index >= int(mesh_count))
-    {
-        return;
-    }
-    int first = 0;
-    int last = mesh_count - 1;
-    int middle = (first + last) / 2;
-    int up_count = 0;
-    int down_count = 0;
-    int iter = 0;
-    while(true)
-    {
-        ++iter;
-        const int meshlet_sum_for_entity = int(deref(u_meshlet_count_prefix_sum[middle]));
-        int meshlet_sum_prev_entity = 0;
-        if (middle != 0)
-        {
-            const uint index = middle - 1;
-            meshlet_sum_prev_entity = int(deref(u_meshlet_count_prefix_sum[index]));
-        }
-
-        if (last < first)
-        {
-            // ERROR CASE
-            return;
-        }
-        if (test_meshlet_instance_index < meshlet_sum_prev_entity)
-        {
-            last = middle -1;
-            down_count++;
-        }
-        else if (test_meshlet_instance_index >= meshlet_sum_for_entity)
-        {
-            first = middle + 1;
-            up_count++;
-        }
-        else
-        {
-            // Found ranage.
-            mesh_draw_index = middle;
-            meshlet_sum = int(deref(u_meshlet_count_prefix_sum[mesh_draw_index]));
-            break;
-        }
-
-        middle = (first + last) / 2;
-    }
-    if (mesh_draw_index == -1)
-    {
-        // Should not happen.
-        return;
-    }
-    if (mesh_draw_index >= MAX_INSTANTIATED_MESHES)
-    {
-        // Should not happen.
-        return;
-    }
-    const uint meshlet_index = test_meshlet_instance_index - meshlet_sum;
-    
-    MeshDrawInfo draw_mesh_info = deref(u_mesh_draw_list).mesh_infos[mesh_draw_index];
-
+    const int tid = int(gl_GlobalInvocationID.x);
+    const uint indirect_arg_index = tid >> push.indirect_args_table_id;
+    const uint arg_work_offset = tid - (indirect_arg_index << push.indirect_args_table_id);
+    const MeshletCullIndirectArg arg = deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[push.indirect_args_table_id][indirect_arg_index]);
     InstantiatedMeshlet instanced_meshlet;
-    instanced_meshlet.entity_index = draw_mesh_info.entity_id;
-    instanced_meshlet.mesh_id = draw_mesh_info.mesh_id;
-    instanced_meshlet.mesh_index = draw_mesh_info.mesh_index;
-    instanced_meshlet.meshlet_index = meshlet_index;
+    instanced_meshlet.entity_index = arg.entity_id;
+    instanced_meshlet.mesh_id = arg.mesh_id;
+    instanced_meshlet.mesh_index = arg.entity_meshlist_index;
+    instanced_meshlet.meshlet_index = arg.meshlet_index_start_offset + arg_work_offset;
 
 #if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
