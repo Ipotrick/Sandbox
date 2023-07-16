@@ -1,10 +1,13 @@
 #include <daxa/daxa.inl>
-#extension GL_EXT_debug_printf : enable
 #include "cull_meshes.inl"
 
+#define DEBUG_MESH_CULL 0
+
+#if DEBUG_MESH_CULL
+    #extension GL_EXT_debug_printf : enable
+#endif
+
 #define my_sizeof(T) uint64_t(daxa_BufferPtr(T)(daxa_u64(0)) + 1)
-
-
 
 #if defined(CullMeshesCommandBase_COMMAND)
 layout(local_size_x = 32) in;
@@ -43,7 +46,7 @@ void main()
 
     const uint mesh_id = deref(u_entity_meshlists[entity_index]).mesh_ids[mesh_index];
     const uint meshlet_count = deref(u_meshes[mesh_id]).meshlet_count;
-    if (mesh_index >= meshlet_count || (meshlet_count == 0))
+    if (mesh_index >= deref(u_entity_meshlists[entity_index]).count || (meshlet_count == 0))
     {
         return;
     }
@@ -64,7 +67,7 @@ void main()
     // - in worst case this can go down from thousands of divergent writeouts down to 5 while only wasting < 5% of invocations. 
     const uint MAX_BITS = 5;
     uint meshlet_count_msb = findMSB(meshlet_count);
-    const uint shift = uint(max(0,int(meshlet_count_msb) - int(MAX_BITS)));
+    const uint shift = uint(max(0,int(meshlet_count_msb) + 1 - int(MAX_BITS)));
     // clip off all bits below the 5 most significant ones.
     uint clipped_bits_meshlet_count = (meshlet_count >> shift) << shift;
     // Need to round up if there were bits clipped.
@@ -74,6 +77,23 @@ void main()
     }
     // Now bit by bit, do one writeout of an indirect command:
     uint writeout_bit_mask = clipped_bits_meshlet_count;
+    #if DEBUG_MESH_CULL
+        if (bitCount(meshlet_count) >= MAX_BITS || clipped_bits_meshlet_count != meshlet_count)
+        {
+            const float wasted = (1.0f - float(meshlet_count) / float(clipped_bits_meshlet_count)) * 100.0f;
+            debugPrintfEXT("cull mesh %u for entity %u:\n  mesh id: %u\n  meshletcount: (%u)->(%u)\n  bitCount: (%u)->(%u)\n  new bitCount <= old bitCount? %u\n  new meshletcount >= old meshletcount?: %u\n  wasted: %f%%\n\n",
+                        mesh_index, 
+                        entity_index, 
+                        mesh_id,
+                        meshlet_count, 
+                        clipped_bits_meshlet_count, 
+                        bitCount(meshlet_count), 
+                        bitCount(clipped_bits_meshlet_count), 
+                        ((bitCount(clipped_bits_meshlet_count) <= bitCount(meshlet_count)) ? 1 : 0),
+                        ((clipped_bits_meshlet_count >= meshlet_count) ? 1 : 0),
+                        wasted);
+        }
+    #endif
     // Each time we write out a command we add on the number of meshlets processed by that arg.
     uint meshlet_offset = 0;
     while (writeout_bit_mask != 0)

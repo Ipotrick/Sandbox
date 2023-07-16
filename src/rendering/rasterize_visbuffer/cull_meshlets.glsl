@@ -25,6 +25,7 @@ DAXA_DECL_PUSH_CONSTANT(CullMeshletsPush,push)
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
 {
+    return;
     const int tid = int(gl_GlobalInvocationID.x);
     const uint indirect_arg_index = tid >> push.indirect_args_table_id;
     const uint arg_work_offset = tid - (indirect_arg_index << push.indirect_args_table_id);
@@ -34,7 +35,6 @@ void main()
     instanced_meshlet.mesh_id = arg.mesh_id;
     instanced_meshlet.mesh_index = arg.entity_meshlist_index;
     instanced_meshlet.meshlet_index = arg.meshlet_index_start_offset + arg_work_offset;
-
 #if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
