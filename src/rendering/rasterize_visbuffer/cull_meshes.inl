@@ -14,13 +14,14 @@
 /// It also generates a list of meshlet counts for each mesh, that the following meshlet culling uses.
 ///
 
-#define CULL_MESHES_WORKGROUP_X 128
+#define CULL_MESHES_WORKGROUP_X 16
+#define CULL_MESHES_WORKGROUP_Y 7
 
 #if __cplusplus || defined(CullMeshesCommandBase_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(CullMeshesCommandBase, 1)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
-BUFFER_COMPUTE_WRITE(u_mesh_draw_list, MeshDrawList)
+BUFFER_COMPUTE_WRITE(u_meshlet_cull_indirect_args, MeshletCullIndirectArgTable)
 DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || !defined(CullMeshesCommandBase_COMMAND)
@@ -31,7 +32,7 @@ DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHAD
 DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
-BUFFER_COMPUTE_WRITE(u_mesh_draw_list, MeshDrawList)
+BUFFER_COMPUTE_WRITE(u_meshlet_cull_indirect_args, MeshletCullIndirectArgTable)
 DAXA_DECL_TASK_USES_END()
 #endif
 
@@ -78,7 +79,7 @@ void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMes
         {.uses={
             .u_entity_meta = uses.u_entity_meta,
             .u_command = command_buffer,
-            .u_mesh_draw_list = uses.u_mesh_draw_list,
+            .u_meshlet_cull_indirect_args = uses.u_meshlet_cull_indirect_args,
         }},
         .context = context,
     });

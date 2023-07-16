@@ -36,7 +36,7 @@ GPUContext::GPUContext(Window const &window)
                 }
           },
           .present_mode = daxa::PresentMode::IMMEDIATE,
-          .image_usage = daxa::ImageUsageFlagBits::SHADER_READ_WRITE,
+          .image_usage = daxa::ImageUsageFlagBits::SHADER_STORAGE,
           .name = "Sandbox Swapchain",
       })},
       pipeline_manager{daxa::PipelineManager{{

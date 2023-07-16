@@ -10,6 +10,24 @@
 // Can never be greater then 384!
 #define MAX_VERTICES_PER_MESHLET 128
 
+// Used to tell threads in the meshlet cull dispatch what to work on.
+struct MeshletCullIndirectArg
+{
+    daxa_u32 entity_id;
+    daxa_u32 mesh_id;
+    daxa_u32 meshlet_index;
+    daxa_u32 dummy;
+};
+DAXA_DECL_BUFFER_PTR(MeshletCullIndirectArg)
+
+// Table is set up in write command of cull_meshes.glsl.
+struct MeshletCullIndirectArgTable
+{
+    daxa_RWBufferPtr(MeshletCullIndirectArg) indirect_arg_ptrs[32];
+    daxa_u32 indirect_arg_counts[32];
+};
+DAXA_DECL_BUFFER_PTR(MeshletCullIndirectArgTable)
+
 // !!NEEDS TO BE ABI COMPATIBLE WITH meshopt_Meshlet!!
 struct Meshlet
 {

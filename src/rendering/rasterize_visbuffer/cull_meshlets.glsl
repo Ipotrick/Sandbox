@@ -10,15 +10,17 @@ layout(local_size_x = 1) in;
 void main()
 {
     const uint count = deref(u_mesh_draw_list).count;
+    const uint meshlet_count = deref(u_meshlet_count_prefix_sum[count-1]);
     DispatchIndirectStruct command;
     command.x = (count + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
     command.y = 1;
     command.z = 1;
+    deref(u_command) = command;
 }
 #else
 uint get_meshlet_count(uint index)
 {
-    return deref(u_mesh_draw_list).mesh_dispatch_indirects[index].x;
+    return deref(u_meshlet_count_prefix_sum[index]);
 }
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
@@ -42,12 +44,12 @@ void main()
     while(true)
     {
         ++iter;
-        const int meshlet_sum_for_entity = int(get_meshlet_count(middle));
+        const int meshlet_sum_for_entity = int(deref(u_meshlet_count_prefix_sum[middle]));
         int meshlet_sum_prev_entity = 0;
         if (middle != 0)
         {
             const uint index = middle - 1;
-            meshlet_sum_prev_entity = int(get_meshlet_count(index));
+            meshlet_sum_prev_entity = int(deref(u_meshlet_count_prefix_sum[index]));
         }
 
         if (last < first)
@@ -69,7 +71,7 @@ void main()
         {
             // Found ranage.
             mesh_draw_index = middle;
-            meshlet_sum = int(get_meshlet_count(mesh_draw_index));
+            meshlet_sum = int(deref(u_meshlet_count_prefix_sum[mesh_draw_index]));
             break;
         }
 

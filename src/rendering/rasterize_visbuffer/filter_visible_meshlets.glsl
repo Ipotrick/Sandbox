@@ -10,8 +10,8 @@ layout(local_size_x = FILTER_VISIBLE_MESHLETS_DISPATCH_X) in;
 void main()
 {
     DispatchIndirectStruct command;
-    command.x = 1;
-    command.y = deref(u_instantiated_meshlets_prev).first_pass_count + deref(u_instantiated_meshlets_prev).second_pass_count;
+    command.x = deref(u_instantiated_meshlets_prev).first_pass_count + deref(u_instantiated_meshlets_prev).second_pass_count;
+    command.y = 1;
     command.z = 1;
     deref(u_command) = command;
 }
@@ -25,8 +25,8 @@ void main()
 {
     // TODO
     return;
-    const uint src_triangle_index = gl_GlobalInvocationID.x;
-    const uint src_meshlet_index = gl_GlobalInvocationID.y;
+    const uint src_triangle_index = gl_LocalInvocationID.x;
+    const uint src_meshlet_index = gl_WorkGroupID.x;
     const InstantiatedMeshlet src_inst_meshlet = deref(u_instantiated_meshlets_prev).meshlets[src_meshlet_index];
     const uint base_offset = deref(u_entity_visibility_bitfield_offsets_prev[src_inst_meshlet.entity_index]).mesh_bitfield_offset[src_inst_meshlet.mesh_index];
     if (base_offset == (~0))
