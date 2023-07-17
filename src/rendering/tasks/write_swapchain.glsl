@@ -1,6 +1,5 @@
 #extension GL_EXT_debug_printf : enable
 
-#define DAXA_ENABLE_IMAGE_OVERLOADS_BASIC 1
 #include <daxa/daxa.inl>
 
 #include "write_swapchain.inl"
@@ -12,9 +11,9 @@ void main()
     const ivec2 index = ivec2(gl_GlobalInvocationID.xy);
     vec4 result = vec4(0,0,0,1);
 
-    const vec4 debug_value = texelFetch(debug_image, index, 0);
+    const vec4 debug_value = texelFetch(daxa_texture2D(debug_image), index, 0);
     result.xyz = result.xyz * (1.0f - debug_value.a) + debug_value.xyz * debug_value.a;
     result.xyz = debug_value.xyz;
 
-    imageStore(swapchain, index, result);
+    imageStore(daxa_image2D(swapchain), index, result);
 }

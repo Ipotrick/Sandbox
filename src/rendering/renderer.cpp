@@ -8,16 +8,7 @@
 #include "rasterize_visbuffer/cull_meshlets.inl"
 
 #include "tasks/prefix_sum.inl"
-
-// #include "tasks/misc.hpp"
-// #include "tasks/allocate_meshlet_visibility_bitfields.inl"
-// #include "tasks/fill_meshlet_buffer.inl"
-// #include "tasks/write_draw_opaque_index_buffer.inl"
-// #include "tasks/patch_draw_opaque_indirect.inl"
-// #include "tasks/analyze_visbuffer.inl"
-// #include "tasks/prefix_sum.inl"
-// #include "tasks/draw_opaque_ids.inl"
-// #include "tasks/write_swapchain.inl"
+#include "tasks/write_swapchain.inl"
 
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
@@ -308,7 +299,7 @@ Renderer::~Renderer()
 void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
-        {DrawVisbuffer::NAME, DrawVisbuffer::PIPELINE_COMPILE_INFO},
+        {DrawVisbufferTask::NAME, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : rasters)
     {
@@ -317,6 +308,8 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
+        {WriteSwapchainTask::NAME, WriteSwapchainTask::PIPELINE_COMPILE_INFO},
+        {DrawVisbufferWriteCommandTask::NAME, DrawVisbufferWriteCommandTask::PIPELINE_COMPILE_INFO},
         {FilterVisibleMeshletsCommandWrite::NAME, FilterVisibleMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
         {FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::PIPELINE_COMPILE_INFO},
         {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::PIPELINE_COMPILE_INFO},
@@ -460,19 +453,20 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_triangle_draw_list = triangle_draw_list,
         });
     // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
-    task_list.add_task(DrawVisbuffer{
-        {.uses = {
-             .u_draw_command = initial_pass_triangles,
-             .u_instantiated_meshlets = instantiated_meshlets,
-             .u_meshes = asset_manager->tmeshes,
-             .u_vis_image = visbuffer,
-             .u_debug_image = debug_image,
-             .u_depth_image = depth,
-         }},
-        .context = context,
-        .clear_attachments = true,
-        .tris_or_meshlets = DRAW_VISBUFFER_TRIANGLES,
-    });
+    task_draw_visbuffer(
+        context,
+        task_list,
+        DrawVisbuffer::Uses{
+            .u_draw_command = initial_pass_triangles,
+            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_meshes = asset_manager->tmeshes,
+            .u_vis_image = visbuffer,
+            .u_debug_image = debug_image,
+            .u_depth_image = depth,
+        },
+        DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
+        DRAW_VISBUFFER_TRIANGLES
+    );
     // After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
     // For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
     // TODO: build hiz
@@ -504,51 +498,29 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_meshes = asset_manager->tmeshes,
             .u_instantiated_meshlets = instantiated_meshlets,
         });
-    //auto second_visbuffer_draw_command = task_list.create_transient_buffer({
-    //    .size = sizeof(DrawIndirectStruct),
-    //    .name = "second_visbuffer_draw_command",
-    //});
-    //task_list.add_task({
-    //    .uses = {
-    //        BufferTransferWrite{second_visbuffer_draw_command},
-    //        BufferTransferRead{instantiated_meshlets},
-    //    },
-    //    .task = [=](daxa::TaskInterface ti)
-    //    {
-    //        auto ab = ti.get_allocator().get_buffer();
-    //        auto cmd = ti.get_command_list();
-    //        auto alloc0 = ti.get_allocator().allocate(sizeof(u32)).value();
-    //        *reinterpret_cast<u32 *>(alloc0.host_address) = MAX_TRIANGLES_PER_MESHLET * 3;
-    //        auto alloc1 = ti.get_allocator().allocate(sizeof(daxa_u32vec2)).value();
-    //        *reinterpret_cast<daxa_u32vec2 *>(alloc1.host_address) = daxa_u32vec2(0, 0);
-    //        cmd.copy_buffer_to_buffer({ab, alloc0.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), 0, sizeof(u32)});
-    //        cmd.copy_buffer_to_buffer({ab, alloc1.buffer_offset, ti.uses[second_visbuffer_draw_command].buffer(), offsetof(DrawIndirectStruct, first_vertex), sizeof(u32)});
-    //        cmd.copy_buffer_to_buffer({
-    //            ti.uses[instantiated_meshlets].buffer(),
-    //            offsetof(InstantiatedMeshlets, second_pass_count),
-    //            ti.uses[second_visbuffer_draw_command].buffer(),
-    //            offsetof(DrawIndirectStruct, instance_count),
-    //            .size = static_cast<u32>(sizeof(u32)),
-    //        });
-    //    },
-    //    .name = "write second_visbuffer_draw_command",
-    //});
-    //task_list.add_task(DrawVisbuffer{
-    //    {.uses = {
-    //         .u_draw_command = second_visbuffer_draw_command,
-    //         .u_instantiated_meshlets = instantiated_meshlets,
-    //         .u_meshes = asset_manager->tmeshes,
-    //         .u_vis_image = visbuffer,
-    //         .u_debug_image = debug_image,
-    //         .u_depth_image = depth,
-    //     }},
-    //    .context = context,
-    //    .clear_attachments = false,
-    //    .tris_or_meshlets = DRAW_VISBUFFER_MESHLETS,
-    //});
-    // TODO: analyze visbuffer
+    task_draw_visbuffer(
+        context,
+        task_list,
+        DrawVisbuffer::Uses{
+            .u_draw_command = {}, // Set inside the function in case of meshlet draw
+            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_meshes = asset_manager->tmeshes,
+            .u_vis_image = visbuffer,
+            .u_debug_image = debug_image,
+            .u_depth_image = depth,
+        },
+        DRAW_VISBUFFER_DONT_CLEAR_ATTACHMENTS,
+        DRAW_VISBUFFER_MESHLETS
+    );
+    task_list.add_task(WriteSwapchainTask{
+        {.uses={
+            .swapchain = swapchain_image,
+            .debug_image = debug_image,
+        }},
+        context,
+    });
 
-    task_list.submit({});//{.additional_signal_timeline_semaphores = &submit_info.signal_timeline_semaphores});
+    task_list.submit({});
     task_list.present({});
     task_list.complete({});
     //std::cout << task_list.get_debug_string() << std::endl;

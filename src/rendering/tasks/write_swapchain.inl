@@ -3,14 +3,13 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
 #include "../../scene/scene.inl"
 #include "../../mesh/mesh.inl"
 
 DAXA_DECL_TASK_USES_BEGIN(WriteSwapchain, 1)
-DAXA_TASK_USE_IMAGE(swapchain, daxa_RWImage2Df32, COMPUTE_SHADER_WRITE)
-DAXA_TASK_USE_IMAGE(debug_image, daxa_Image2Df32, COMPUTE_SHADER_READ)
+DAXA_TASK_USE_IMAGE(swapchain, REGULAR_2D, COMPUTE_SHADER_STORAGE_WRITE_ONLY)
+DAXA_TASK_USE_IMAGE(debug_image, REGULAR_2D, COMPUTE_SHADER_READ)
 DAXA_DECL_TASK_USES_END()
 
 struct WriteSwapchainPush
@@ -26,20 +25,19 @@ struct WriteSwapchainPush
 
 #include "../gpu_context.hpp"
 
-static const daxa::ComputePipelineCompileInfo WRITE_SWAPCHAIN_PIPELINE_INFO{
-    .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/write_swapchain.glsl"}},
-    .push_constant_size = sizeof(WriteSwapchainPush),
-    .name = std::string{WriteSwapchain::NAME},
-};
-
 struct WriteSwapchainTask : WriteSwapchain
 {
-    std::shared_ptr<daxa::ComputePipeline> pipeline = {};
+    static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO{
+        .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/write_swapchain.glsl"}},
+        .push_constant_size = sizeof(WriteSwapchainPush),
+        .name = std::string{WriteSwapchain::NAME},
+    };
+    GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
-        cmd.set_pipeline(*pipeline);
+        cmd.set_pipeline(*context->compute_pipelines.at(WriteSwapchain::NAME));
         u32 const dispatch_x = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.x, WRITE_SWAPCHAIN_WG_X);
         u32 const dispatch_y = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.y, WRITE_SWAPCHAIN_WG_Y);
         cmd.push_constant(WriteSwapchainPush{

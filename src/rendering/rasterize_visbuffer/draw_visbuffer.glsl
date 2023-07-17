@@ -5,6 +5,22 @@
 #include "depth_util.glsl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
+#if DrawVisbufferWriteCommand_COMMAND
+layout(local_size_x = 1) in;
+void main()
+{
+    const uint index = gl_LocalInvocationID.x;
+    const uint total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_pass_count;
+    DrawIndirectStruct command;
+    command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
+    command.instance_count = total_instantiated_meshlet_count;
+    command.first_vertex = 0;
+    command.first_instance = 0;
+    deref(u_command) = command;
+}
+#endif
+
+#if !DrawVisbufferWriteCommand_COMMAND
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 #define VERTEX_OUT out 
 #else
@@ -99,4 +115,5 @@ void main()
     visibility_id = vis_id_out;
     debug_color = vec4(color,1);
 }
+#endif
 #endif

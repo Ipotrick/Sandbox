@@ -14,6 +14,7 @@ void main()
     command.y = 1;
     command.z = 1;
     deref(u_command) = command;
+    deref(u_instantiated_meshlets).first_pass_count = 0;
 }
 #else
 

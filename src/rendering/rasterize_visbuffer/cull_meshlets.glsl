@@ -19,13 +19,16 @@ void main()
     command.y = 1;
     command.z = 1;
     deref(u_commands[index]) = command;
+    if (index == 0)
+    {
+        deref(u_instantiated_meshlets).second_pass_count = 0;
+    }
 }
 #else
 DAXA_DECL_PUSH_CONSTANT(CullMeshletsPush,push)
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
 {
-    return;
     const int tid = int(gl_GlobalInvocationID.x);
     const uint indirect_arg_index = tid >> push.indirect_args_table_id;
     const uint arg_work_offset = tid - (indirect_arg_index << push.indirect_args_table_id);
@@ -35,8 +38,12 @@ void main()
     instanced_meshlet.mesh_id = arg.mesh_id;
     instanced_meshlet.mesh_index = arg.entity_meshlist_index;
     instanced_meshlet.meshlet_index = arg.meshlet_index_start_offset + arg_work_offset;
-#if ENABLE_MESHLET_CULLING
     Mesh mesh_data = deref(u_meshes[instanced_meshlet.mesh_id]);
+    if (instanced_meshlet.meshlet_index >= mesh_data.meshlet_count)
+    {
+        return;
+    }
+#if ENABLE_MESHLET_CULLING
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
 
     NdcBounds ndc_bounds;
@@ -56,10 +63,9 @@ void main()
             }
         }
     }
-
     bool culled = !is_in_frustum(ndc_bounds);
 
-    if (true)
+    if (false)
     {
         EntityVisibilityBitfieldOffsets offsets = deref(u_entity_visibility_bitfield_offsets[instanced_meshlet.entity_index]);
         const uint uint_base_offset = offsets.mesh_bitfield_offset[instanced_meshlet.mesh_index];
@@ -68,9 +74,8 @@ void main()
             const uint uint_offset = uint_base_offset + (instanced_meshlet.meshlet_index / 32);
             uint mask = 1 << instanced_meshlet.meshlet_index % 32;
             const uint bitfield_section = deref(u_meshlet_visibility_bitfield[uint_offset]);
-            bool visible = (mask & bitfield_section) != 0;
-            // When visible set to be culled.
-            culled = culled || visible;
+            const bool already_drawn_in_first_pass = (mask & bitfield_section) != 0;
+            culled = culled || already_drawn_in_first_pass;
         }
     }
 

@@ -7,7 +7,14 @@
 #include "../../mesh/mesh.inl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
-DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferBase, 1)
+#if __cplusplus || defined(DrawVisbufferWriteCommand_COMMAND)
+DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferWriteCommand, 1)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DrawIndirectStruct), COMPUTE_SHADER_WRITE)
+DAXA_DECL_TASK_USES_END()
+#endif
+#if __cplusplus || !defined(DrawVisbufferWriteCommand_COMMAND)
+DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
 DAXA_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
@@ -16,9 +23,13 @@ DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)
 DAXA_DECL_TASK_USES_END()
+#endif
 
 #define DRAW_VISBUFFER_TRIANGLES 1
 #define DRAW_VISBUFFER_MESHLETS 0
+
+#define DRAW_VISBUFFER_CLEAR_ATTACHMENTS 1
+#define DRAW_VISBUFFER_DONT_CLEAR_ATTACHMENTS 0
 
 struct DrawVisbufferPush
 {
@@ -32,7 +43,11 @@ struct DrawVisbufferPush
 static constexpr inline char const DRAW_VISBUFFER_SHADER_PATH[] =
     "./src/rendering/rasterize_visbuffer/draw_visbuffer.glsl";
 
-struct DrawVisbuffer : DrawVisbufferBase
+using DrawVisbufferWriteCommandTask = WriteIndirectDispatchArgsBaseTask<
+    DrawVisbufferWriteCommand,
+    DRAW_VISBUFFER_SHADER_PATH>;
+
+struct DrawVisbufferTask : DrawVisbuffer
 {
     inline static const daxa::RasterPipelineCompileInfo PIPELINE_COMPILE_INFO {
         .vertex_shader_info = daxa::ShaderCompileInfo{
@@ -67,7 +82,7 @@ struct DrawVisbuffer : DrawVisbufferBase
             .max_depth_bounds = 1.0f,
         },
         .push_constant_size = sizeof(DrawVisbufferPush),
-        .name = std::string{DrawVisbufferBase::NAME},
+        .name = std::string{DrawVisbuffer::NAME},
     };
     GPUContext *context = {};
     bool clear_attachments = {};
@@ -78,6 +93,8 @@ struct DrawVisbuffer : DrawVisbufferBase
         daxa::ImageId debug_image = uses.u_debug_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
         auto cmd = ti.get_command_list();
+        cmd.set_uniform_buffer(context->shader_globals_set_info);
+        cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.begin_renderpass({
             .color_attachments = {
                 daxa::RenderAttachmentInfo{
@@ -107,7 +124,7 @@ struct DrawVisbuffer : DrawVisbufferBase
                 .height = (ti.get_device().info_image(vis_image).size.y),
             },
         });
-        cmd.set_pipeline(*context->raster_pipelines.at(DrawVisbufferBase::NAME));
+        cmd.set_pipeline(*context->raster_pipelines.at(DrawVisbuffer::NAME));
         cmd.push_constant(DrawVisbufferPush{
             .tris_or_meshlets = (tris_or_meshlets ? 1u : 0u),
         });
@@ -119,5 +136,30 @@ struct DrawVisbuffer : DrawVisbufferBase
         cmd.end_renderpass();
     }
 };
+
+inline void task_draw_visbuffer(GPUContext * context, daxa::TaskGraph & task_graph, DrawVisbuffer::Uses uses, const bool clear_attachments, const bool draw_triangles)
+{
+    if (!draw_triangles)
+    {
+        auto command_buffer = task_graph.create_transient_buffer({
+            .size = static_cast<u32>(sizeof(DispatchIndirectStruct)),
+            .name = "draw visbuffer command buffer",
+        });
+        uses.u_draw_command.handle = command_buffer;
+        task_graph.add_task(DrawVisbufferWriteCommandTask{
+            {.uses = {
+                .u_instantiated_meshlets = uses.u_instantiated_meshlets,
+                .u_command = uses.u_draw_command.handle,
+            }},
+            context,
+        });
+    }
+    task_graph.add_task(DrawVisbufferTask{
+        {.uses = uses},
+        context,
+        clear_attachments,
+        draw_triangles,
+    });
+}
 
 #endif

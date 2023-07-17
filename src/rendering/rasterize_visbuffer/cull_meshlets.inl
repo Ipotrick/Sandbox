@@ -15,6 +15,7 @@ DAXA_DECL_TASK_USES_BEGIN(CullMeshletsCommandWriteBase, 1)
     DAXA_TASK_USE_BUFFER(u_mesh_draw_list, daxa_BufferPtr(MeshDrawList), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullIndirectArgTable), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_commands, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
+    DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
 #if __cplusplus || !defined(CullMeshletsCommandWriteBase_COMMAND)
@@ -86,7 +87,8 @@ void task_cull_meshlets(GPUContext * context, daxa::TaskGraph & task_list, CullM
         {.uses={
             .u_mesh_draw_list = uses.u_mesh_draw_list, 
             .u_meshlet_cull_indirect_args = uses.u_meshlet_cull_indirect_args,
-            .u_commands = cull_meshlets_commands}
+            .u_commands = cull_meshlets_commands,
+            .u_instantiated_meshlets = uses.u_instantiated_meshlets,}
         },
         context
     });

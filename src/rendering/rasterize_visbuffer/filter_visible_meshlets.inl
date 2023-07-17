@@ -12,6 +12,7 @@
 #if __cplusplus || defined(FilterVisibleMeshletsCommandWriteBase_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(FilterVisibleMeshletsCommandWriteBase, 1)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets_prev, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -67,6 +68,7 @@ void task_filter_visible_meshlets(GPUContext* context, daxa::TaskGraph& task_lis
         {.uses={
             .u_instantiated_meshlets_prev = uses.u_instantiated_meshlets_prev,
             .u_command = command,
+            .u_instantiated_meshlets = uses.u_instantiated_meshlets,
         }},
         context,
     });
