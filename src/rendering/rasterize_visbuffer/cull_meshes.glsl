@@ -2,12 +2,9 @@
 #include "cull_meshes.inl"
 
 #define DEBUG_MESH_CULL 0
+#define DEBUG_MESH_CULL1 0
 
-#if DEBUG_MESH_CULL
-    #extension GL_EXT_debug_printf : enable
-#endif
-
-#define my_sizeof(T) uint64_t(daxa_BufferPtr(T)(daxa_u64(0)) + 1)
+#extension GL_EXT_debug_printf : enable
 
 #if defined(CullMeshesCommandBase_COMMAND)
 layout(local_size_x = 32) in;
@@ -60,7 +57,7 @@ void main()
     //   - instead of x writeouts, only do log2(x), one writeout per set bit in the meshletcount.
     //   - when you want to write out 17 meshlet work units, instead of writing 7 args into a buffer, 
     //     you write one 1x arg, no 2x arg, no 4x arg, no 8x arg and one 16x arg. the 1x and the 16x args together contain 17 work units.
-    // - still not good enough, in large cases like 2^20 - 1 it would need 19 writeouts
+    // - still not good enough, in large cases like 2^16 - 1 meshlets it would need 15 writeouts
     //   - solution is to limit the writeouts to some smaller number (i chose 5, as it has a max thread waste of < 5%)
     //   - A strong compromise is to round up invocation count from meshletcount in such a way that the round up value only has 4 bits set at most.
     //   - as we do one writeout per bit set in meshlet count, this limits the writeout to 5.
@@ -99,9 +96,9 @@ void main()
     while (writeout_bit_mask != 0)
     {
         const uint writeout_power = findMSB(writeout_bit_mask);
+        const uint indirect_arg_meshlet_count = 1 << (writeout_power);
         // Mask out bit.
-        writeout_bit_mask &= writeout_power;
-        const uint indirect_arg_meshlet_count = 1 << writeout_power;
+        writeout_bit_mask &= ~indirect_arg_meshlet_count;
         const uint arg_array_offset = atomicAdd(deref(u_meshlet_cull_indirect_args).indirect_arg_counts[writeout_power], 1);
     
         MeshletCullIndirectArg arg;
@@ -112,5 +109,29 @@ void main()
         deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[writeout_power][arg_array_offset]) = arg;
         meshlet_offset += indirect_arg_meshlet_count;
     }
+    #if DEBUG_MESH_CULL1
+    if (meshlet_count > 33)
+    {
+        uint meshlet_offset = 0;
+        uint writeout_bit_mask = clipped_bits_meshlet_count;
+        uint powers[5] = {33,33,33,33,33};
+        uint counts[5] = {0,0,0,0,0};
+        uint index = 0;
+        while (writeout_bit_mask != 0)
+        {
+            const uint writeout_power = findMSB(writeout_bit_mask);
+            const uint indirect_arg_meshlet_count = 1 << (writeout_power);
+            // Mask out bit.
+            writeout_bit_mask &= ~indirect_arg_meshlet_count;
+            powers[index] = writeout_power;
+            counts[index] = indirect_arg_meshlet_count;
+            ++index;
+        }
+        debugPrintfEXT("wrote out %u work units for %u meshlets,\n  meshlet count rounded up to fit 4 consequtive bits in uint (%u)->(%u),\n  power[0]: %u, meshlets: %u\n  power[1]: %u, meshlets: %u\n  power[2]: %u, meshlets: %u\n  power[3]: %u, meshlets: %u\n  power[4]: %u, meshlets: %u\n", 
+                       meshlet_offset, meshlet_count,
+                       meshlet_count, clipped_bits_meshlet_count, 
+                       powers[0], counts[0], powers[1], counts[1],powers[2], counts[2],powers[3], counts[3],powers[4], counts[4]);
+    }
+    #endif
 }
 #endif

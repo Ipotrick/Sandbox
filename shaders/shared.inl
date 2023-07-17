@@ -48,7 +48,9 @@ DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
     ShaderGlobals globals;
 };
 
-#define DEFINE_PUSHCONSTANT(STRUCT, NAME) layout(push_constant, scalar) uniform Push { STRUCT NAME; };
+#if DAXA_SHADER
+#define my_sizeof(T) uint64_t(daxa_BufferPtr(T)(daxa_u64(0)) + 1)
+#endif
 
 #if defined(__cplusplus)
 #define SHARED_FUNCTION inline
