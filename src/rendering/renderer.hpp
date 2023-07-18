@@ -51,6 +51,7 @@ struct Renderer
     daxa::TaskBuffer mesh_draw_list = {};
     daxa::TaskBuffer instantiated_meshlets = {};
     daxa::TaskBuffer triangle_draw_list = {};
+    daxa::TaskBuffer visible_triangles = {};
 
     std::vector<daxa::TaskBuffer> buffers = {};
 

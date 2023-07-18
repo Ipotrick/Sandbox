@@ -44,7 +44,7 @@ void main()
     {
         case DRAW_VISBUFFER_TRIANGLES:
         {
-            const uint triangle_id = deref(u_draw_command).triangle_ids[gl_VertexIndex / 3];
+            const uint triangle_id = deref(u_triangle_list).triangle_ids[gl_VertexIndex / 3];
             decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
             break;
         }
@@ -87,9 +87,16 @@ void main()
         return;
     }
 
+    //if (gl_VertexIndex == 346)
+    //{
+    //    debugPrintfEXT("meshlet: %u, triangle: %u, triangle corner: %u\n meshlet_count of mesh: %u\n, triangle count of meshlet: %u\n", 
+    //                    instantiated_meshlet.meshlet_index, triangle_index, triangle_corner_index, mesh.meshlet_count, meshlet.triangle_count);
+    //}
+
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
     const uint micro_index = get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + triangle_corner_index);
-    const uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
+    uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
+    vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const vec4 pos = globals.camera_view_projection * vertex_position;
 

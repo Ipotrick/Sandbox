@@ -120,7 +120,7 @@ struct AssetManager
         allocation_size += meshlet_bounds_array_bytesize;
 
         u32 const micro_index_array_offset = allocation_size;
-        usize const micro_index_array_bytesize = ((meshlet_micro_indices.size() * sizeof(u8)) + 3) & ~0x03;
+        usize const micro_index_array_bytesize = ((meshlet_micro_indices.size() * sizeof(u8)) + sizeof(u32) - 1) / sizeof(u32) * sizeof(u32);
         allocation_size += micro_index_array_bytesize;
 
         u32 const indirect_vertex_array_offset = allocation_size;
@@ -130,6 +130,7 @@ struct AssetManager
         u32 const vertex_positions_array_offset = allocation_size;
         usize const vertex_positions_array_bytesize = static_cast<usize>(aimesh->mNumVertices) * sizeof(f32vec3);
         allocation_size += vertex_positions_array_bytesize;
+        allocation_size += sizeof(u32); // no clue why i need this... Maybe it is because it tries to do 16 byte loads on vec3s.
         // Create mesh.
         mesh.mesh_buffer = device.create_buffer({
             .size = allocation_size,
@@ -151,7 +152,7 @@ struct AssetManager
             .name = std::string("Staging buffer for mesh \"") + std::string(unique_name) + "\"",
         });
         void *staging_buffer_ptr = device.get_host_address(staging_buffer);
-//
+        
         void *staging_meshlets = reinterpret_cast<u8 *>(staging_buffer_ptr) + meshlet_array_offset;
         std::memcpy(staging_meshlets, meshlets.data(), meshlet_array_bytesize);
 

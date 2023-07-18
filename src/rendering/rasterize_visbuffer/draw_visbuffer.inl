@@ -16,7 +16,8 @@ DAXA_DECL_TASK_USES_END()
 #if __cplusplus || !defined(DrawVisbufferWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
-DAXA_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(TriangleDrawList), DRAW_INDIRECT_INFO_READ)
+DAXA_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(DrawIndirectStruct), DRAW_INDIRECT_INFO_READ)
+DAXA_TASK_USE_BUFFER(u_triangle_list, daxa_BufferPtr(TriangleList), DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
@@ -142,7 +143,7 @@ inline void task_draw_visbuffer(GPUContext * context, daxa::TaskGraph & task_gra
     if (!draw_triangles)
     {
         auto command_buffer = task_graph.create_transient_buffer({
-            .size = static_cast<u32>(sizeof(DispatchIndirectStruct)),
+            .size = static_cast<u32>(sizeof(DrawIndirectStruct)),
             .name = "draw visbuffer command buffer",
         });
         uses.u_draw_command.handle = command_buffer;
@@ -152,6 +153,10 @@ inline void task_draw_visbuffer(GPUContext * context, daxa::TaskGraph & task_gra
                 .u_command = uses.u_draw_command.handle,
             }},
             context,
+        });
+        uses.u_triangle_list.handle = task_graph.create_transient_buffer({
+            .size = 4,
+            .name = "dummy",
         });
     }
     task_graph.add_task(DrawVisbufferTask{

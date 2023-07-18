@@ -3,20 +3,19 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/util.inl"
 #include "../../../shaders/shared.inl"
 #include "../../mesh/mesh.inl"
+#include "../../mesh/visbuffer_meshlet_util.inl"
 
-#define ANALYZE_VIS_BUFFER_WORKGROUP_X 16
-#define ANALYZE_VIS_BUFFER_WORKGROUP_Y 8
+#define ANALYZE_VIS_BUFFER_WORKGROUP_X 8
+#define ANALYZE_VIS_BUFFER_WORKGROUP_Y 16
 
-DAXA_DECL_TASK_USES_BEGIN(AnalyzeVisbufferBase, 1)
-DAXA_TASK_USE_IMAGE(u_visbuffer, daxa_Image2Du32, COMPUTE_SHADER_READ)
+DAXA_DECL_TASK_USES_BEGIN(AnalyzeVisbuffer, 1)
+DAXA_TASK_USE_IMAGE(u_visbuffer, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlet_counters, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
-DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets_last_frame, daxa_RWBufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ_WRITE)
+DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfields, daxa_RWBufferPtr(daxa_u32vec4), COMPUTE_SHADER_READ_WRITE)
+DAXA_TASK_USE_BUFFER(u_visible_triangle_list, daxa_RWBufferPtr(TriangleList), COMPUTE_SHADER_READ_WRITE)
+DAXA_TASK_USE_BUFFER(u_debug_buffer, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 
 struct AnalyzeVisbufferPush
@@ -29,22 +28,20 @@ struct AnalyzeVisbufferPush
 
 #include "../gpu_context.hpp"
 
-static const daxa::ComputePipelineCompileInfo ANALYZE_VISBUFFER_PIPELINE_INFO{
-    .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/analyze_visbuffer.glsl"}},
-    .push_constant_size = sizeof(AnalyzeVisbufferPush),
-    .name = std::string{AnalyzeVisbufferBase::NAME},
-};
-
-struct AnalyzeVisbufferTask : AnalyzeVisbufferBase
+struct AnalyzeVisBufferTask : AnalyzeVisbuffer
 {
-    std::shared_ptr<daxa::ComputePipeline> pipeline = {};
+    inline static const daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO{
+        .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/rasterize_visbuffer/analyze_visbuffer.glsl"}},
+        .push_constant_size = sizeof(AnalyzeVisbufferPush),
+        .name = std::string{AnalyzeVisbuffer::NAME},
+    };
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
-        cmd.set_pipeline(*pipeline);
+        cmd.set_pipeline(*context->compute_pipelines.at(AnalyzeVisbuffer::NAME));
         auto const x = ti.get_device().info_image(uses.u_visbuffer.image()).size.x;
         auto const y = ti.get_device().info_image(uses.u_visbuffer.image()).size.y;
         cmd.push_constant(AnalyzeVisbufferPush{

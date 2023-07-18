@@ -2,10 +2,10 @@
 
 #include "../scene/scene.inl"
 
-#include "rasterize_visbuffer/filter_visible_meshlets.inl"
 #include "rasterize_visbuffer/draw_visbuffer.inl"
 #include "rasterize_visbuffer/cull_meshes.inl"
 #include "rasterize_visbuffer/cull_meshlets.inl"
+#include "rasterize_visbuffer/analyze_visbuffer.inl"
 
 #include "tasks/prefix_sum.inl"
 #include "tasks/write_swapchain.inl"
@@ -165,7 +165,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(TriangleDrawList),
+                    .size = sizeof(TriangleList),
                     .name = "initial_pass_triangles",
                 }),
             },
@@ -187,12 +187,23 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         .initial_buffers = {
             .buffers = std::array{
                 context->device.create_buffer({
-                    .size = sizeof(TriangleDrawList),
+                    .size = sizeof(TriangleList),
                     .name = "triangle_draw_list",
                 }),
             },
         },
         .name = "triangle_draw_list",
+    }};
+    visible_triangles = daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = sizeof(TriangleList),
+                    .name = "visible_triangles",
+                }),
+            },
+        },
+        .name = "visible_triangles",
     }};
 
     buffers = {
@@ -211,7 +222,8 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         initial_pass_triangles,
         mesh_draw_list,
         instantiated_meshlets,
-        triangle_draw_list};
+        triangle_draw_list,
+        visible_triangles};
 
     swapchain_image = daxa::TaskImage{{
         .swapchain_image = true,
@@ -308,10 +320,11 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
+        {AnalyzeVisBufferTask::NAME, AnalyzeVisBufferTask::PIPELINE_COMPILE_INFO},
         {WriteSwapchainTask::NAME, WriteSwapchainTask::PIPELINE_COMPILE_INFO},
         {DrawVisbufferWriteCommandTask::NAME, DrawVisbufferWriteCommandTask::PIPELINE_COMPILE_INFO},
-        {FilterVisibleMeshletsCommandWrite::NAME, FilterVisibleMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
-        {FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::PIPELINE_COMPILE_INFO},
+        //{FilterVisibleMeshletsCommandWrite::NAME, FilterVisibleMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
+        //{FilterVisibleMeshlets::NAME, FilterVisibleMeshlets::PIPELINE_COMPILE_INFO},
         {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::PIPELINE_COMPILE_INFO},
         {CullMeshes::NAME, CullMeshes::PIPELINE_COMPILE_INFO},
         {PrefixSumCommandWrite::NAME, PrefixSumCommandWrite::PIPELINE_COMPILE_INFO},
@@ -442,31 +455,31 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
 
     // Using the last frames visbuffer and meshlet visibility bitmasks, filter the visible meshlets into a list.
     // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
-    task_filter_visible_meshlets(
-        context,
-        task_list,
-        {
-            .u_entity_visibility_bitfield_offsets_prev = entity_visibility_bitfield_offsets,
-            .u_entity_visibility_bitfield_prev = entity_visibility_bitfield,
-            .u_instantiated_meshlets_prev = instantiated_meshlets_last_frame,
-            .u_instantiated_meshlets = instantiated_meshlets,
-            .u_triangle_draw_list = triangle_draw_list,
-        });
-    // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
-    task_draw_visbuffer(
-        context,
-        task_list,
-        DrawVisbuffer::Uses{
-            .u_draw_command = initial_pass_triangles,
-            .u_instantiated_meshlets = instantiated_meshlets,
-            .u_meshes = asset_manager->tmeshes,
-            .u_vis_image = visbuffer,
-            .u_debug_image = debug_image,
-            .u_depth_image = depth,
-        },
-        DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
-        DRAW_VISBUFFER_TRIANGLES
-    );
+    //task_filter_visible_meshlets(
+    //    context,
+    //    task_list,
+    //    {
+    //        .u_entity_visibility_bitfield_offsets_prev = entity_visibility_bitfield_offsets,
+    //        .u_entity_visibility_bitfield_prev = entity_visibility_bitfield,
+    //        .u_instantiated_meshlets_prev = instantiated_meshlets_last_frame,
+    //        .u_instantiated_meshlets = instantiated_meshlets,
+    //        .u_triangle_draw_list = triangle_draw_list,
+    //    });
+    //// Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
+    //task_draw_visbuffer(
+    //    context,
+    //    task_list,
+    //    DrawVisbuffer::Uses{
+    //        .u_draw_command = initial_pass_triangles,
+    //        .u_instantiated_meshlets = instantiated_meshlets,
+    //        .u_meshes = asset_manager->tmeshes,
+    //        .u_vis_image = visbuffer,
+    //        .u_debug_image = debug_image,
+    //        .u_depth_image = depth,
+    //    },
+    //    DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
+    //    DRAW_VISBUFFER_TRIANGLES
+    //);
     // After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
     // For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
     // TODO: build hiz
@@ -509,9 +522,47 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_debug_image = debug_image,
             .u_depth_image = depth,
         },
-        DRAW_VISBUFFER_DONT_CLEAR_ATTACHMENTS,
+        DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
         DRAW_VISBUFFER_MESHLETS
     );
+    auto meshlet_visibility_bitfields = task_list.create_transient_buffer({
+        .size = static_cast<u32>(sizeof(daxa_u32vec4) * MAX_INSTANTIATED_MESHLETS),
+        .name = "meshlet_visibility_counters",
+    });
+    task_list.add_task({
+        .uses = {
+            BufferTransferWrite{visible_triangles},
+            BufferTransferWrite{meshlet_visibility_bitfields},
+        },
+        .task = [=](daxa::TaskInterface ti)
+        {
+            auto cmd = ti.get_command_list();
+            cmd.clear_buffer({
+                .buffer = ti.uses[visible_triangles].buffer(),
+                .clear_value = 0,
+                .size = sizeof(u32),
+                .offset = 0,
+            });
+            cmd.clear_buffer({
+                .buffer = ti.uses[meshlet_visibility_bitfields].buffer(),
+                .clear_value = 0,
+                .size = sizeof(u32vec4) * MAX_INSTANTIATED_MESHLETS,
+                .offset = 0,
+            });
+        },
+        .name = "clear visible triangle list",
+    });
+    task_list.add_task(AnalyzeVisBufferTask{
+        {.uses={
+            .u_visbuffer = visbuffer,
+            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_meshlet_visibility_bitfields = meshlet_visibility_bitfields,
+            .u_visible_triangle_list = visible_triangles,
+            .u_debug_buffer = task_list.create_transient_buffer({ .size = 1024, .name = "debug buffer", }),
+        }},
+        context,
+    });
+
     task_list.add_task(WriteSwapchainTask{
         {.uses={
             .swapchain = swapchain_image,
