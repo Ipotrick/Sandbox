@@ -4,22 +4,16 @@
 #include "analyze_visbuffer.inl"
 #include "visbuffer.glsl"
 
-uvec4 make_mask(uint index)
+void add_bit_to_mask(inout uvec4 mask, uint index)
 {
-    uvec4 ret = uvec4(0,0,0,0);
-    for (uint i = 0; i < 4; ++i)
-    {
-        if (index >= (i*32) && index < ((i+1)*32))
-        {
-            ret[i] = 1 << (index - i*32);
-        }
-    }
-    return ret;
+    const uint vec_i = (index >> 5u);
+    mask[vec_i] = mask[vec_i] | (1u << (index - (vec_i << 5u)));
 }
 
 void get_quad_unique_meshlet_masks(uint meshlet_ids[4], uint triangle_indices[4], out uint unique_meshlet_ids[4], out uvec4 unique_masks[4], out uint count)
 {
     count = 0;
+    [[unroll]]
     for (uint i = 0; i < 4; ++i)
     {
         if (meshlet_ids[i] != INVALID_MESHLET_INDEX)
@@ -29,16 +23,15 @@ void get_quad_unique_meshlet_masks(uint meshlet_ids[4], uint triangle_indices[4]
             {
                 if (meshlet_ids[i] == unique_meshlet_ids[o])
                 {
-                    const uvec4 mask = make_mask(triangle_indices[i]);
-                    unique_masks[o] = unique_masks[o] | mask;
+                    add_bit_to_mask(unique_masks[o], triangle_indices[i]);
                     unique = false;
                 }
             }
             if (unique)
             {
-                const uvec4 mask = make_mask(triangle_indices[i]);
                 unique_meshlet_ids[count] = meshlet_ids[i];
-                unique_masks[count] = mask;
+                unique_masks[count] = uvec4(0,0,0,0);
+                add_bit_to_mask(unique_masks[count], triangle_indices[i]);
                 ++count;
             }
         }
@@ -78,7 +71,6 @@ void main()
     // In each subgroup, vote on uniform meshlet id, then do the masking. Loop as long as unique ids remain.
     uint left_meshlet_ids = quad_unique_meshlet_id_count;
     const uint debug_buffer_index = globals.frame_index & 1;
-    uint total_tests = 0;
     while (left_meshlet_ids > 0)
     {
         const uint uniform_meshlet_id = subgroupBroadcastFirst(quad_unique_meshlet_ids[left_meshlet_ids-1]);
