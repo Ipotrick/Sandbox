@@ -10,7 +10,7 @@ void add_bit_to_mask(inout uvec4 mask, uint index)
     mask[vec_i] = mask[vec_i] | (1u << (index - (vec_i << 5u)));
 }
 
-void get_quad_unique_meshlet_masks(uint meshlet_ids[4], uint triangle_indices[4], out uint unique_meshlet_ids[4], out uvec4 unique_masks[4], out uint count)
+void get_quad_unique_meshlet_masks(uint meshlet_ids[4], uvec4 triangle_indices, out uint unique_meshlet_ids[4], out uvec4 unique_masks[4], out uint count)
 {
     count = 0;
     [[unroll]]
@@ -46,12 +46,13 @@ void main()
 
     const ivec2 quad_indices[4] = { index + ivec2(0,1), index + ivec2(0,0), index + ivec2(1,1), index + ivec2(1,0) };
     uint inst_meshlet_indices[4] = { INVALID_MESHLET_INDEX, INVALID_MESHLET_INDEX, INVALID_MESHLET_INDEX, INVALID_MESHLET_INDEX };
-    uint triangle_indices[4] = { 0, 0, 0, 0 };
+    uvec4 triangle_indices = uvec4(0, 0, 0, 0);
     [[unroll]]
     for (uint quad_i = 0; quad_i < 4; ++quad_i)
     {
         if (quad_indices[quad_i].x < push.width && quad_indices[quad_i].y < push.height)
         {
+            // TODO: make this a texture gather.
             const uint vis_id = texelFetch(daxa_utexture2D(u_visbuffer), quad_indices[quad_i], 0).x;
             if (vis_id != INVALID_PIXEL_ID)
             {

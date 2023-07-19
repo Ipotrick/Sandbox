@@ -21,7 +21,7 @@ void main()
     deref(u_commands[index]) = command;
     if (index == 0)
     {
-        deref(u_instantiated_meshlets).second_pass_count = 0;
+        deref(u_instantiated_meshlets).count = 0;
     }
 }
 #else
@@ -82,7 +82,7 @@ void main()
     if (!culled)
 #endif
     {
-        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_pass_count, 1) + deref(u_instantiated_meshlets).first_pass_count;
+        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).count, 1);
         deref(u_instantiated_meshlets).meshlets[out_index] = instanced_meshlet;
     }
 }

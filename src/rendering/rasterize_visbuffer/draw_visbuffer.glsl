@@ -5,15 +5,26 @@
 #include "depth_util.glsl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
-#if DrawVisbufferWriteCommand_COMMAND
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
+
+#if defined(DrawVisbufferWriteCommand_COMMAND)
 layout(local_size_x = 1) in;
 void main()
 {
     const uint index = gl_LocalInvocationID.x;
-    const uint total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_pass_count;
     DrawIndirectStruct command;
-    command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
-    command.instance_count = total_instantiated_meshlet_count;
+    if (push.tris_or_meshlets != 0)
+    {
+        const uint triangles_to_draw = deref(u_triangle_list).count;
+        command.vertex_count = triangles_to_draw * 3;
+        command.instance_count = 1;
+    }
+    else
+    {
+        const uint total_instantiated_meshlet_count = deref(u_instantiated_meshlets).count;
+        command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
+        command.instance_count = total_instantiated_meshlet_count;
+    }
     command.first_vertex = 0;
     command.first_instance = 0;
     deref(u_command) = command;
@@ -27,12 +38,12 @@ void main()
 #define VERTEX_OUT in
 #endif
 
-layout(location = 0) flat VERTEX_OUT uint vout_triangle_index;
-layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
-layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
-layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
-
-DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
+#if !DEPTH_ONLY
+    layout(location = 0) flat VERTEX_OUT uint vout_triangle_index;
+    layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
+    layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
+    layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
+#endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 void main()
@@ -100,27 +111,33 @@ void main()
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const vec4 pos = globals.camera_view_projection * vertex_position;
 
-    vout_triangle_index = triangle_index;
-    vout_entity_index = instantiated_meshlet.entity_index;
-    vout_instantiated_meshlet_index = inst_meshlet_index;
-    vout_meshlet_index = instantiated_meshlet.meshlet_index;
+    #if !DEPTH_ONLY
+        vout_triangle_index = triangle_index;
+        vout_entity_index = instantiated_meshlet.entity_index;
+        vout_instantiated_meshlet_index = inst_meshlet_index;
+        vout_meshlet_index = instantiated_meshlet.meshlet_index;
+    #endif
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-layout(location = 0) out uint visibility_id;
-layout(location = 1) out vec4 debug_color;
+#if !DEPTH_ONLY
+    layout(location = 0) out uint visibility_id;
+    layout(location = 1) out vec4 debug_color;
+#endif
 void main()
 {
-    float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
-    vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
-    color = color * 0.5 + 0.5;
-    const float near = 20.0f;
-    const float far = 8000.0f;
-    // color = unband_depth_color(int(gl_FragCoord.x), int(gl_FragCoord.y), gl_FragCoord.z, near, far);
-    uint vis_id_out;
-    encode_triangle_id(vout_instantiated_meshlet_index, vout_triangle_index, vis_id_out);
-    visibility_id = vis_id_out;
-    debug_color = vec4(color,1);
+    #if !DEPTH_ONLY
+        float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
+        vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
+        color = color * 0.5 + 0.5;
+        const float near = 20.0f;
+        const float far = 8000.0f;
+        // color = unband_depth_color(int(gl_FragCoord.x), int(gl_FragCoord.y), gl_FragCoord.z, near, far);
+        uint vis_id_out;
+        encode_triangle_id(vout_instantiated_meshlet_index, vout_triangle_index, vis_id_out);
+        visibility_id = vis_id_out;
+        debug_color = vec4(color,1);
+    #endif
 }
 #endif
 #endif

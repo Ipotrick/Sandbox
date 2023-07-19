@@ -9,8 +9,7 @@
 // Use the y dimension of each dispatch struct as the counter here.
 struct InstantiatedMeshlets
 {
-    daxa_u32 first_pass_count;
-    daxa_u32 second_pass_count;
+    daxa_u32 count;
     InstantiatedMeshlet meshlets[MAX_INSTANTIATED_MESHLETS];
 };
 DAXA_DECL_BUFFER_PTR(InstantiatedMeshlets)
