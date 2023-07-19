@@ -6,6 +6,7 @@
 #include "rasterize_visbuffer/cull_meshes.inl"
 #include "rasterize_visbuffer/cull_meshlets.inl"
 #include "rasterize_visbuffer/analyze_visbuffer.inl"
+#include "rasterize_visbuffer/filter_visible_triangles.inl"
 
 #include "tasks/prefix_sum.inl"
 #include "tasks/write_swapchain.inl"
@@ -365,18 +366,16 @@ void Renderer::clear_select_buffers()
     }};
     list.use_persistent_buffer(instantiated_meshlets);
     list.use_persistent_buffer(instantiated_meshlets_last_frame);
-    list.add_task({
-        .uses = {
-            BufferTransferWrite{instantiated_meshlets},
-            BufferTransferWrite{instantiated_meshlets_last_frame},
-        },
-        .task = [=](TaskInterface ti)
-        {
-            auto cmd = ti.get_command_list();
-            cmd.clear_buffer({ti.uses[instantiated_meshlets].buffer(), 0, sizeof(u32)*2, 0});
-            cmd.clear_buffer({ti.uses[instantiated_meshlets_last_frame].buffer(), 0, sizeof(u32)*2, 0});
-        }
-    });
+    list.add_task({.uses = {
+                       BufferTransferWrite{instantiated_meshlets},
+                       BufferTransferWrite{instantiated_meshlets_last_frame},
+                   },
+                   .task = [=](TaskInterface ti)
+                   {
+                       auto cmd = ti.get_command_list();
+                       cmd.clear_buffer({ti.uses[instantiated_meshlets].buffer(), 0, sizeof(u32) * 2, 0});
+                       cmd.clear_buffer({ti.uses[instantiated_meshlets_last_frame].buffer(), 0, sizeof(u32) * 2, 0});
+                   }});
     list.submit({});
     list.complete({});
     list.execute({});
@@ -412,7 +411,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     //  - second draw pass:
     //      - dispatch mesh cull over all active entities in scene
     //          - append 5 indirect argument buffers, each corresponding to one indirect dispatch later
-    //          - each of the 5 indirect dispatches blong to a granularity of meshlet culling. 
+    //          - each of the 5 indirect dispatches blong to a granularity of meshlet culling.
     //          - 1st buffer is at the granularity of one arg per meshlet culled
     //          - 2nd buffer is at the granularity of one arg per 8 meshlets culled
     //          - 3rd buffer is at the granularity of one arg per 64 meshlets culled
@@ -455,7 +454,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
 
     // Using the last frames visbuffer and meshlet visibility bitmasks, filter the visible meshlets into a list.
     // This list of meshlets will be written to the list of instantiated meshlets of the current frame.
-    //task_filter_visible_meshlets(
+    // task_filter_visible_meshlets(
     //    context,
     //    task_list,
     //    {
@@ -466,23 +465,23 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     //        .u_triangle_draw_list = triangle_draw_list,
     //    });
     //// Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
-    //task_draw_visbuffer(
-    //    context,
-    //    task_list,
-    //    DrawVisbuffer::Uses{
-    //        .u_draw_command = initial_pass_triangles,
-    //        .u_instantiated_meshlets = instantiated_meshlets,
-    //        .u_meshes = asset_manager->tmeshes,
-    //        .u_vis_image = visbuffer,
-    //        .u_debug_image = debug_image,
-    //        .u_depth_image = depth,
-    //    },
-    //    DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
-    //    DRAW_VISBUFFER_TRIANGLES
+    // task_draw_visbuffer(
+    //     context,
+    //     task_list,
+    //     DrawVisbuffer::Uses{
+    //         .u_draw_command = initial_pass_triangles,
+    //         .u_instantiated_meshlets = instantiated_meshlets,
+    //         .u_meshes = asset_manager->tmeshes,
+    //         .u_vis_image = visbuffer,
+    //         .u_debug_image = debug_image,
+    //         .u_depth_image = depth,
+    //     },
+    //     DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
+    //     DRAW_VISBUFFER_TRIANGLES
     //);
-    // After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
-    // For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
-    // TODO: build hiz
+    //  After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
+    //  For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
+    //  TODO: build hiz
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
         .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_INSTANTIATED_MESHLETS * 2,
         .name = "meshlet_cull_indirect_args",
@@ -514,7 +513,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_draw_visbuffer(
         context,
         task_list,
-        DrawVisbuffer::Uses{
+        {
             .u_draw_command = {}, // Set inside the function in case of meshlet draw
             .u_instantiated_meshlets = instantiated_meshlets,
             .u_meshes = asset_manager->tmeshes,
@@ -523,8 +522,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_depth_image = depth,
         },
         DRAW_VISBUFFER_CLEAR_ATTACHMENTS,
-        DRAW_VISBUFFER_MESHLETS
-    );
+        DRAW_VISBUFFER_MESHLETS);
     auto meshlet_visibility_bitfields = task_list.create_transient_buffer({
         .size = static_cast<u32>(sizeof(daxa_u32vec4) * MAX_INSTANTIATED_MESHLETS),
         .name = "meshlet_visibility_counters",
@@ -553,28 +551,39 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .name = "clear visible triangle list",
     });
     task_list.add_task(AnalyzeVisBufferTask{
-        {.uses={
-            .u_visbuffer = visbuffer,
-            .u_instantiated_meshlets = instantiated_meshlets,
-            .u_meshlet_visibility_bitfields = meshlet_visibility_bitfields,
-            .u_visible_triangle_list = visible_triangles,
-            .u_debug_buffer = task_list.create_transient_buffer({ .size = 1024, .name = "debug buffer", }),
-        }},
+        {.uses = {
+             .u_visbuffer = visbuffer,
+             .u_instantiated_meshlets = instantiated_meshlets,
+             .u_meshlet_visibility_bitfields = meshlet_visibility_bitfields,
+             .u_debug_buffer = task_list.create_transient_buffer({
+                 .size = 1024,
+                 .name = "debug buffer",
+             }),
+         }},
         context,
     });
+    task_filter_visible_triangles(
+        context,
+        task_list,
+        {
+            .u_command = {}, // Gets set inside the function.
+            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_meshlet_visibility_bitfields = meshlet_visibility_bitfields,
+            .u_visible_triangles = visible_triangles,
+        });
 
     task_list.add_task(WriteSwapchainTask{
-        {.uses={
-            .swapchain = swapchain_image,
-            .debug_image = debug_image,
-        }},
+        {.uses = {
+             .swapchain = swapchain_image,
+             .debug_image = debug_image,
+         }},
         context,
     });
 
     task_list.submit({});
     task_list.present({});
     task_list.complete({});
-    //std::cout << task_list.get_debug_string() << std::endl;
+    // std::cout << task_list.get_debug_string() << std::endl;
     return task_list;
 }
 
