@@ -63,9 +63,22 @@ GPUContext::GPUContext(Window const &window)
         .name = "globals",
       })}
 {
+    shader_globals.globals.samplers = {
+        .linear_clamp = this->device.create_sampler({
+            .name = "linear clamp sampler",
+        }), 
+        .nearest_clamp = this->device.create_sampler({
+            .magnification_filter = daxa::Filter::NEAREST,
+            .minification_filter = daxa::Filter::NEAREST,
+            .mipmap_filter = daxa::Filter::NEAREST,
+            .name = "linear clamp sampler",
+        })
+    };
 }
 
 GPUContext::~GPUContext()
 {
     device.destroy_buffer(shader_globals_buffer);
+    device.destroy_sampler(shader_globals.globals.samplers.linear_clamp);
+    device.destroy_sampler(shader_globals.globals.samplers.nearest_clamp);
 }

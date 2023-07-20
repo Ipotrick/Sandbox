@@ -17,8 +17,8 @@ struct DispatchIndirectValueCount
 };
 DAXA_DECL_BUFFER_PTR(DispatchIndirectValueCount)
 
-#if __cplusplus || defined(PrefixSumWriteCommandBase_COMMAND)
-DAXA_DECL_TASK_USES_BEGIN(PrefixSumWriteCommandBase, 1)
+#if __cplusplus || defined(PrefixSumWriteCommand_COMMAND)
+DAXA_DECL_TASK_USES_BEGIN(PrefixSumWriteCommand, 1)
 DAXA_TASK_USE_BUFFER(u_value_count, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_upsweep_command0, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
 DAXA_TASK_USE_BUFFER(u_upsweep_command1, daxa_RWBufferPtr(DispatchIndirectValueCount), COMPUTE_SHADER_WRITE)
@@ -61,8 +61,8 @@ struct PrefixSumPush
 
 static constexpr inline char const PREFIX_SUM_SHADER_PATH[] = "./src/rendering/tasks/prefix_sum.glsl";
 
-using PrefixSumCommandWrite = WriteIndirectDispatchArgsPushBaseTask<
-    PrefixSumWriteCommandBase,
+using PrefixSumCommandWriteTask = WriteIndirectDispatchArgsPushBaseTask<
+    PrefixSumWriteCommand,
     PREFIX_SUM_SHADER_PATH,
     PrefixSumWriteCommandPush
 >;
@@ -156,7 +156,7 @@ void task_prefix_sum(PrefixSumTaskGroupInfo info)
         .size = sizeof(DispatchIndirectStruct),
         .name = "prefix sum downsweep_command_buffer",
     });
-    info.task_list.add_task(PrefixSumCommandWrite{
+    info.task_list.add_task(PrefixSumCommandWriteTask{
         {.uses={
             .u_value_count = info.value_count_buf,
             .u_upsweep_command0 = upsweep0_command_buffer,

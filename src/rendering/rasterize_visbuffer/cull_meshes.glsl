@@ -6,7 +6,7 @@
 
 #extension GL_EXT_debug_printf : enable
 
-#if defined(CullMeshesCommandBase_COMMAND)
+#if defined(CullMeshesCommand_COMMAND)
 layout(local_size_x = 32) in;
 void main()
 {

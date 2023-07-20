@@ -29,9 +29,17 @@ struct Settings
 {
     daxa_u32 enable_mesh_shader;
     daxa_u32 update_culling_information;
+    daxa_u32 render_target_x;
+    daxa_u32 render_target_y;
 #if __cplusplus
     auto operator <=>(Settings const & other) const = default;
 #endif
+};
+
+struct Samplers
+{
+    daxa_SamplerId linear_clamp;
+    daxa_SamplerId nearest_clamp;
 };
 
 struct ShaderGlobals
@@ -43,6 +51,7 @@ struct ShaderGlobals
     daxa_u32 frame_index;
     daxa_f32 delta_time;
     Settings settings;
+    Samplers samplers;
 };
 DAXA_DECL_BUFFER_PTR(ShaderGlobals)
 

@@ -5,7 +5,7 @@
 
 #include "cull_util.glsl"
 
-#if defined(CullMeshletsCommandWriteBase_COMMAND)
+#if defined(CullMeshletsCommandWrite_COMMAND)
 layout(local_size_x = 32) in;
 void main()
 {

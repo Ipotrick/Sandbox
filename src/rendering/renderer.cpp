@@ -7,6 +7,7 @@
 #include "rasterize_visbuffer/cull_meshlets.inl"
 #include "rasterize_visbuffer/analyze_visbuffer.inl"
 #include "rasterize_visbuffer/filter_visible_triangles.inl"
+#include "rasterize_visbuffer/gen_hiz.inl"
 
 #include "tasks/prefix_sum.inl"
 #include "tasks/write_swapchain.inl"
@@ -285,6 +286,8 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
 
     context->settings.enable_mesh_shader = 0;
     context->settings.update_culling_information = 1;
+    context->settings.render_target_x = window->size.x;
+    context->settings.render_target_y = window->size.y;
 
     main_task_list = create_main_task_list();
 }
@@ -322,18 +325,19 @@ void Renderer::compile_pipelines()
         this->context->raster_pipelines[name] = compilation_result.value();
     }
     std::vector<std::tuple<std::string_view, daxa::ComputePipelineCompileInfo>> computes = {
+        {GEN_HIZ_PIPELINE_COMPILE_INFO.name, GEN_HIZ_PIPELINE_COMPILE_INFO},
         {FilterVisibleTrianglesWriteCommandTask::NAME, FilterVisibleTrianglesWriteCommandTask::PIPELINE_COMPILE_INFO},
         {FilterVisibleTrianglesTask::NAME, FilterVisibleTrianglesTask::PIPELINE_COMPILE_INFO},
         {AnalyzeVisBufferTask::NAME, AnalyzeVisBufferTask::PIPELINE_COMPILE_INFO},
         {WriteSwapchainTask::NAME, WriteSwapchainTask::PIPELINE_COMPILE_INFO},
         {DrawVisbufferWriteCommandTask::NAME, DrawVisbufferWriteCommandTask::PIPELINE_COMPILE_INFO},
-        {CullMeshesCommandWrite::NAME, CullMeshesCommandWrite::PIPELINE_COMPILE_INFO},
-        {CullMeshes::NAME, CullMeshes::PIPELINE_COMPILE_INFO},
-        {PrefixSumCommandWrite::NAME, PrefixSumCommandWrite::PIPELINE_COMPILE_INFO},
+        {CullMeshesCommandWriteTask::NAME, CullMeshesCommandWriteTask::PIPELINE_COMPILE_INFO},
+        {CullMeshesTask::NAME, CullMeshesTask::PIPELINE_COMPILE_INFO},
+        {PrefixSumCommandWriteTask::NAME, PrefixSumCommandWriteTask::PIPELINE_COMPILE_INFO},
         {PrefixSumUpsweepTask::NAME, PrefixSumUpsweepTask::PIPELINE_COMPILE_INFO},
         {PrefixSumDownsweepTask::NAME, PrefixSumDownsweepTask::PIPELINE_COMPILE_INFO},
-        {CullMeshletsCommandWrite::NAME, CullMeshletsCommandWrite::PIPELINE_COMPILE_INFO},
-        {CullMeshlets::NAME, CullMeshlets::PIPELINE_COMPILE_INFO},
+        {CullMeshletsCommandWriteTask::NAME, CullMeshletsCommandWriteTask::PIPELINE_COMPILE_INFO},
+        {CullMeshletsTask::NAME, CullMeshletsTask::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : computes)
     {
@@ -468,9 +472,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         },
         DRAW_VISBUFFER_TRIANGLES,
         DRAW_VISBUFFER_DEPTH_ONLY);
-    //  After the visible triangles of the last frame are drawn, we must test if something else became visible between frames.
-    //  For that we need a hiz depth map to cull meshes, meshlets and triangles efficiently.
-    //  TODO: build hiz
+    auto hiz = task_gen_hiz(context, task_list, depth);
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
         .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_INSTANTIATED_MESHLETS * 2,
         .name = "meshlet_cull_indirect_args",
@@ -593,6 +595,8 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
         std::cout << "Successfully reloaded!\n";
     }
     u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % (context->swapchain.info().max_allowed_frames_in_flight + 1);
+    context->settings.render_target_x = this->window->size.x;
+    context->settings.render_target_y = this->window->size.y;
 
     bool const settings_changed = context->settings != context->prev_settings;
     if (settings_changed)

@@ -63,9 +63,9 @@ void CameraController::process_input(Window &window, f32 dt)
         {
             position -= fake_up * speed * dt;
         }
-        pitch += window.get_cursor_change_y() * cameraSwaySpeed;
+        pitch += std::clamp(window.get_cursor_change_y(), -30, 30) * cameraSwaySpeed;
         pitch = std::clamp(pitch, -85.0f, 85.0f);
-        yaw += window.get_cursor_change_x() * cameraSwaySpeed;
+        yaw += std::clamp(window.get_cursor_change_x(), -30, 30) * cameraSwaySpeed;
     }
     forward.x = -glm::cos(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
     forward.y = glm::sin(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
@@ -140,7 +140,7 @@ auto Application::run() -> i32
     while (keep_running)
     {
         auto new_time_point = std::chrono::steady_clock::now();
-        this->delta_time = std::chrono::duration_cast<FpMilliseconds>(new_time_point - this->last_time_point).count();
+        this->delta_time = std::chrono::duration_cast<FpMilliseconds>(new_time_point - this->last_time_point).count() * 0.001f;
         this->last_time_point = new_time_point;
         window.update(delta_time);
         keep_running &= !static_cast<bool>(glfwWindowShouldClose(this->window.glfw_handle));

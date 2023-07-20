@@ -14,7 +14,7 @@ struct GPUContext
     daxa::Swapchain swapchain = {};
     daxa::PipelineManager pipeline_manager = {};
     daxa::TransferMemoryPool transient_mem;
-
+    
     ShaderGlobalsBlock shader_globals = {};
     daxa::BufferId shader_globals_buffer = {};
     daxa::types::BufferDeviceAddress shader_globals_ptr = {};
