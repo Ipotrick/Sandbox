@@ -48,6 +48,10 @@ void main()
         return;
     }
     // TODO: Cull mesh.
+    if (meshlet_count == 0)
+    {
+        return;
+    }
     
     // How does this work?
     // - this is an asymertric work distribution problem

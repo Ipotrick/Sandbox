@@ -5,7 +5,7 @@
 #define SHADER_GLOBALS_SLOT 0
 
 #define MAX_SURFACE_RES_X 3840
-#define MAX_SURFACE_RES_Y 2160 
+#define MAX_SURFACE_RES_Y 2160
 
 #define MAX_INSTANTIATED_MESHES 100000u
 #define MAX_INSTANTIATED_MESHLETS 1000000u
@@ -14,13 +14,14 @@
 #define MAX_DRAWN_MESHES 100000u
 #define TRIANGLE_SIZE 12
 #define WARP_SIZE 32
+#define MAX_ENTITY_COUNT (1 << 16)
 
 #define ENABLE_MESHLET_CULLING 1
 #define ENABLE_TRIANGLE_CULLING 1
 #define ENABLE_SHADER_PRINT_DEBUG 1
 
 #if __cplusplus
-#define SHADER_ONLY(x) 
+#define SHADER_ONLY(x)
 #else
 #define SHADER_ONLY(x) x
 #endif
@@ -32,7 +33,7 @@ struct Settings
     daxa_u32 render_target_x;
     daxa_u32 render_target_y;
 #if __cplusplus
-    auto operator <=>(Settings const & other) const = default;
+    auto operator<=>(Settings const &other) const = default;
 #endif
 };
 
@@ -55,7 +56,8 @@ struct ShaderGlobals
 };
 DAXA_DECL_BUFFER_PTR(ShaderGlobals)
 
-DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
+DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT)
+ShaderGlobalsBlock
 {
     ShaderGlobals globals;
 };
@@ -80,7 +82,7 @@ SHARED_FUNCTION daxa_u32 round_up_div(daxa_u32 value, daxa_u32 div)
     return (value + div - 1) / div;
 }
 
-#define ENABLE_TASK_USES(STRUCT, NAME) 
+#define ENABLE_TASK_USES(STRUCT, NAME)
 
 struct DrawIndexedIndirectStruct
 {

@@ -47,8 +47,9 @@ using CullMeshesCommandWriteTask = WriteIndirectDispatchArgsBaseTask<
     CullMeshesCommand,
     CULL_MESHES_SHADER_PATH>;
 
-struct CullMeshesTask : CullMeshes
+struct CullMeshesTask
 {
+    DAXA_USE_TASK_HEADER(CullMeshes)
     static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO = {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{CULL_MESHES_SHADER_PATH},
@@ -76,18 +77,18 @@ void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMes
     });
 
     task_list.add_task(CullMeshesCommandWriteTask{
-        {.uses={
+        .uses={
             .u_entity_meta = uses.u_entity_meta,
             .u_command = command_buffer,
             .u_meshlet_cull_indirect_args = uses.u_meshlet_cull_indirect_args,
-        }},
+        },
         .context = context,
     });
 
     uses.u_command.handle = command_buffer;
 
     task_list.add_task(CullMeshesTask{
-        {.uses={uses}},
+        .uses={uses},
         .context = context,
     });
 }

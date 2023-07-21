@@ -21,7 +21,7 @@ void main()
     deref(u_commands[index]) = command;
     if (index == 0)
     {
-        deref(u_instantiated_meshlets).count = 0;
+        deref(u_instantiated_meshlets).second_count = 0;
     }
 }
 #else
@@ -65,25 +65,22 @@ void main()
     }
     bool culled = !is_in_frustum(ndc_bounds);
 
-    if (false)
+    const uint bitfield_uint_offset = instanced_meshlet.meshlet_index / 32;
+    const uint bitfield_uint_bit = 1u << (instanced_meshlet.meshlet_index % 32);
+    const uint entity_arena_offset = u_entity_meshlet_visibility_bitfield_offsets.entity_offsets[instanced_meshlet.entity_index].mesh_bitfield_offset[instanced_meshlet.mesh_index];
+    if (entity_arena_offset != ~0)
     {
-        EntityVisibilityBitfieldOffsets offsets = deref(u_entity_visibility_bitfield_offsets[instanced_meshlet.entity_index]);
-        const uint uint_base_offset = offsets.mesh_bitfield_offset[instanced_meshlet.mesh_index];
-        if (uint_base_offset != (~0))
-        {
-            const uint uint_offset = uint_base_offset + (instanced_meshlet.meshlet_index / 32);
-            uint mask = 1 << instanced_meshlet.meshlet_index % 32;
-            const uint bitfield_section = deref(u_meshlet_visibility_bitfield[uint_offset]);
-            const bool already_drawn_in_first_pass = (mask & bitfield_section) != 0;
-            culled = culled || already_drawn_in_first_pass;
-        }
+        const uint mask = deref(u_entity_meshlet_visibility_bitfield_arena[entity_arena_offset + bitfield_uint_offset]);
+        const bool visible_last_frame = (mask & bitfield_uint_bit) != 0;
+        culled = culled || visible_last_frame;
     }
 
     if (!culled)
 #endif
     {
-        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).count, 1);
-        deref(u_instantiated_meshlets).meshlets[out_index] = instanced_meshlet;
+        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_count, 1);
+        const uint offset = deref(u_instantiated_meshlets).first_count;
+        deref(u_instantiated_meshlets).meshlets[out_index + offset] = instanced_meshlet;
     }
 }
 #endif

@@ -66,7 +66,6 @@ daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_gr
                 auto cmd = ti.get_command_list();
                 auto & device = ti.get_device();
                 cmd.set_uniform_buffer(context->shader_globals_set_info);
-                cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
                 cmd.set_pipeline(*context->compute_pipelines.at(GEN_HIZ_PIPELINE_COMPILE_INFO.name));
                 auto const src_x = device.info_image(ti.uses[src_view].image()).size.x >> (ti.uses[src_view].handle.slice.base_mip_level);
                 auto const src_y = device.info_image(ti.uses[src_view].image()).size.y >> (ti.uses[src_view].handle.slice.base_mip_level);

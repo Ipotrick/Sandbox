@@ -12,7 +12,6 @@
 
 #if __cplusplus || defined(CullMeshletsCommandWrite_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(CullMeshletsCommandWrite, 1)
-    DAXA_TASK_USE_BUFFER(u_mesh_draw_list, daxa_BufferPtr(MeshDrawList), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullIndirectArgTable), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_commands, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
     DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
@@ -21,13 +20,12 @@ DAXA_DECL_TASK_USES_END()
 #if __cplusplus || !defined(CullMeshletsCommandWrite_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(CullMeshlets, 1)
     DAXA_TASK_USE_BUFFER(u_commands, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
-    DAXA_TASK_USE_BUFFER(u_mesh_draw_list, daxa_BufferPtr(MeshDrawList), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullIndirectArgTable), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_entity_meta_data, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
-    DAXA_TASK_USE_BUFFER(u_entity_visibility_bitfield_offsets, daxa_BufferPtr(EntityVisibilityBitfieldOffsets), COMPUTE_SHADER_READ)
-    DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshletVisibilityBitfieldOffsetsView, COMPUTE_SHADER_READ)
+    DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_arena, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
     DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -50,8 +48,9 @@ using CullMeshletsCommandWriteTask = WriteIndirectDispatchArgsBaseTask<
     CULL_MESHLETS_SHADER_PATH
 >;
 
-struct CullMeshletsTask : CullMeshlets
+struct CullMeshletsTask
 {
+    DAXA_USE_TASK_HEADER(CullMeshlets)
     inline static const daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{CULL_MESHLETS_SHADER_PATH},
@@ -80,20 +79,19 @@ struct CullMeshletsTask : CullMeshlets
     }
 };
 
-void task_cull_meshlets(GPUContext * context, daxa::TaskGraph & task_list, CullMeshletsTask::Uses uses)
+void task_cull_meshlets(GPUContext * context, daxa::TaskGraph & task_list, CullMeshlets::Uses uses)
 {
     auto cull_meshlets_commands = task_list.create_transient_buffer({sizeof(DispatchIndirectStruct) * 32, "cull meshlets commands"});
     task_list.add_task(CullMeshletsCommandWriteTask{
-        {.uses={
-            .u_mesh_draw_list = uses.u_mesh_draw_list, 
+        .uses={
             .u_meshlet_cull_indirect_args = uses.u_meshlet_cull_indirect_args,
             .u_commands = cull_meshlets_commands,
-            .u_instantiated_meshlets = uses.u_instantiated_meshlets,}
+            .u_instantiated_meshlets = uses.u_instantiated_meshlets,
         },
-        context
+        .context = context,
     });
     uses.u_commands.handle = cull_meshlets_commands;
-    task_list.add_task(CullMeshletsTask{{.uses = uses}, context});
+    task_list.add_task(CullMeshletsTask{.uses = uses, .context=context});
 }
 
 #endif

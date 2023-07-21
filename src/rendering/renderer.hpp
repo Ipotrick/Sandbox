@@ -36,22 +36,10 @@ struct Renderer
     daxa::TaskBuffer entity_next_silbings = {};
     daxa::TaskBuffer entity_parents = {};
     daxa::TaskBuffer entity_meshlists = {};
-    // Each entity has up 7 offsets into the visiblility bitfield. 
-    daxa::TaskBuffer entity_visibility_bitfield_offsets = {};
-    // The visibility bitfield is a list of per meshlet bitfields.
-    // The bitfield is segmented into uvec4's. Each uvec4 stores 128 bits.
-    // Each bit represents the visibility of a triagle, each uvec4 is a segment representing a meshlet.
-    // The bitfield segments are per entity.
-    daxa::TaskBuffer entity_visibility_bitfield = {};
-    daxa::TaskBuffer entity_debug = {};
 
-    // We need the prev frame meshlets in order to efficiently access the entity visibility bitmasks.
-    daxa::TaskBuffer instantiated_meshlets_last_frame = {};
-    daxa::TaskBuffer initial_pass_triangles = {};
-    daxa::TaskBuffer mesh_draw_list = {};
     daxa::TaskBuffer instantiated_meshlets = {};
-    daxa::TaskBuffer triangle_draw_list = {};
-    daxa::TaskBuffer visible_triangles = {};
+    daxa::TaskBuffer instantiated_meshlets_prev = {};
+    daxa::TaskBuffer visible_meshlets = {};
 
     std::vector<daxa::TaskBuffer> buffers = {};
 

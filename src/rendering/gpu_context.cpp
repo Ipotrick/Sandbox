@@ -76,6 +76,11 @@ GPUContext::GPUContext(Window const &window)
     };
 }
 
+auto GPUContext::dummy_string() -> std::string
+{
+    return std::string("dummy - ") + std::to_string(counter++);
+}
+
 GPUContext::~GPUContext()
 {
     device.destroy_buffer(shader_globals_buffer);

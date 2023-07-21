@@ -35,8 +35,9 @@ using FilterVisibleTrianglesWriteCommandTask = WriteIndirectDispatchArgsBaseTask
     FilterVisibleTrianglesWriteCommand,
     FILTER_VISIBLE_TRIANGLES_PATH>;
 
-struct FilterVisibleTrianglesTask : FilterVisibleTriangles
+struct FilterVisibleTrianglesTask
 {
+    DAXA_USE_TASK_HEADER(FilterVisibleTriangles)
     inline static const daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO{
         .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{FILTER_VISIBLE_TRIANGLES_PATH}},
         .name = std::string{FilterVisibleTriangles::NAME},
@@ -61,16 +62,16 @@ void task_filter_visible_triangles(GPUContext * context, daxa::TaskGraph & task_
         .name = "task_filter_visible_triangles command_buffer",
     });
     task_graph.add_task(FilterVisibleTrianglesWriteCommandTask{
-        {.uses={
+        .uses={
             .u_instantiated_meshlets = uses.u_instantiated_meshlets,
             .u_command = command_buffer,
-        }},
-        context,
+        },
+        .context = context,
     });
     uses.u_command.handle = command_buffer;
     task_graph.add_task(FilterVisibleTrianglesTask{
-        {.uses=uses},
-        context,
+        .uses=uses,
+        .context=context,
     });
 }
 

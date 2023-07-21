@@ -13,17 +13,38 @@ void main()
 {
     const uint index = gl_LocalInvocationID.x;
     DrawIndirectStruct command;
-    if (push.tris_or_meshlets != 0)
+    switch (push.mode)
     {
-        const uint triangles_to_draw = deref(u_triangle_list).count;
-        command.vertex_count = triangles_to_draw * 3;
-        command.instance_count = 1;
-    }
-    else
-    {
-        const uint total_instantiated_meshlet_count = deref(u_instantiated_meshlets).count;
-        command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
-        command.instance_count = total_instantiated_meshlet_count;
+        case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
+        {
+            uint total_instantiated_meshlet_count = 0;
+            if (push.pass == DRAW_FIRST_PASS)
+            {
+                total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count;
+            }
+            else
+            {
+                total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_count;
+            }
+            command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
+            command.instance_count = total_instantiated_meshlet_count;
+            break;
+        }
+        case DRAW_VISBUFFER_MESHLETS_INDIRECT:
+        {
+            const uint visible_meshlet_count = deref(u_meshlet_list).count;
+            command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
+            command.instance_count = visible_meshlet_count;
+            break;
+        }
+        case DRAW_VISBUFFER_TRIANGLES:
+        {
+            const uint triangles_to_draw = deref(u_triangle_list).count;
+            command.vertex_count = triangles_to_draw * 3;
+            command.instance_count = 1;
+            break;
+        }
+        default: break;
     }
     command.first_vertex = 0;
     command.first_instance = 0;
@@ -51,7 +72,7 @@ void main()
     const uint triangle_corner_index = gl_VertexIndex % 3;
     uint inst_meshlet_index;
     uint triangle_index;
-    switch (push.tris_or_meshlets)
+    switch (push.mode)
     {
         case DRAW_VISBUFFER_TRIANGLES:
         {
@@ -59,13 +80,22 @@ void main()
             decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
             break;
         }
-        case DRAW_VISBUFFER_MESHLETS:
+        case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
         {
-            inst_meshlet_index = gl_InstanceIndex;
+            const uint meshlet_offset = push.pass == DRAW_FIRST_PASS ? 0 : deref(u_instantiated_meshlets).first_count;
+            inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
             triangle_index = gl_VertexIndex / 3;
+            break;
+        }
+        case DRAW_VISBUFFER_MESHLETS_INDIRECT:
+        {
+            inst_meshlet_index = deref(u_meshlet_list).meshlet_ids[gl_InstanceIndex];
+            triangle_index = gl_VertexIndex / 3;
+            break;
         }
         default: break;
     }
+    //return;
 
     // InstantiatedMeshlet:
     // daxa_u32 entity_index;
@@ -97,12 +127,6 @@ void main()
         gl_Position = vec4(2,2,2,1);
         return;
     }
-
-    //if (gl_VertexIndex == 346)
-    //{
-    //    debugPrintfEXT("meshlet: %u, triangle: %u, triangle corner: %u\n meshlet_count of mesh: %u\n, triangle count of meshlet: %u\n", 
-    //                    instantiated_meshlet.meshlet_index, triangle_index, triangle_corner_index, mesh.meshlet_count, meshlet.triangle_count);
-    //}
 
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
     const uint micro_index = get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + triangle_corner_index);

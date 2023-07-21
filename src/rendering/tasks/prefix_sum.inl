@@ -68,8 +68,9 @@ using PrefixSumCommandWriteTask = WriteIndirectDispatchArgsPushBaseTask<
 >;
 
 // Sums n <= 1024 values up. Always writes 1024 values out (for simplicity in multi pass).
-struct PrefixSumUpsweepTask : PrefixSumUpsweep
+struct PrefixSumUpsweepTask
 {
+    DAXA_USE_TASK_HEADER(PrefixSumUpsweep)
     static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO = {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{PREFIX_SUM_SHADER_PATH},
@@ -96,8 +97,9 @@ struct PrefixSumUpsweepTask : PrefixSumUpsweep
     }
 };
 
-struct PrefixSumDownsweepTask : PrefixSumDownsweep
+struct PrefixSumDownsweepTask
 {
+    DAXA_USE_TASK_HEADER(PrefixSumDownsweep)
     static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO = {
         .shader_info = daxa::ShaderCompileInfo{
             .source = daxa::ShaderFile{PREFIX_SUM_SHADER_PATH},
@@ -157,12 +159,12 @@ void task_prefix_sum(PrefixSumTaskGroupInfo info)
         .name = "prefix sum downsweep_command_buffer",
     });
     info.task_list.add_task(PrefixSumCommandWriteTask{
-        {.uses={
+        .uses={
             .u_value_count = info.value_count_buf,
             .u_upsweep_command0 = upsweep0_command_buffer,
             .u_upsweep_command1 = upsweep1_command_buffer,
             .u_downsweep_command = downsweep_command_buffer,
-        }},
+        },
         .context = info.context,
         .push = {info.value_count_uint_offset}
     });
@@ -172,12 +174,12 @@ void task_prefix_sum(PrefixSumTaskGroupInfo info)
         .name = "prefix sum block_sums_src",
     });
     info.task_list.add_task(PrefixSumUpsweepTask{
-        {.uses={
+        .uses={
             .u_command = upsweep0_command_buffer,
             .u_src = info.src_buf,
             .u_dst = info.dst_buf,
             .u_block_sums = block_sums_src,
-        }},
+        },
         .context = info.context,
         .push = {
             .uint_src_offset = info.src_uint_offset,
@@ -195,12 +197,12 @@ void task_prefix_sum(PrefixSumTaskGroupInfo info)
         .name = "prefix sum block_sums total count",
     });
     info.task_list.add_task(PrefixSumUpsweepTask{
-        {.uses={
+        .uses={
             .u_command = upsweep1_command_buffer,
             .u_src = block_sums_src,
             .u_dst = block_sums_dst,
             .u_block_sums = total_count,
-        }},
+        },
         .context = info.context,
         .push = {
             .uint_src_offset = 0,
@@ -210,11 +212,11 @@ void task_prefix_sum(PrefixSumTaskGroupInfo info)
         },
     });
     info.task_list.add_task(PrefixSumDownsweepTask{
-        {.uses={
+        .uses={
             .u_command = downsweep_command_buffer,
             .u_block_sums = block_sums_dst,
             .u_values = info.dst_buf,
-        }},
+        },
         .context = info.context,
         .push = {
             .uint_src_offset = std::numeric_limits<u32>::max(),

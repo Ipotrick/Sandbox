@@ -11,6 +11,7 @@
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferWriteCommand, 1)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_triangle_list, daxa_BufferPtr(TriangleList), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshlet_list, daxa_BufferPtr(VisibleMeshletList), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DrawIndirectStruct), COMPUTE_SHADER_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -19,6 +20,7 @@ DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
 DAXA_TASK_USE_BUFFER(u_draw_command, daxa_BufferPtr(DrawIndirectStruct), DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_triangle_list, daxa_BufferPtr(TriangleList), VERTEX_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshlet_list, daxa_BufferPtr(VisibleMeshletList), VERTEX_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), VERTEX_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
@@ -28,14 +30,19 @@ DAXA_DECL_TASK_USES_END()
 #endif
 
 #define DRAW_VISBUFFER_TRIANGLES 1
-#define DRAW_VISBUFFER_MESHLETS 0
+#define DRAW_VISBUFFER_MESHLETS_DIRECTLY 0
+#define DRAW_VISBUFFER_MESHLETS_INDIRECT 2
+
+#define DRAW_FIRST_PASS 0
+#define DRAW_SECOND_PASS 1
 
 #define DRAW_VISBUFFER_DEPTH_ONLY 1
 #define DRAW_VISBUFFER_NO_DEPTH_ONLY 0
 
 struct DrawVisbufferPush
 {
-    daxa_u32 tris_or_meshlets;
+    daxa_u32 pass;
+    daxa_u32 mode;
 };
 
 #if __cplusplus
@@ -97,13 +104,15 @@ inline static const daxa::RasterPipelineCompileInfo PIPELINE_COMPILE_INFO_DrawVi
     return ret;
 }();
 
-struct DrawVisbufferTask : DrawVisbuffer
+struct DrawVisbufferTask
 {
+    DAXA_USE_TASK_HEADER(DrawVisbuffer)
     inline static const daxa::RasterPipelineCompileInfo PIPELINE_COMPILE_INFO[2] = {
         PIPELINE_COMPILE_INFO_DrawVisbufferTask,
         PIPELINE_COMPILE_INFO_DrawVisbufferTask_DEPTH_ONLY};
     GPUContext *context = {};
-    bool tris_or_meshlets = {};
+    u32 pass = {};
+    u32 mode = {};
     bool depth_only = {};
     void callback(daxa::TaskInterface ti)
     {
@@ -117,7 +126,7 @@ struct DrawVisbufferTask : DrawVisbuffer
             .depth_attachment = daxa::RenderAttachmentInfo{
                 .image_view = depth_image.default_view(),
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                .load_op = depth_only ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
+                .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                 .store_op = daxa::AttachmentStoreOp::STORE,
                 .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
             },
@@ -132,14 +141,14 @@ struct DrawVisbufferTask : DrawVisbuffer
                 daxa::RenderAttachmentInfo{
                     .image_view = vis_image.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = daxa::AttachmentLoadOp::CLEAR,
+                    .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_PIXEL_ID, 0, 0, 0}},
                 },
                 daxa::RenderAttachmentInfo{
                     .image_view = debug_image.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = daxa::AttachmentLoadOp::CLEAR,
+                    .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<f32, 4>{1.f, 1.f, 1.f, 1.f}},
                 },
@@ -148,7 +157,8 @@ struct DrawVisbufferTask : DrawVisbuffer
         cmd.begin_renderpass(render_pass_begin_info);
         cmd.set_pipeline(*context->raster_pipelines.at(depth_only ? PIPELINE_COMPILE_INFO[1].name : PIPELINE_COMPILE_INFO[0].name));
         cmd.push_constant(DrawVisbufferPush{
-            .tris_or_meshlets = (tris_or_meshlets ? 1u : 0u),
+            .pass = pass,
+            .mode = mode,
         });
         cmd.draw_indirect({
             .draw_command_buffer = uses.u_draw_command.buffer(),
@@ -159,36 +169,54 @@ struct DrawVisbufferTask : DrawVisbuffer
     }
 };
 
-inline void task_draw_visbuffer(GPUContext *context, daxa::TaskGraph &task_graph, DrawVisbuffer::Uses uses, const bool draw_triangles, const bool depth_only)
+inline void task_draw_visbuffer(GPUContext *context, daxa::TaskGraph &task_graph, DrawVisbuffer::Uses uses, const u32 pass, const u32 mode, const bool depth_only)
 {
     auto command_buffer = task_graph.create_transient_buffer({
         .size = static_cast<u32>(sizeof(DrawIndirectStruct)),
-        .name = std::string("draw visbuffer command buffer") + (draw_triangles ? "triangles" : "meshlets") + (depth_only ? "depth only" : "full"),
+        .name = std::string("draw visbuffer command buffer") + context->dummy_string(),
     });
     uses.u_draw_command.handle = command_buffer;
-    if (!draw_triangles)
+    switch (mode)
     {
-        uses.u_triangle_list.handle = task_graph.create_transient_buffer({.size = 4, .name = "task_draw_visbuffer dummy 0"});
+        case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
+        {
+            uses.u_triangle_list.handle = task_graph.create_transient_buffer({.size = 4, .name = context->dummy_string()});
+            uses.u_meshlet_list.handle = task_graph.create_transient_buffer({.size = 4, .name = context->dummy_string()});
+            break;
+        }
+        case DRAW_VISBUFFER_MESHLETS_INDIRECT:
+        {
+            uses.u_triangle_list.handle = task_graph.create_transient_buffer({.size = 4, .name = context->dummy_string()});
+            break;
+        }
+        case DRAW_VISBUFFER_TRIANGLES:
+        {
+            uses.u_meshlet_list.handle = task_graph.create_transient_buffer({.size = 4, .name = context->dummy_string()});
+            break;
+        }
+        default: break;
     }
     task_graph.add_task(DrawVisbufferWriteCommandTask{
-        {.uses = {
+        .uses = {
             .u_instantiated_meshlets = uses.u_instantiated_meshlets.handle,
             .u_triangle_list = uses.u_triangle_list.handle,
+            .u_meshlet_list = uses.u_meshlet_list.handle,
             .u_command = uses.u_draw_command.handle,
-        }},
-        context,
-        DrawVisbufferPush{.tris_or_meshlets = draw_triangles},
+        },
+        .context = context,
+        .push = DrawVisbufferPush{.pass = pass, .mode = mode },
     });
     if (depth_only)
     {
-        uses.u_debug_image.handle = task_graph.create_transient_image({.size = {1, 1, 1}, .name = "task_draw_visbuffer dummy 1"});
-        uses.u_vis_image.handle = task_graph.create_transient_image({.size = {1, 1, 1}, .name = "task_draw_visbuffer dummy 2"});
+        uses.u_debug_image.handle = task_graph.create_transient_image({.size = {1, 1, 1}, .name = context->dummy_string()});
+        uses.u_vis_image.handle = task_graph.create_transient_image({.size = {1, 1, 1}, .name = context->dummy_string()});
     }
     task_graph.add_task(DrawVisbufferTask{
-        {.uses = uses},
-        context,
-        draw_triangles,
-        depth_only,
+        .uses = uses,
+        .context = context,
+        .pass = pass,
+        .mode = mode,
+        .depth_only = depth_only,
     });
 }
 

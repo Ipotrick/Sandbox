@@ -25,8 +25,9 @@ struct WriteSwapchainPush
 
 #include "../gpu_context.hpp"
 
-struct WriteSwapchainTask : WriteSwapchain
+struct WriteSwapchainTask
 {
+    DAXA_USE_TASK_HEADER(WriteSwapchain)
     static const inline daxa::ComputePipelineCompileInfo PIPELINE_COMPILE_INFO{
         .shader_info = daxa::ShaderCompileInfo{daxa::ShaderFile{"./src/rendering/tasks/write_swapchain.glsl"}},
         .push_constant_size = sizeof(WriteSwapchainPush),

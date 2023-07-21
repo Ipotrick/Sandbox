@@ -118,50 +118,9 @@ uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offs
 }
 #endif // #if defined(DAXA_SHADER)
 
-struct EntityVisibilityBitfieldOffsets
+struct MeshList
 {
-    daxa_u32 mesh_bitfield_offset[7];
-    daxa_u32 padd;
+    daxa_u32 mesh_ids[7];
+    daxa_u32 count;
 };
-DAXA_DECL_BUFFER_PTR(EntityVisibilityBitfieldOffsets)
-
-// mesh.meshlets.get[index]
-
-// Meshlet rendering strategy:
-// There will be the following persistent buffers:
-// 0. start a list of instantiated meshlets
-///   * first content is just the visible meshlets from last frame
-// 1. draw the current list of instantiated meshlets (currently only visible meshlets from last frame)
-// 2. generate HIZ buffer from current depth
-// 3. cull vs HIZ
-//    * cull frustum first
-//    * cull object
-//    * cull mesh
-//    * cull meshlets (ignore meshlets that have already been drawn, need to store a list of already drawn meshlets per mesh for that)
-//    * write result out to another indirect dispatch buffer for full draw pass
-// 4. draw culled results
-// 5. visbuffer scan pass:
-//    * compute pass
-//    * large workgroup, 16x16 (maybe smaller or bigger, depends on how well it runs)
-//    * scan for visible meshlets by looking at all object and meshlet ids in the visbuffer, mark visible meshlets in a per mesh list
-//    * draw to a fake depth texture what material what pixel is (one depth value per material 16bit)
-//    * mark tiles (16x16) on features like if they contain material X at all into a bitfield (16bit)
-//    * fill indirect dispatch buffer for material passes, only queue a material pass for the tile if it contains material X
-// 6. opaque material pass
-//    * 16x16 tile quads indirect dispatches for all materials for the whole screen.
-//    * now use material depth texture as real depth texture with depth equal. Render each material quad at its fake depth material. This abuses the early z test hardware to pack threads into efficient waves.
-// 7. to prefix sum on all objects meshes and meshlets for visibility
-// 8. write out new visible meshlet buffer, using the prefix sum values per meshlet.
-
-// There are 4 renderpaths planned, and will be implemented in the following order:
-// 1. multi draw indirect, one indirect draw enty per meshlet
-// 2. index buffer expansion, one draw for everything
-// 3. non indexed, one draw indirect for everything
-// 3. mesh shaders (way later)
-
-// There are 2 shading pipelines planned:
-// 1. Culled Indirect vis buffer shading (aka Unreal 5 rearly depth test material trick)
-// 2. Culled forward
-// 3. Brute force forward
-
-// Dynamic Ligghts will first be bruteforced then later 3d volume cluster culled.
+DAXA_DECL_BUFFER_PTR(MeshList)
