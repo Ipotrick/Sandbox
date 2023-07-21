@@ -111,7 +111,7 @@ void main()
     // daxa_BufferPtr(daxa_u32) micro_indices;
     // daxa_BufferPtr(daxa_u32) indirect_vertices;
     // daxa_BufferPtr(daxa_f32vec3) vertex_positions;
-    Mesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
+    Mesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id)); 
     
     // Meshlet:
     // daxa_u32 indirect_vertex_offset;
@@ -133,6 +133,7 @@ void main()
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const vec4 pos = globals.camera_view_projection * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
+    //debugPrintfEXT("post transform pos: (%f,%f,%f,%f\n", pos.x,pos.y,pos.z,pos.w);
 
     #if !DEPTH_ONLY
         vout_triangle_index = triangle_index;

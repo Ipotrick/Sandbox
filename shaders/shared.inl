@@ -28,12 +28,13 @@
 
 struct Settings
 {
+    daxa_u32vec2 render_target_size;
+    daxa_f32vec2 render_target_size_inv;
     daxa_u32 enable_mesh_shader;
     daxa_u32 update_culling_information;
-    daxa_u32 render_target_x;
-    daxa_u32 render_target_y;
 #if __cplusplus
-    auto operator<=>(Settings const &other) const = default;
+    auto operator==(Settings const &other) const -> bool = default;
+    auto operator!=(Settings const &other) const -> bool = default;
 #endif
 };
 
@@ -45,10 +46,17 @@ struct Samplers
 
 struct ShaderGlobals
 {
+
     daxa_f32mat4x4 camera_view;
     daxa_f32mat4x4 camera_projection;
     daxa_f32mat4x4 camera_view_projection;
+    daxa_f32vec3 camera_pos;
+    daxa_f32vec3 camera_up;
+    daxa_f32mat4x4 cull_camera_view;
+    daxa_f32mat4x4 cull_camera_projection;
     daxa_f32mat4x4 cull_camera_view_projection;
+    daxa_f32vec3 cull_camera_pos;
+    daxa_f32vec3 cull_camera_up;
     daxa_u32 frame_index;
     daxa_f32 delta_time;
     Settings settings;

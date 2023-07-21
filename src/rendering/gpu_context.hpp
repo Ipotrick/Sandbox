@@ -28,10 +28,6 @@ struct GPUContext
     Settings prev_settings = {};
     Settings settings = {};
 
-    usize total_meshlet_count = {};
-
-    u32 meshlet_sums_step2_dispatch_size = {}; // (scene->entity_meta.entity_count + PREFIX_SUM_WORKGROUP_SIZE - 1) / PREFIX_SUM_WORKGROUP_SIZE)
-
     u32 counter = {};
     auto dummy_string() -> std::string;
 };

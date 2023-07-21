@@ -33,7 +33,7 @@ struct Scene
         daxa::BufferId b_entity_next_siblings,
         daxa::BufferId b_entity_parents,
         daxa::BufferId b_entity_meshlists);
-    void set_combined_transforms();
+    void process_transforms();
 };
 
 struct SceneLoader

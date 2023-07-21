@@ -71,7 +71,7 @@ inline static const daxa::RasterPipelineCompileInfo PIPELINE_COMPILE_INFO_DrawVi
         .depth_attachment_format = daxa::Format::D32_SFLOAT,
         .enable_depth_test = true,
         .enable_depth_write = true,
-        .depth_test_compare_op = daxa::CompareOp::GREATER_OR_EQUAL,
+        .depth_test_compare_op = daxa::CompareOp::GREATER,
         .min_depth_bounds = 0.0f,
         .max_depth_bounds = 1.0f,
     },

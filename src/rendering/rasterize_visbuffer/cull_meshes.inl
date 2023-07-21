@@ -32,6 +32,7 @@ DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHAD
 DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_IMAGE(u_hiz, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
 BUFFER_COMPUTE_WRITE(u_meshlet_cull_indirect_args, MeshletCullIndirectArgTable)
 DAXA_DECL_TASK_USES_END()
 #endif

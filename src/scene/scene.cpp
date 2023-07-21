@@ -67,7 +67,33 @@ void Scene::record_full_entity_update(
     upload(this->entity_meshlists, b_entity_meshlists, MeshList{}, MAX_ENTITY_COUNT);
 }
 
-void Scene::set_combined_transforms()
+//template<typename T, size_t N, size_t M>
+//auto transpose(daxa::detail::GenericMatrix<T,N,M> mat) -> daxa::detail::GenericMatrix<T,M,N>
+//{
+//    daxa::types::GenericMatrix<T,M,N> ret = {};
+//    for (u32 y = 0; y < M; ++y)
+//    {
+//        for (u32 x = 0; x < N; ++x)
+//        {
+//            ret[y][x] = mat[x][y];
+//        }
+//    }
+//    return ret;
+//}
+
+
+template<typename T, size_t N, size_t M>
+auto y_to_z_up(daxa::detail::GenericMatrix<T,N,M> mat) -> daxa::detail::GenericMatrix<T,N,M>
+{
+    return mat * daxa::types::f32mat4x4{{
+        {1,0,0,0},
+        {0,0,1,0},
+        {0,1,0,0},
+        {0,0,0,1},
+    }};
+}
+
+void Scene::process_transforms()
 {
     for (u32 entity_index = 0; entity_index < entity_meta.entity_count; ++entity_index)
     {
@@ -79,6 +105,18 @@ void Scene::set_combined_transforms()
             parent = entity_parents[parent.index];
         }
         entity_combined_transforms[entity_index] = combined_transform;
+    }
+    for (u32 entity_index = 0; entity_index < entity_meta.entity_count; ++entity_index)
+    {
+        // daxa and assimg matrices are stored row major, glsl wants them column major...
+        daxa::types::f32mat4x4 transform = entity_transforms[entity_index];
+        transform = transpose(transform);
+        transform = y_to_z_up(transform);
+        entity_transforms[entity_index] = transform;
+        transform = entity_combined_transforms[entity_index];
+        transform = transpose(transform);
+        transform = y_to_z_up(transform);
+        entity_combined_transforms[entity_index] = transform;
     }
 }
 

@@ -51,8 +51,16 @@ void main()
 #if ENABLE_MESHLET_CULLING
     // daxa_f32vec3 center;
     // daxa_f32 radius;
+    mat4x4 model_matrix = deref(u_entity_combined_transforms[instanced_meshlet.entity_index]);
+    const float model_scaling_x_squared = dot(model_matrix[0],model_matrix[0]);
+    const float model_scaling_y_squared = dot(model_matrix[1],model_matrix[1]);
+    const float model_scaling_z_squared = dot(model_matrix[2],model_matrix[2]);
+    const float radius_scaling = sqrt(max(max(model_scaling_x_squared,model_scaling_y_squared), model_scaling_z_squared));
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
-
+    const vec3 ws_center = (model_matrix * vec4(bounds.center, 1)).xyz;
+    const vec3 center_to_camera = normalize(globals.cull_camera_pos - ws_center);
+    const vec3 tangential_up = normalize(globals.cull_camera_up - center_to_camera * dot(center_to_camera, globals.cull_camera_up));
+    const vec3 tangent_left = -cross(tangential_up, center_to_camera);
     NdcBounds ndc_bounds;
     init_ndc_bounds(ndc_bounds);
     // construct bounding box from bounding sphere,
@@ -63,14 +71,37 @@ void main()
         {
             for (int x = -1; x <= 1; x += 2)
             {
-                const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * vec3(x,y,z);
-                const vec4 projected_pos = globals.cull_camera_view_projection * vec4(bounding_box_corner_ws, 1);
+                // TODO: make this use a precalculated obb, not this shit sphere derived one.
+                const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * (center_to_camera * z + tangential_up * y + tangent_left * x);
+                const vec4 projected_pos = globals.cull_camera_view_projection * model_matrix * vec4(bounding_box_corner_ws, 1);
                 const vec3 ndc_pos = projected_pos.xyz / projected_pos.w;
                 add_vertex_to_ndc_bounds(ndc_bounds, ndc_pos);
             }
         }
     }
-    bool culled = false;//!is_in_frustum(ndc_bounds);
+    bool culled = !is_in_frustum(ndc_bounds);
+
+    if (!culled && ndc_bounds.ndc_min.z > 0.0f)
+    {
+        const vec2 f_hiz_resolution = vec2(globals.settings.render_target_size / 2 /*hiz is half res*/);
+        const vec2 min_texel_i = floor(min(f_hiz_resolution * (ndc_bounds.ndc_min.xy + 1.0f) * 0.5f, f_hiz_resolution - 1.0f));
+        const vec2 max_texel_i = floor(min(f_hiz_resolution * (ndc_bounds.ndc_max.xy + 1.0f) * 0.5f, f_hiz_resolution - 1.0f));
+        const float pixel_range = max(max_texel_i.x - min_texel_i.x + 1.0f, max_texel_i.y - min_texel_i.y + 1.0f);
+        const float half_pixel_range = max(1.0f, pixel_range * 0.5f /* we will read a area 2x2 */);
+        const float mip = ceil(log2(half_pixel_range));
+
+        const ivec2 quad_corner_texel = ivec2(min_texel_i) >> uint(mip);
+
+        vec4 fetch = vec4(
+            texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(0,0), int(mip)).x,
+            texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(0,1), int(mip)).x,
+            texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(1,0), int(mip)).x,
+            texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(1,1), int(mip)).x
+        );
+        const float depth = min(min(fetch.x,fetch.y), min(fetch.z, fetch.w));
+        const bool depth_cull = (depth > ndc_bounds.ndc_max.z);
+        culled = culled || depth_cull;
+    }
 
     const uint bitfield_uint_offset = instanced_meshlet.meshlet_index / 32;
     const uint bitfield_uint_bit = 1u << (instanced_meshlet.meshlet_index % 32);
@@ -81,8 +112,6 @@ void main()
         const bool visible_last_frame = (mask & bitfield_uint_bit) != 0;
         culled = culled || visible_last_frame;
     }
-
-
 
     if (!culled)
 #endif

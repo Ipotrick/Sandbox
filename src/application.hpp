@@ -17,9 +17,9 @@ struct CameraController {
     
     bool bZoom = false; 
     f32 fov = 70.0f;
-    f32 near =  20.0f;
+    f32 near =  0.1f;
     f32 cameraSwaySpeed = 0.05f;
-    f32 translationSpeed = 1000.0f;
+    f32 translationSpeed = 10.0f;
     glm::vec3 up = { 0.f, 0.f, 1.0f };
     glm::vec3 forward = { 0.f, 0.f, 0.f };
     glm::vec3 position = { 0.f, 1.f, 0.f };

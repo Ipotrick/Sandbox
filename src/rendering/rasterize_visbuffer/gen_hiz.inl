@@ -34,7 +34,7 @@ inline static const daxa::ComputePipelineCompileInfo GEN_HIZ_PIPELINE_COMPILE_IN
 
 daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_graph, daxa::TaskImageView src)
 {
-    const u32vec2 hiz_size = u32vec2(context->settings.render_target_x / 2, context->settings.render_target_y / 2);
+    const u32vec2 hiz_size = u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
     const u32 mips = static_cast<u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
     daxa::TaskImageView hiz = task_graph.create_transient_image({
         .format = daxa::Format::R32_SFLOAT,

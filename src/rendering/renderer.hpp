@@ -11,6 +11,8 @@ struct CameraInfo
     glm::mat4 view = {};
     glm::mat4 proj = {};
     glm::mat4 vp = {};
+    glm::vec3 pos = {};
+    glm::vec3 up = {};
 };
 
 // Renderer struct.
@@ -25,6 +27,7 @@ struct Renderer
     void clear_select_buffers();
     void window_resized();
     auto create_main_task_list() -> daxa::TaskGraph;
+    void update_settings();
     void render_frame(CameraInfo const &camera_info, f32 const delta_time);
 
     daxa::TaskBuffer zero_buffer = {};

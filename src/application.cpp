@@ -98,6 +98,8 @@ void CameraController::update_matrices(Window &window)
     this->cam_info.proj = prespective;
     this->cam_info.view = glm::lookAt(position, position + forward, up);
     this->cam_info.vp = this->cam_info.proj * this->cam_info.view;
+    this->cam_info.pos = this->position;
+    this->cam_info.up = this->up;
 }
 
 Application::Application()
@@ -109,7 +111,7 @@ Application::Application()
 {
     this->scene_loader = SceneLoader{"./assets/"};
     this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
-    this->scene.set_combined_transforms();
+    this->scene.process_transforms();
     auto cmd = this->asset_manager.get_update_commands().value();
     auto cmd2 = this->gpu_context.device.create_command_list({});
     this->scene.record_full_entity_update(
