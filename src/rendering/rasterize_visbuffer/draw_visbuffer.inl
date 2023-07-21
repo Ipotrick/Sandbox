@@ -36,6 +36,7 @@ DAXA_DECL_TASK_USES_END()
 
 #define DRAW_FIRST_PASS 0
 #define DRAW_SECOND_PASS 1
+#define DRAW_OBSERVER_PASS 2
 
 #define DRAW_VISBUFFER_DEPTH_ONLY 1
 #define DRAW_VISBUFFER_NO_DEPTH_ONLY 0
@@ -123,11 +124,13 @@ struct DrawVisbufferTask
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
+        const bool clear_images = pass == DRAW_FIRST_PASS || pass == DRAW_OBSERVER_PASS;
+        auto load_op = clear_images ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD;
         daxa::RenderPassBeginInfo render_pass_begin_info{
             .depth_attachment = daxa::RenderAttachmentInfo{
                 .image_view = depth_image.default_view(),
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
+                .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
                 .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
             },
@@ -142,14 +145,14 @@ struct DrawVisbufferTask
                 daxa::RenderAttachmentInfo{
                     .image_view = vis_image.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
+                    .load_op = load_op,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_PIXEL_ID, 0, 0, 0}},
                 },
                 daxa::RenderAttachmentInfo{
                     .image_view = debug_image.default_view(),
                     .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
-                    .load_op = pass == DRAW_FIRST_PASS ? daxa::AttachmentLoadOp::CLEAR : daxa::AttachmentLoadOp::LOAD,
+                    .load_op = load_op,
                     .store_op = daxa::AttachmentStoreOp::STORE,
                     .clear_value = daxa::ClearValue{std::array<f32, 4>{1.f, 1.f, 1.f, 1.f}},
                 },

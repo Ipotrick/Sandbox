@@ -212,7 +212,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     compile_pipelines();
 
     context->settings.enable_mesh_shader = 0;
-    context->settings.update_culling_information = 1;
+    context->settings.enable_observer = 0;
     update_settings();
     main_task_list = create_main_task_list();
 }
@@ -465,6 +465,26 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         },
         .context = context,
     });
+    if (context->settings.enable_observer)
+    {
+        task_draw_visbuffer(
+            context,
+            task_list,
+            {
+                .u_draw_command = {},  // Set inside the function in case of meshlet draw
+                .u_triangle_list = {}, // Only used for triangle draw
+                .u_meshlet_list = {},
+                .u_instantiated_meshlets = instantiated_meshlets,
+                .u_meshes = asset_manager->tmeshes,
+                .u_combined_transforms = entity_combined_transforms,
+                .u_vis_image = visbuffer,
+                .u_debug_image = debug_image,
+                .u_depth_image = depth,
+            },
+            DRAW_OBSERVER_PASS,
+            DRAW_VISBUFFER_MESHLETS_DIRECTLY,
+            DRAW_VISBUFFER_NO_DEPTH_ONLY);
+    }
     task_list.add_task(WriteSwapchainTask{
         .uses = {
             .swapchain = swapchain_image,
@@ -502,7 +522,6 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     {
         std::cout << "Successfully reloaded!\n";
     }
-    this->context->prev_settings = this->context->settings;
     u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % (context->swapchain.info().max_allowed_frames_in_flight + 1);
     daxa::u32vec2 render_target_size = {static_cast<u32>(this->window->size.x), static_cast<u32>(this->window->size.y)};
     this->update_settings();
@@ -512,23 +531,27 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     {
         this->main_task_list = create_main_task_list();
     }
+    this->context->prev_settings = this->context->settings;
 
     // Set Shader Globals.
     this->context->shader_globals.globals.settings = this->context->settings;
     this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
     this->context->shader_globals.globals.delta_time = delta_time;
-    this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-    this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-    this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-    this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-    this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-    if (context->settings.update_culling_information)
+    if (this->context->settings.enable_observer)
     {
-        this->context->shader_globals.globals.cull_camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-        this->context->shader_globals.globals.cull_camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-        this->context->shader_globals.globals.cull_camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-        this->context->shader_globals.globals.cull_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-        this->context->shader_globals.globals.cull_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+        this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
+        this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
+        this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+        this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+        this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    }
+    else
+    {
+        this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
+        this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
+        this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+        this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+        this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
     }
     // Upload Shader Globals.
     context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;

@@ -169,8 +169,8 @@ void Application::update()
     camera_controller.update_matrices(this->window);
     if (window.key_just_pressed(GLFW_KEY_H))
     {
-        std::cout << "switched update_culling_information from " << renderer.context->settings.update_culling_information << " to " << !(renderer.context->settings.update_culling_information) << std::endl;
-        renderer.context->settings.update_culling_information = !renderer.context->settings.update_culling_information;
+        std::cout << "switched enable_observer from " << renderer.context->settings.enable_observer << " to " << !(renderer.context->settings.enable_observer) << std::endl;
+        renderer.context->settings.enable_observer = !renderer.context->settings.enable_observer;
     }
 }
 

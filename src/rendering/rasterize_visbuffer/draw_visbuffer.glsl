@@ -18,13 +18,24 @@ void main()
         case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
         {
             uint total_instantiated_meshlet_count = 0;
-            if (push.pass == DRAW_FIRST_PASS)
+            switch (push.pass)
             {
-                total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count;
-            }
-            else
-            {
-                total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_count;
+                case DRAW_FIRST_PASS:
+                {
+                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count;
+                    break;
+                }
+                case DRAW_SECOND_PASS:
+                {
+                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_count;
+                    break;
+                }
+                case DRAW_OBSERVER_PASS:
+                {
+                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count + deref(u_instantiated_meshlets).second_count;
+                    break;
+                }
+                default: break;
             }
             command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
             command.instance_count = total_instantiated_meshlet_count;
@@ -82,7 +93,7 @@ void main()
         }
         case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
         {
-            const uint meshlet_offset = push.pass == DRAW_FIRST_PASS ? 0 : deref(u_instantiated_meshlets).first_count;
+            const uint meshlet_offset = (push.pass == DRAW_FIRST_PASS || push.pass == DRAW_OBSERVER_PASS) ? 0 : deref(u_instantiated_meshlets).first_count;
             inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
             triangle_index = gl_VertexIndex / 3;
             break;
@@ -132,8 +143,8 @@ void main()
     uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
-    const vec4 pos = globals.camera_view_projection * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
-    //debugPrintfEXT("post transform pos: (%f,%f,%f,%f\n", pos.x,pos.y,pos.z,pos.w);
+    const mat4x4 view_proj = (push.pass == DRAW_OBSERVER_PASS) ? globals.observer_camera_view_projection : globals.camera_view_projection;
+    const vec4 pos = view_proj * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
     #if !DEPTH_ONLY
         vout_triangle_index = triangle_index;

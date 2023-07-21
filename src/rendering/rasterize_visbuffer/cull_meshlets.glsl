@@ -58,8 +58,8 @@ void main()
     const float radius_scaling = sqrt(max(max(model_scaling_x_squared,model_scaling_y_squared), model_scaling_z_squared));
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
     const vec3 ws_center = (model_matrix * vec4(bounds.center, 1)).xyz;
-    const vec3 center_to_camera = normalize(globals.cull_camera_pos - ws_center);
-    const vec3 tangential_up = normalize(globals.cull_camera_up - center_to_camera * dot(center_to_camera, globals.cull_camera_up));
+    const vec3 center_to_camera = normalize(globals.camera_pos - ws_center);
+    const vec3 tangential_up = normalize(globals.camera_up - center_to_camera * dot(center_to_camera, globals.camera_up));
     const vec3 tangent_left = -cross(tangential_up, center_to_camera);
     NdcBounds ndc_bounds;
     init_ndc_bounds(ndc_bounds);
@@ -73,7 +73,7 @@ void main()
             {
                 // TODO: make this use a precalculated obb, not this shit sphere derived one.
                 const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * (center_to_camera * z + tangential_up * y + tangent_left * x);
-                const vec4 projected_pos = globals.cull_camera_view_projection * model_matrix * vec4(bounding_box_corner_ws, 1);
+                const vec4 projected_pos = globals.camera_view_projection * model_matrix * vec4(bounding_box_corner_ws, 1);
                 const vec3 ndc_pos = projected_pos.xyz / projected_pos.w;
                 add_vertex_to_ndc_bounds(ndc_bounds, ndc_pos);
             }
@@ -83,7 +83,7 @@ void main()
 
     if (!culled && ndc_bounds.ndc_min.z > 0.0f)
     {
-        const vec2 f_hiz_resolution = vec2(globals.settings.render_target_size / 2 /*hiz is half res*/);
+        const vec2 f_hiz_resolution = vec2(globals.settings.render_target_size >> 1 /*hiz is half res*/);
         const vec2 min_texel_i = floor(min(f_hiz_resolution * (ndc_bounds.ndc_min.xy + 1.0f) * 0.5f, f_hiz_resolution - 1.0f));
         const vec2 max_texel_i = floor(min(f_hiz_resolution * (ndc_bounds.ndc_max.xy + 1.0f) * 0.5f, f_hiz_resolution - 1.0f));
         const float pixel_range = max(max_texel_i.x - min_texel_i.x + 1.0f, max_texel_i.y - min_texel_i.y + 1.0f);
@@ -92,7 +92,7 @@ void main()
 
         const ivec2 quad_corner_texel = ivec2(min_texel_i) >> uint(mip);
 
-        vec4 fetch = vec4(
+        const vec4 fetch = vec4(
             texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(0,0), int(mip)).x,
             texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(0,1), int(mip)).x,
             texelFetch(daxa_texture2D(u_hiz), quad_corner_texel + ivec2(1,0), int(mip)).x,
