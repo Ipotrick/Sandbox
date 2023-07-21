@@ -52,6 +52,10 @@ void main()
     {
         return;
     }
+    if (entity_index != 4)
+    {
+        return;
+    }
     
     // How does this work?
     // - this is an asymertric work distribution problem

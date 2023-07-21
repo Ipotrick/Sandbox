@@ -23,6 +23,7 @@ DAXA_TASK_USE_BUFFER(u_triangle_list, daxa_BufferPtr(TriangleList), VERTEX_SHADE
 DAXA_TASK_USE_BUFFER(u_meshlet_list, daxa_BufferPtr(VisibleMeshletList), VERTEX_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), VERTEX_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), VERTEX_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), VERTEX_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)

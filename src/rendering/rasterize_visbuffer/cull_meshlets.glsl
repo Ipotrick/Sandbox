@@ -31,6 +31,11 @@ void main()
 {
     const int tid = int(gl_GlobalInvocationID.x);
     const uint indirect_arg_index = tid >> push.indirect_args_table_id;
+    const uint valid_arg_count = deref(u_meshlet_cull_indirect_args).indirect_arg_counts[push.indirect_args_table_id];
+    if (indirect_arg_index >= valid_arg_count)
+    {
+        return;
+    }
     const uint arg_work_offset = tid - (indirect_arg_index << push.indirect_args_table_id);
     const MeshletCullIndirectArg arg = deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[push.indirect_args_table_id][indirect_arg_index]);
     InstantiatedMeshlet instanced_meshlet;
@@ -44,6 +49,8 @@ void main()
         return;
     }
 #if ENABLE_MESHLET_CULLING
+    // daxa_f32vec3 center;
+    // daxa_f32 radius;
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
 
     NdcBounds ndc_bounds;
@@ -63,7 +70,7 @@ void main()
             }
         }
     }
-    bool culled = !is_in_frustum(ndc_bounds);
+    bool culled = false;//!is_in_frustum(ndc_bounds);
 
     const uint bitfield_uint_offset = instanced_meshlet.meshlet_index / 32;
     const uint bitfield_uint_bit = 1u << (instanced_meshlet.meshlet_index % 32);
@@ -74,6 +81,8 @@ void main()
         const bool visible_last_frame = (mask & bitfield_uint_bit) != 0;
         culled = culled || visible_last_frame;
     }
+
+
 
     if (!culled)
 #endif

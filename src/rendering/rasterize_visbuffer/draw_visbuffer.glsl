@@ -95,7 +95,6 @@ void main()
         }
         default: break;
     }
-    //return;
 
     // InstantiatedMeshlet:
     // daxa_u32 entity_index;
@@ -133,7 +132,7 @@ void main()
     uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
-    const vec4 pos = globals.camera_view_projection * vertex_position;
+    const vec4 pos = globals.camera_view_projection * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
     #if !DEPTH_ONLY
         vout_triangle_index = triangle_index;

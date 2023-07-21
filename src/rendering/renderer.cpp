@@ -400,6 +400,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_meshlet_list = {},   // Unused
             .u_instantiated_meshlets = instantiated_meshlets,
             .u_meshes = asset_manager->tmeshes,
+            .u_combined_transforms = entity_combined_transforms,
             .u_vis_image = visbuffer,
             .u_debug_image = debug_image,
             .u_depth_image = depth,
@@ -448,6 +449,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_meshlet_list = {},
             .u_instantiated_meshlets = instantiated_meshlets,
             .u_meshes = asset_manager->tmeshes,
+            .u_combined_transforms = entity_combined_transforms,
             .u_vis_image = visbuffer,
             .u_debug_image = debug_image,
             .u_depth_image = depth,
