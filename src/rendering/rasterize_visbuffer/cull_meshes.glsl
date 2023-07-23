@@ -57,7 +57,7 @@ void main()
     {
         return;
     }
-    //if (entity_index != 4)
+    //if (entity_index > 20)
     //{
     //    return;
     //}

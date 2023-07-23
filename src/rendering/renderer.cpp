@@ -188,6 +188,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
                 .format = daxa::Format::R32_UINT,
                 .usage = daxa::ImageUsageFlagBits::COLOR_ATTACHMENT |
                          daxa::ImageUsageFlagBits::TRANSFER_SRC |
+                         daxa::ImageUsageFlagBits::SHADER_STORAGE |
                          daxa::ImageUsageFlagBits::SHADER_SAMPLED,
                 .name = visbuffer.info().name,
             },
@@ -241,7 +242,7 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
-        //{DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
+        {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
     };
     for (auto [name, info] : rasters)
     {
@@ -376,7 +377,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_draw_visbuffer({
         .context = context,
         .tg = task_list,
-        .enable_mesh_shader = false,
+        .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
         .pass = DRAW_VISBUFFER_PASS_ONE,
         .instantiated_meshlets = instantiated_meshlets,
         .meshes = asset_manager->tmeshes,
@@ -416,6 +417,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_cull_and_draw_visbuffer({
         .context = context,
         .tg = task_list,
+        .enable_mesh_shader = false,
         .cull_meshlets_commands = cull_meshlets_commands,
         .meshlet_cull_indirect_args = meshlet_cull_indirect_args,
         .entity_meta_data = entity_meta,
@@ -455,7 +457,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         task_draw_visbuffer({
             .context = context,
             .tg = task_list,
-            .enable_mesh_shader = false,
+            .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
             .pass = DRAW_VISBUFFER_PASS_OBSERVER,
             .instantiated_meshlets = instantiated_meshlets,
             .meshes = asset_manager->tmeshes,
@@ -468,7 +470,8 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_list.add_task(WriteSwapchainTask{
         .uses = {
             .swapchain = swapchain_image,
-            .debug_image = debug_image,
+            .vis_image = visbuffer,
+            .u_instantiated_meshlets = instantiated_meshlets,
         },
         .context = context,
     });

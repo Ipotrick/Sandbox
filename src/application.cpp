@@ -63,9 +63,9 @@ void CameraController::process_input(Window &window, f32 dt)
         {
             position -= fake_up * speed * dt;
         }
-        pitch += std::clamp(window.get_cursor_change_y(), -30, 30) * cameraSwaySpeed;
+        pitch += window.get_cursor_change_y() * cameraSwaySpeed;
         pitch = std::clamp(pitch, -85.0f, 85.0f);
-        yaw += std::clamp(window.get_cursor_change_x(), -30, 30) * cameraSwaySpeed;
+        yaw += window.get_cursor_change_x() * cameraSwaySpeed;
     }
     forward.x = -glm::cos(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
     forward.y = glm::sin(glm::radians(yaw - 90.0f)) * glm::cos(glm::radians(pitch));
@@ -191,6 +191,11 @@ void Application::update()
     {
         std::cout << "switched enable_observer from " << renderer.context->settings.enable_observer << " to " << !(renderer.context->settings.enable_observer) << std::endl;
         renderer.context->settings.enable_observer = !renderer.context->settings.enable_observer;
+    }
+    if (window.key_just_pressed(GLFW_KEY_M))
+    {
+        std::cout << "switched enable_mesh_shader from " << renderer.context->settings.enable_mesh_shader << " to " << !(renderer.context->settings.enable_mesh_shader) << std::endl;
+        renderer.context->settings.enable_mesh_shader = !renderer.context->settings.enable_mesh_shader;
     }
 }
 
