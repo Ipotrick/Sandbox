@@ -5,26 +5,6 @@
 
 #include "cull_util.glsl"
 
-#if defined(CullMeshletsCommandWrite_COMMAND)
-layout(local_size_x = 32) in;
-void main()
-{
-    const uint index = gl_LocalInvocationID.x;
-    const uint indirect_arg_count = deref(u_meshlet_cull_indirect_args).indirect_arg_counts[index];
-    const uint threads_per_indirect_arg = 1 << index;
-    const uint needed_threads = threads_per_indirect_arg * indirect_arg_count;
-    const uint needed_workgroups = (needed_threads + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
-    DispatchIndirectStruct command;
-    command.x = needed_workgroups;
-    command.y = 1;
-    command.z = 1;
-    deref(u_commands[index]) = command;
-    if (index == 0)
-    {
-        deref(u_instantiated_meshlets).second_count = 0;
-    }
-}
-#else
 DAXA_DECL_PUSH_CONSTANT(CullMeshletsPush,push)
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;
 void main()
@@ -32,6 +12,10 @@ void main()
     const int tid = int(gl_GlobalInvocationID.x);
     const uint indirect_arg_index = tid >> push.indirect_args_table_id;
     const uint valid_arg_count = deref(u_meshlet_cull_indirect_args).indirect_arg_counts[push.indirect_args_table_id];
+    if (tid == 0)
+    {
+        deref(u_draw_command).vertex_count = 3 * MAX_TRIANGLES_PER_MESHLET;
+    }
     if (indirect_arg_index >= valid_arg_count)
     {
         return;
@@ -57,6 +41,7 @@ void main()
     const float model_scaling_z_squared = dot(model_matrix[2],model_matrix[2]);
     const float radius_scaling = sqrt(max(max(model_scaling_x_squared,model_scaling_y_squared), model_scaling_z_squared));
     BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.meshlet_index]);
+    const float scaled_radius = radius_scaling * bounds.radius;
     const vec3 ws_center = (model_matrix * vec4(bounds.center, 1)).xyz;
     const vec3 center_to_camera = normalize(globals.camera_pos - ws_center);
     const vec3 tangential_up = normalize(globals.camera_up - center_to_camera * dot(center_to_camera, globals.camera_up));
@@ -72,16 +57,29 @@ void main()
             for (int x = -1; x <= 1; x += 2)
             {
                 // TODO: make this use a precalculated obb, not this shit sphere derived one.
-                const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * (center_to_camera * z + tangential_up * y + tangent_left * x);
+                const vec3 bounding_box_corner_ws = bounds.center + bounds.radius * 0.5f * (center_to_camera * z + tangential_up * y + tangent_left * x);
                 const vec4 projected_pos = globals.camera_view_projection * model_matrix * vec4(bounding_box_corner_ws, 1);
                 const vec3 ndc_pos = projected_pos.xyz / projected_pos.w;
                 add_vertex_to_ndc_bounds(ndc_bounds, ndc_pos);
             }
         }
     }
-    bool culled = !is_in_frustum(ndc_bounds);
+    const vec3 frustum_planes[5] = {
+        globals.camera_right_plane_normal,
+        globals.camera_left_plane_normal,
+        globals.camera_top_plane_normal,
+        globals.camera_bottom_plane_normal,
+        globals.camera_near_plane_normal,
+    };
+    bool out_of_frustum = false;
+    for (uint i = 0; i < 5; ++i)
+    {
+        out_of_frustum = out_of_frustum || (dot((ws_center - globals.camera_pos), frustum_planes[i]) - scaled_radius) > 0.0f;
+    }
 
-    if (!culled && ndc_bounds.ndc_min.z > 0.0f)
+    bool culled = out_of_frustum;
+
+    if (!culled && ndc_bounds.ndc_min.z < 1.0f)
     {
         const vec2 f_hiz_resolution = vec2(globals.settings.render_target_size >> 1 /*hiz is half res*/);
         const vec2 min_texel_i = floor(min(f_hiz_resolution * (ndc_bounds.ndc_min.xy + 1.0f) * 0.5f, f_hiz_resolution - 1.0f));
@@ -100,6 +98,7 @@ void main()
         );
         const float depth = min(min(fetch.x,fetch.y), min(fetch.z, fetch.w));
         const bool depth_cull = (depth > ndc_bounds.ndc_max.z);
+        //debugPrintfEXT("depth: %f\n", depth);
         culled = culled || depth_cull;
     }
 
@@ -119,6 +118,7 @@ void main()
         const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_count, 1);
         const uint offset = deref(u_instantiated_meshlets).first_count;
         deref(u_instantiated_meshlets).meshlets[out_index + offset] = instanced_meshlet;
+
+        atomicAdd(deref(u_draw_command).instance_count, 1);
     }
 }
-#endif

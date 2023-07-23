@@ -100,8 +100,28 @@ void CameraController::update_matrices(Window &window)
     this->cam_info.vp = this->cam_info.proj * this->cam_info.view;
     this->cam_info.pos = this->position;
     this->cam_info.up = this->up;
+    glm::vec3 ws_ndc_corners[2][2][2];
+    glm::mat4 inv_view_proj = glm::inverse(this->cam_info.proj * this->cam_info.view);
+    for (u32 z = 0; z < 2; ++z)
+    {
+        for (u32 y = 0; y < 2; ++y)
+        {
+            for (u32 x = 0; x < 2; ++x)
+            {
+                glm::vec3 corner = glm::vec3((glm::vec2(x,y) - 0.5f) * 2.0f, 1.0f - z * 0.5f);
+                glm::vec4 proj_corner = inv_view_proj * glm::vec4(corner, 1);
+                ws_ndc_corners[x][y][z] = glm::vec3(proj_corner) / proj_corner.w;
+            }
+        }
+    }
+    this->cam_info.camera_near_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[0][1][0] - ws_ndc_corners[0][0][0], ws_ndc_corners[1][0][0] - ws_ndc_corners[0][0][0]));
+    this->cam_info.camera_right_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[1][1][0] - ws_ndc_corners[1][0][0], ws_ndc_corners[1][0][1] - ws_ndc_corners[1][0][0]));
+    this->cam_info.camera_left_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[0][1][1] - ws_ndc_corners[0][0][1], ws_ndc_corners[0][0][0] - ws_ndc_corners[0][0][1]));
+    this->cam_info.camera_top_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[1][0][0] - ws_ndc_corners[0][0][0], ws_ndc_corners[0][0][1] - ws_ndc_corners[0][0][0]));
+    this->cam_info.camera_bottom_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[0][1][1] - ws_ndc_corners[0][1][0], ws_ndc_corners[1][1][0] - ws_ndc_corners[0][1][0]));
+    int i = 0;
 }
-
+ 
 Application::Application()
     : window{400, 300, "sandbox"},
       gpu_context{this->window},

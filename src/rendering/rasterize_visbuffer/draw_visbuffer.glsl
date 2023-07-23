@@ -5,77 +5,65 @@
 #include "depth_util.glsl"
 #include "../../mesh/visbuffer_meshlet_util.inl"
 
-DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 
 #if defined(DrawVisbufferWriteCommand_COMMAND)
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferWriteCommandPush, push)
 layout(local_size_x = 1) in;
 void main()
 {
     const uint index = gl_LocalInvocationID.x;
-    DrawIndirectStruct command;
-    switch (push.mode)
+    uint meshlets_to_draw = 0;
+    switch (push.pass)
     {
-        case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
+        case DRAW_VISBUFFER_PASS_ONE:
         {
-            uint total_instantiated_meshlet_count = 0;
-            switch (push.pass)
-            {
-                case DRAW_FIRST_PASS:
-                {
-                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count;
-                    break;
-                }
-                case DRAW_SECOND_PASS:
-                {
-                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).second_count;
-                    break;
-                }
-                case DRAW_OBSERVER_PASS:
-                {
-                    total_instantiated_meshlet_count = deref(u_instantiated_meshlets).first_count + deref(u_instantiated_meshlets).second_count;
-                    break;
-                }
-                default: break;
-            }
-            command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
-            command.instance_count = total_instantiated_meshlet_count;
+            meshlets_to_draw = deref(u_instantiated_meshlets).first_count;
             break;
         }
-        case DRAW_VISBUFFER_MESHLETS_INDIRECT:
+        case DRAW_VISBUFFER_PASS_TWO:
         {
-            const uint visible_meshlet_count = deref(u_meshlet_list).count;
-            command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
-            command.instance_count = visible_meshlet_count;
+            meshlets_to_draw = deref(u_instantiated_meshlets).second_count;
             break;
         }
-        case DRAW_VISBUFFER_TRIANGLES:
+        case DRAW_VISBUFFER_PASS_OBSERVER:
         {
-            const uint triangles_to_draw = deref(u_triangle_list).count;
-            command.vertex_count = triangles_to_draw * 3;
-            command.instance_count = 1;
+            meshlets_to_draw = deref(u_instantiated_meshlets).first_count + deref(u_instantiated_meshlets).second_count;
             break;
         }
         default: break;
     }
-    command.first_vertex = 0;
-    command.first_instance = 0;
-    deref(u_command) = command;
+    if (push.mesh_shader == 1)
+    {
+        DispatchIndirectStruct command;
+        command.x = meshlets_to_draw;
+        command.y = 1;
+        command.z = 1;
+        deref((daxa_RWBufferPtr(DispatchIndirectStruct)(u_command))) = command;
+    }
+    else
+    {
+        DrawIndirectStruct command;
+        command.vertex_count = MAX_TRIANGLES_PER_MESHLET * 3;
+        command.instance_count = meshlets_to_draw;
+        command.first_vertex = 0;
+        command.first_instance = 0;
+        deref((daxa_RWBufferPtr(DrawIndirectStruct)(u_command))) = command;
+    }
 }
 #endif
 
-#if !DrawVisbufferWriteCommand_COMMAND
+#if NO_MESH_SHADER
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 #define VERTEX_OUT out 
 #else
 #define VERTEX_OUT in
 #endif
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 
-#if !DEPTH_ONLY
-    layout(location = 0) flat VERTEX_OUT uint vout_triangle_index;
-    layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
-    layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
-    layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
-#endif
+layout(location = 0) flat VERTEX_OUT uint vout_triangle_index;
+layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
+layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
+layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 void main()
@@ -83,29 +71,10 @@ void main()
     const uint triangle_corner_index = gl_VertexIndex % 3;
     uint inst_meshlet_index;
     uint triangle_index;
-    switch (push.mode)
-    {
-        case DRAW_VISBUFFER_TRIANGLES:
-        {
-            const uint triangle_id = deref(u_triangle_list).triangle_ids[gl_VertexIndex / 3];
-            decode_triangle_id(triangle_id, inst_meshlet_index, triangle_index);
-            break;
-        }
-        case DRAW_VISBUFFER_MESHLETS_DIRECTLY:
-        {
-            const uint meshlet_offset = (push.pass == DRAW_FIRST_PASS || push.pass == DRAW_OBSERVER_PASS) ? 0 : deref(u_instantiated_meshlets).first_count;
-            inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
-            triangle_index = gl_VertexIndex / 3;
-            break;
-        }
-        case DRAW_VISBUFFER_MESHLETS_INDIRECT:
-        {
-            inst_meshlet_index = deref(u_meshlet_list).meshlet_ids[gl_InstanceIndex];
-            triangle_index = gl_VertexIndex / 3;
-            break;
-        }
-        default: break;
-    }
+    
+    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
+    inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
+    triangle_index = gl_VertexIndex / 3;
 
     // InstantiatedMeshlet:
     // daxa_u32 entity_index;
@@ -143,7 +112,7 @@ void main()
     uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
-    const mat4x4 view_proj = (push.pass == DRAW_OBSERVER_PASS) ? globals.observer_camera_view_projection : globals.camera_view_projection;
+    const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
     const vec4 pos = view_proj * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
     #if !DEPTH_ONLY
@@ -155,24 +124,28 @@ void main()
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-#if !DEPTH_ONLY
-    layout(location = 0) out uint visibility_id;
-    layout(location = 1) out vec4 debug_color;
-#endif
+layout(location = 0) out uint visibility_id;
+layout(location = 1) out vec4 debug_color;
 void main()
 {
-    #if !DEPTH_ONLY
-        float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
-        vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
-        color = color * 0.5 + 0.5;
-        const float near = 20.0f;
-        const float far = 8000.0f;
-        // color = unband_depth_color(int(gl_FragCoord.x), int(gl_FragCoord.y), gl_FragCoord.z, near, far);
-        uint vis_id_out;
-        encode_triangle_id(vout_instantiated_meshlet_index, vout_triangle_index, vis_id_out);
-        visibility_id = vis_id_out;
-        debug_color = vec4(color,1);
-    #endif
+    float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
+    vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
+    color = color * 0.5 + 0.5;
+    const float near = 20.0f;
+    const float far = 8000.0f;
+    // color = unband_depth_color(int(gl_FragCoord.x), int(gl_FragCoord.y), gl_FragCoord.z, near, far);
+    uint vis_id_out;
+    encode_triangle_id(vout_instantiated_meshlet_index, vout_triangle_index, vis_id_out);
+    visibility_id = vis_id_out;
+    debug_color = vec4(color,1);
 }
 #endif
+#endif
+
+#if MESH_SHADER
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK
+#endif 
+
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH
+#endif 
 #endif

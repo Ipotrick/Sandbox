@@ -21,6 +21,7 @@
 DAXA_DECL_TASK_USES_BEGIN(CullMeshesCommand, 1)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
+DAXA_TASK_USE_BUFFER(u_cull_meshlets_commands, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_WRITE)
 BUFFER_COMPUTE_WRITE(u_meshlet_cull_indirect_args, MeshletCullIndirectArgTable)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -34,6 +35,7 @@ DAXA_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUT
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_hiz, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
 BUFFER_COMPUTE_WRITE(u_meshlet_cull_indirect_args, MeshletCullIndirectArgTable)
+DAXA_TASK_USE_BUFFER(u_cull_meshlets_commands, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
 
@@ -81,6 +83,7 @@ void tasks_cull_meshes(GPUContext * context, daxa::TaskGraph& task_list, CullMes
         .uses={
             .u_entity_meta = uses.u_entity_meta,
             .u_command = command_buffer,
+            .u_cull_meshlets_commands = uses.u_cull_meshlets_commands.handle,
             .u_meshlet_cull_indirect_args = uses.u_meshlet_cull_indirect_args,
         },
         .context = context,

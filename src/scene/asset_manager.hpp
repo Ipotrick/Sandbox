@@ -66,7 +66,7 @@ struct AssetManager
         constexpr usize MAX_VERTICES = MAX_VERTICES_PER_MESHLET;
         constexpr usize MAX_TRIANGLES = MAX_TRIANGLES_PER_MESHLET;
         // No clue what cone culling is.
-        constexpr float CONE_WEIGHT = 0.0f;
+        constexpr float CONE_WEIGHT = 1.0f;
         //std::vector<u32> optimized_indices = {};
         //optimized_indices.resize(index_buffer.size());
         //meshopt_optimizeVertexCache(optimized_indices.data(), index_buffer.data(), index_buffer.size(), aimesh->mNumVertices);

@@ -51,6 +51,11 @@ struct ShaderGlobals
     daxa_f32mat4x4 camera_view_projection;
     daxa_f32vec3 camera_pos;
     daxa_f32vec3 camera_up;
+    daxa_f32vec3 camera_near_plane_normal;
+    daxa_f32vec3 camera_left_plane_normal;
+    daxa_f32vec3 camera_right_plane_normal;
+    daxa_f32vec3 camera_top_plane_normal;
+    daxa_f32vec3 camera_bottom_plane_normal;
     daxa_f32mat4x4 observer_camera_view;
     daxa_f32mat4x4 observer_camera_projection;
     daxa_f32mat4x4 observer_camera_view_projection;

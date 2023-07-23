@@ -22,7 +22,7 @@ using HWND = void *;
 
 GPUContext::GPUContext(Window const &window)
     : context{daxa::create_instance({.enable_validation = false})},
-      device{this->context.create_device({.name = "Sandbox Device"})},
+      device{this->context.create_device({.name = "Sandbox Device", .max_allowed_buffers = 100000, .max_allowed_images = 100000})},
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
           .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,
@@ -78,7 +78,7 @@ GPUContext::GPUContext(Window const &window)
 
 auto GPUContext::dummy_string() -> std::string
 {
-    return std::string("dummy - ") + std::to_string(counter++);
+    return std::string(" - ") + std::to_string(counter++);
 }
 
 GPUContext::~GPUContext()

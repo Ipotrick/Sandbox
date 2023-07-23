@@ -240,8 +240,7 @@ Renderer::~Renderer()
 void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
-        {DrawVisbufferTask::PIPELINE_COMPILE_INFO[0].name, DrawVisbufferTask::PIPELINE_COMPILE_INFO[0]},
-        {DrawVisbufferTask::PIPELINE_COMPILE_INFO[1].name, DrawVisbufferTask::PIPELINE_COMPILE_INFO[1]},
+        {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : rasters)
     {
@@ -262,7 +261,6 @@ void Renderer::compile_pipelines()
         {PrefixSumCommandWriteTask::NAME, PrefixSumCommandWriteTask::PIPELINE_COMPILE_INFO},
         {PrefixSumUpsweepTask::NAME, PrefixSumUpsweepTask::PIPELINE_COMPILE_INFO},
         {PrefixSumDownsweepTask::NAME, PrefixSumDownsweepTask::PIPELINE_COMPILE_INFO},
-        {CullMeshletsCommandWriteTask::NAME, CullMeshletsCommandWriteTask::PIPELINE_COMPILE_INFO},
         {CullMeshletsTask::NAME, CullMeshletsTask::PIPELINE_COMPILE_INFO},
     };
     for (auto [name, info] : computes)
@@ -374,29 +372,28 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         }
     );
     // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
-    task_draw_visbuffer(
-        context,
-        task_list,
-        DrawVisbuffer::Uses{
-            .u_draw_command = {},   // Set inside
-            .u_triangle_list = {},  // Unused
-            .u_meshlet_list = {},   // Unused
-            .u_instantiated_meshlets = instantiated_meshlets,
-            .u_meshes = asset_manager->tmeshes,
-            .u_combined_transforms = entity_combined_transforms,
-            .u_vis_image = visbuffer,
-            .u_debug_image = debug_image,
-            .u_depth_image = depth,
-        },
-        DRAW_FIRST_PASS,
-        DRAW_VISBUFFER_MESHLETS_DIRECTLY,
-        DRAW_VISBUFFER_NO_DEPTH_ONLY);
+    task_draw_visbuffer({
+        .context = context,
+        .tg = task_list,
+        .enable_mesh_shader = false,
+        .pass = DRAW_VISBUFFER_PASS_ONE,
+        .instantiated_meshlets = instantiated_meshlets,
+        .meshes = asset_manager->tmeshes,
+        .combined_transforms = entity_combined_transforms,
+        .vis_image = visbuffer,
+        .debug_image = debug_image,
+        .depth_image = depth,
+    });
     auto hiz = task_gen_hiz(context, task_list, depth);
     const u32vec2 hiz_size = u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
     const u32 hiz_mips = static_cast<u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
         .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_INSTANTIATED_MESHLETS * 2,
         .name = "meshlet_cull_indirect_args",
+    });
+    auto cull_meshlets_commands = task_list.create_transient_buffer({
+        .size = sizeof(DispatchIndirectStruct) * 32,
+        .name = "CullMeshletsCommands",
     });
     tasks_cull_meshes(
         context,
@@ -409,42 +406,29 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_entity_combined_transforms = entity_combined_transforms,
             .u_hiz = hiz.view({.level_count = hiz_mips}),
             .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
+            .u_cull_meshlets_commands = cull_meshlets_commands,
         });
     // When culling Meshlets, we consider 3 reasons to cull:
     // - out of frustum
     // - covered by hiz depth
     // - was drawn in first pass (all visible meshlets from last frame are drawn in first pass)
-    task_cull_meshlets(
-        context,
-        task_list,
-        {
-            .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
-            .u_entity_meta_data = entity_meta,
-            .u_entity_meshlists = entity_meshlists,
-            .u_entity_combined_transforms = entity_combined_transforms,
-            .u_meshes = asset_manager->tmeshes,
-            .u_entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
-            .u_entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
-            .u_hiz = hiz.view({.level_count = hiz_mips}),
-            .u_instantiated_meshlets = instantiated_meshlets,
-        });
-    task_draw_visbuffer(
-        context,
-        task_list,
-        {
-            .u_draw_command = {},  // Set inside the function in case of meshlet draw
-            .u_triangle_list = {}, // Only used for triangle draw
-            .u_meshlet_list = {},
-            .u_instantiated_meshlets = instantiated_meshlets,
-            .u_meshes = asset_manager->tmeshes,
-            .u_combined_transforms = entity_combined_transforms,
-            .u_vis_image = visbuffer,
-            .u_debug_image = debug_image,
-            .u_depth_image = depth,
-        },
-        DRAW_SECOND_PASS,
-        DRAW_VISBUFFER_MESHLETS_DIRECTLY,
-        DRAW_VISBUFFER_NO_DEPTH_ONLY);
+    task_cull_and_draw_visbuffer({
+        .context = context,
+        .tg = task_list,
+        .cull_meshlets_commands = cull_meshlets_commands,
+        .meshlet_cull_indirect_args = meshlet_cull_indirect_args,
+        .entity_meta_data = entity_meta,
+        .entity_meshlists = entity_meshlists,
+        .entity_combined_transforms = entity_combined_transforms,
+        .meshes = asset_manager->tmeshes,
+        .entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
+        .entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
+        .hiz = hiz.view({.level_count = hiz_mips}),
+        .instantiated_meshlets = instantiated_meshlets,
+        .vis_image = visbuffer,
+        .debug_image = debug_image,
+        .depth_image = depth,
+    });
     auto meshlet_visibility_bitfields = task_list.create_transient_buffer({
         .size = static_cast<u32>(sizeof(daxa_u32vec4) * MAX_INSTANTIATED_MESHLETS),
         .name = "meshlet_visibility_counters",
@@ -467,23 +451,18 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     });
     if (context->settings.enable_observer)
     {
-        task_draw_visbuffer(
-            context,
-            task_list,
-            {
-                .u_draw_command = {},  // Set inside the function in case of meshlet draw
-                .u_triangle_list = {}, // Only used for triangle draw
-                .u_meshlet_list = {},
-                .u_instantiated_meshlets = instantiated_meshlets,
-                .u_meshes = asset_manager->tmeshes,
-                .u_combined_transforms = entity_combined_transforms,
-                .u_vis_image = visbuffer,
-                .u_debug_image = debug_image,
-                .u_depth_image = depth,
-            },
-            DRAW_OBSERVER_PASS,
-            DRAW_VISBUFFER_MESHLETS_DIRECTLY,
-            DRAW_VISBUFFER_NO_DEPTH_ONLY);
+        task_draw_visbuffer({
+            .context = context,
+            .tg = task_list,
+            .enable_mesh_shader = false,
+            .pass = DRAW_VISBUFFER_PASS_OBSERVER,
+            .instantiated_meshlets = instantiated_meshlets,
+            .meshes = asset_manager->tmeshes,
+            .combined_transforms = entity_combined_transforms,
+            .vis_image = visbuffer,
+            .debug_image = debug_image,
+            .depth_image = depth,
+        });
     }
     task_list.add_task(WriteSwapchainTask{
         .uses = {
@@ -537,21 +516,23 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     this->context->shader_globals.globals.settings = this->context->settings;
     this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
     this->context->shader_globals.globals.delta_time = delta_time;
-    if (this->context->settings.enable_observer)
-    {
-        this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-        this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-        this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-        this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-        this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-    }
-    else
+    this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
+    this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
+    this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+    this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+    this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    if (!this->context->settings.enable_observer)
     {
         this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
         this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
         this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
         this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
         this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+        this->context->shader_globals.globals.camera_near_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_near_plane_normal);
+        this->context->shader_globals.globals.camera_right_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_right_plane_normal);
+        this->context->shader_globals.globals.camera_left_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_left_plane_normal);
+        this->context->shader_globals.globals.camera_top_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_top_plane_normal);
+        this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
     }
     // Upload Shader Globals.
     context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
