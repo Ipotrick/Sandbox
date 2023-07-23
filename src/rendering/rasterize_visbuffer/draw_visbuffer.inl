@@ -111,6 +111,24 @@ inline static const daxa::RasterPipelineCompileInfo DRAW_VISBUFFER_PIPELINE_COMP
     return ret;
 }();
 
+inline static const daxa::RasterPipelineCompileInfo DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER = []()
+{
+    auto ret = daxa::RasterPipelineCompileInfo{};
+    ret.depth_test = DRAW_VISBUFFER_DEPTH_TEST_INFO;
+    ret.color_attachments = DRAW_VISBUFFER_RENDER_ATTACHMENT_INFOS;
+    ret.task_shader_info = daxa::ShaderCompileInfo{
+        .source = daxa::ShaderFile{DRAW_VISBUFFER_SHADER_PATH},
+        .compile_options = {.defines = {{"MESH_SHADER", "1"}}},
+    };
+    ret.mesh_shader_info = daxa::ShaderCompileInfo{
+        .source = daxa::ShaderFile{DRAW_VISBUFFER_SHADER_PATH},
+        .compile_options = {.defines = {{"MESH_SHADER", "1"}}},
+    };
+    ret.name = "DrawVisbuffer";
+    ret.push_constant_size = sizeof(DrawVisbufferPush);
+    return ret;
+}();
+
 struct DrawVisbufferTask
 {
     DAXA_USE_TASK_HEADER(DrawVisbuffer)

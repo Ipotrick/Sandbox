@@ -241,6 +241,7 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
+        //{DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
     };
     for (auto [name, info] : rasters)
     {

@@ -115,12 +115,10 @@ void main()
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
     const vec4 pos = view_proj * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
-    #if !DEPTH_ONLY
-        vout_triangle_index = triangle_index;
-        vout_entity_index = instantiated_meshlet.entity_index;
-        vout_instantiated_meshlet_index = inst_meshlet_index;
-        vout_meshlet_index = instantiated_meshlet.meshlet_index;
-    #endif
+    vout_triangle_index = triangle_index;
+    vout_entity_index = instantiated_meshlet.entity_index;
+    vout_instantiated_meshlet_index = inst_meshlet_index;
+    vout_meshlet_index = instantiated_meshlet.meshlet_index;
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
@@ -143,9 +141,21 @@ void main()
 #endif
 
 #if MESH_SHADER
+#extension GL_EXT_mesh_shader : require
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK
+layout(local_size_x = 32) in;
+void main()
+{
+
+}
 #endif 
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH
+layout(local_size_x = 32) in;
+layout(triangles, max_vertices = MAX_VERTICES_PER_MESHLET, max_primitives = MAX_TRIANGLES_PER_MESHLET) out;
+void main()
+{
+    
+}
 #endif 
 #endif

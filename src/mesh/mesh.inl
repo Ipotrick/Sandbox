@@ -8,7 +8,7 @@
 #define MAX_TRIANGLES_PER_MESHLET 124
 
 // Can never be greater then 384!
-#define MAX_VERTICES_PER_MESHLET 128
+#define MAX_VERTICES_PER_MESHLET (32 * 6)
 
 // Used to tell threads in the meshlet cull dispatch what to work on.
 struct MeshletCullIndirectArg
