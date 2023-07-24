@@ -28,9 +28,9 @@ void main()
     // TODO: check if entity, its mesh id and meshlets are valid
     if (thread_active)
     {
-        InstantiatedMeshlet inst_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
-        const uint mask_bit = 1u << (inst_meshlet.meshlet_index % 32);
-        const uint local_mask_offset = inst_meshlet.meshlet_index / 32;
+        MeshletInstance inst_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+        const uint mask_bit = 1u << (inst_meshlet.entity_meshlist_index % 32);
+        const uint local_mask_offset = inst_meshlet.entity_meshlist_index / 32;
         const uint global_mask_offset = u_entity_meshlet_visibility_bitfield_offsets
                                         .entity_offsets[inst_meshlet.entity_index]
                                         .mesh_bitfield_offset[inst_meshlet.mesh_index];
@@ -49,7 +49,7 @@ void main()
     const bool thread_active = gl_GlobalInvocationID.x < count;
     // TODO: check if entity, its mesh id and meshlets are valid
     uint inst_meshlet_index_prev = 0;
-    InstantiatedMeshlet inst_meshlet;
+    MeshletInstance inst_meshlet;
     if (thread_active)
     {
         inst_meshlet_index_prev = deref(u_visible_meshlets_prev).meshlet_ids[gl_GlobalInvocationID.x];

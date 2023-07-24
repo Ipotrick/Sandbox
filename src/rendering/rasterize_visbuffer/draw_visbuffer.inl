@@ -3,9 +3,9 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
-#include "../../mesh/mesh.inl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/visbuffer.inl"
 
 #if __cplusplus || defined(DrawVisbufferWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferWriteCommand, 1)
@@ -165,7 +165,7 @@ struct DrawVisbufferTask
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                 .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
-                .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_PIXEL_ID, 0, 0, 0}},
+                .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_TRIANGLE_ID, 0, 0, 0}},
             },
             //daxa::RenderAttachmentInfo{
             //    .image_view = debug_image.default_view(),

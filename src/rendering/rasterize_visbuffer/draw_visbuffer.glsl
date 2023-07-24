@@ -3,7 +3,7 @@
 #include <daxa/daxa.inl>
 #include "draw_visbuffer.inl"
 #include "depth_util.glsl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
+#include "../../../shader_shared/visbuffer.glsl"
 
 
 #if defined(DrawVisbufferWriteCommand_COMMAND)
@@ -60,10 +60,7 @@ void main()
 #endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX || DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-layout(location = 0) flat VERTEX_OUT uint vout_triangle_index;
-layout(location = 1) flat VERTEX_OUT uint vout_instantiated_meshlet_index;
-layout(location = 2) flat VERTEX_OUT uint vout_meshlet_index;
-layout(location = 3) flat VERTEX_OUT uint vout_entity_index;
+layout(location = 0) flat VERTEX_OUT uint vout_triange_id;
 #endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
@@ -78,12 +75,12 @@ void main()
     inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
     triangle_index = gl_VertexIndex / 3;
 
-    // InstantiatedMeshlet:
+    // MeshletInstance:
     // daxa_u32 entity_index;
     // daxa_u32 mesh_id;
     // daxa_u32 mesh_index;
-    // daxa_u32 meshlet_index;
-    InstantiatedMeshlet instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+    // daxa_u32 entity_meshlist_index;
+    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
 
     // Mesh:
     // daxa_BufferId mesh_buffer;
@@ -100,7 +97,7 @@ void main()
     // daxa_u32 micro_indices_offset;
     // daxa_u32 vertex_count;
     // daxa_u32 triangle_count;
-    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.meshlet_index].value;
+    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.entity_meshlist_index].value;
 
     // Discard triangle indices that are out of bounds of the meshlets triangle list.
     if (triangle_index >= meshlet.triangle_count)
@@ -117,28 +114,17 @@ void main()
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
     const vec4 pos = view_proj * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
-    vout_triangle_index = triangle_index;
-    vout_entity_index = instantiated_meshlet.entity_index;
-    vout_instantiated_meshlet_index = inst_meshlet_index;
-    vout_meshlet_index = instantiated_meshlet.meshlet_index;
+    uint triangle_id;
+    encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id);
+    vout_triange_id = triangle_id;
     gl_Position = pos.xyzw;
 }
 #elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 layout(location = 0) out uint visibility_id;
-//layout(location = 1) out vec4 debug_color;
 void main()
 {
-    float f = float(vout_entity_index * 100 + vout_meshlet_index) * 0.093213213232;
-    vec3 color = vec3(cos(f), cos(f+2), cos(f+4));
-    color = color * 0.5 + 0.5;
-    const float near = 20.0f;
-    const float far = 8000.0f;
-    // color = unband_depth_color(int(gl_FragCoord.x), int(gl_FragCoord.y), gl_FragCoord.z, near, far);
-    uint vis_id_out;
-    encode_triangle_id(vout_instantiated_meshlet_index, vout_triangle_index, vis_id_out);
-    visibility_id = vis_id_out;
-    //debug_color = vec4(color,1);
+    visibility_id = vout_triange_id;
 }
 #endif
 
@@ -152,7 +138,7 @@ void main()
 }
 #endif 
 
-#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 layout(local_size_x = MESH_SHADER_WORKGROUP_X) in;
 layout(triangles) out;
@@ -160,23 +146,34 @@ layout(max_vertices = MAX_VERTICES_PER_MESHLET, max_primitives = MAX_TRIANGLES_P
 struct Vertex
 {
     vec4 position;
+    vec3 ws_position;
+    uint vis_count;
+    uint post_cull_index;
 };
 shared Vertex s_vertices[MAX_VERTICES_PER_MESHLET];
-layout(location = 0) perprimitiveEXT out uint fin_triangle_index[];
+shared uvec3 s_surviving_triangles[MAX_TRIANGLES_PER_MESHLET];
+shared uint s_surviving_triangle_count;
+shared uint s_surviving_vertex_count;
+layout(location = 0) perprimitiveEXT out uint fin_triangle_id[];
 layout(location = 1) perprimitiveEXT out uint fin_instantiated_meshlet_index[];
-layout(location = 2) perprimitiveEXT out uint fin_meshlet_index[];
-layout(location = 3) perprimitiveEXT out uint fin_entity_index[];
 void main()
 {
     const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
     const uint inst_meshlet_index = gl_WorkGroupID.x + meshlet_offset;
 
-    // InstantiatedMeshlet:
+    if (gl_LocalInvocationID.x == 0)
+    {
+        s_surviving_triangle_count = 0;
+        s_surviving_vertex_count = 0;
+    }
+    barrier();
+
+    // MeshletInstance:
     // daxa_u32 entity_index;
     // daxa_u32 mesh_id;
     // daxa_u32 mesh_index;
-    // daxa_u32 meshlet_index;
-    InstantiatedMeshlet instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+    // daxa_u32 entity_meshlist_index;
+    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
 
     // Mesh:
     // daxa_BufferId mesh_buffer;
@@ -193,7 +190,17 @@ void main()
     // daxa_u32 micro_indices_offset;
     // daxa_u32 vertex_count;
     // daxa_u32 triangle_count;
-    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.meshlet_index].value;
+    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.entity_meshlist_index].value;
+    
+    const vec3 frustum_planes[5] = {
+        globals.camera_right_plane_normal,
+        globals.camera_left_plane_normal,
+        globals.camera_top_plane_normal,
+        globals.camera_bottom_plane_normal,
+        globals.camera_near_plane_normal,
+    };
+
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
 
     // Transform vertices:
     const mat4 model_matrix = deref(u_combined_transforms[instantiated_meshlet.entity_index]);
@@ -208,23 +215,13 @@ void main()
         const uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + meshlet_local_vertex_index].value;
         Vertex vertex;
         vertex.position = vec4(mesh.vertex_positions[vertex_index].value, 1);
-        vertex.position = view_proj_matrix * model_matrix * vertex.position;
+        vertex.ws_position = (model_matrix * vertex.position).xyz;
+        vertex.position = view_proj_matrix * vec4(vertex.ws_position,1);
+        vertex.vis_count = 0;
         s_vertices[meshlet_local_vertex_index] = vertex;
     } 
-    // TODO: Cull triangles
-    SetMeshOutputsEXT(meshlet.vertex_count,meshlet.triangle_count);
-    // Write out vertices:
-    for (uint offset = 0; offset < meshlet.vertex_count; offset += MESH_SHADER_WORKGROUP_X)
-    {
-        const uint meshlet_local_vertex_index = gl_LocalInvocationID.x + offset;
-        if (meshlet_local_vertex_index >= meshlet.vertex_count) 
-        { 
-            break;
-        }
-        gl_MeshVerticesEXT[meshlet_local_vertex_index].gl_Position = s_vertices[meshlet_local_vertex_index].position;
-    }
-    // Write traingle indices:
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
+    barrier();
+    // Cull triangles:
     for (uint offset = 0; offset < meshlet.triangle_count; offset += MESH_SHADER_WORKGROUP_X)
     {
         const uint triangle_index = gl_LocalInvocationID.x + offset;
@@ -237,11 +234,78 @@ void main()
             get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + 1),
             get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + 2)
         );
-        gl_PrimitiveTriangleIndicesEXT[triangle_index] = triangle_micro_indices;
-        fin_triangle_index[triangle_index] = triangle_index;
-        fin_instantiated_meshlet_index[triangle_index] = inst_meshlet_index;
-        fin_meshlet_index[triangle_index] = instantiated_meshlet.meshlet_index;
-        fin_entity_index[triangle_index] = instantiated_meshlet.entity_index;
+        bool out_of_frustum = false;
+        for (uint i = 0; i < 5; ++i)
+        {
+            bool tri_out_of_plane = true;
+            for (uint tri_i = 0; tri_i < 3; ++tri_i)
+            {
+                const bool vertex_out = dot((s_vertices[triangle_micro_indices[tri_i]].ws_position - globals.camera_pos), frustum_planes[i]) > 0.0f;
+                tri_out_of_plane = tri_out_of_plane && vertex_out;
+            }
+            out_of_frustum = out_of_frustum || tri_out_of_plane;
+        }
+        bool culled = out_of_frustum;
+        if (!culled)
+        {
+            uint offset = atomicAdd(s_surviving_triangle_count, 1);
+            s_surviving_triangles[offset] = triangle_micro_indices;
+            atomicAdd(s_vertices[triangle_micro_indices[0]].vis_count, 1);
+            atomicAdd(s_vertices[triangle_micro_indices[1]].vis_count, 1);
+            atomicAdd(s_vertices[triangle_micro_indices[2]].vis_count, 1);
+        }
+    }
+    // Cull vertices:
+    for (uint offset = 0; offset < meshlet.vertex_count; offset += MESH_SHADER_WORKGROUP_X)
+    {
+        const uint meshlet_local_vertex_index = gl_LocalInvocationID.x + offset;
+        if (meshlet_local_vertex_index >= meshlet.vertex_count) 
+        { 
+            break;
+        }
+
+        if (s_vertices[meshlet_local_vertex_index].vis_count > 0)
+        {
+            const uint offset = atomicAdd(s_surviving_vertex_count, 1);
+            s_vertices[meshlet_local_vertex_index].post_cull_index = offset;
+        }
+    }
+    barrier();
+    SetMeshOutputsEXT(s_surviving_vertex_count,s_surviving_triangle_count);
+    // Write vertices:
+    for (uint offset = 0; offset < meshlet.vertex_count; offset += MESH_SHADER_WORKGROUP_X)
+    {
+        const uint meshlet_local_vertex_index = gl_LocalInvocationID.x + offset;
+        if (meshlet_local_vertex_index >= meshlet.vertex_count) 
+        { 
+            break;
+        }
+
+        if (s_vertices[meshlet_local_vertex_index].vis_count > 0)
+        {
+            uint out_index = s_vertices[meshlet_local_vertex_index].post_cull_index;
+            gl_MeshVerticesEXT[out_index].gl_Position = s_vertices[meshlet_local_vertex_index].position;
+        }
+    }
+    // Write triangles:
+    for (uint offset = 0; offset < s_surviving_triangle_count; offset += MESH_SHADER_WORKGROUP_X)
+    {
+        const uint triangle_index = gl_LocalInvocationID.x + offset;
+        if (triangle_index >= s_surviving_triangle_count)
+        { 
+            break;
+        }
+        const uvec3 triangle_micro_indices = s_surviving_triangles[triangle_index];
+        uvec3 post_cull_triangle_micro_indices;
+        // Update indices to culled vertices:
+        for (uint tri_i = 0; tri_i < 3; ++tri_i)
+        {
+            post_cull_triangle_micro_indices[tri_i] = s_vertices[triangle_micro_indices[tri_i]].post_cull_index;
+        }
+        gl_PrimitiveTriangleIndicesEXT[triangle_index] = post_cull_triangle_micro_indices;
+        uint triangle_id;
+        encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id);
+        fin_triangle_id[triangle_index] = triangle_id;
     }
 }
 #endif 

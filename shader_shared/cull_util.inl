@@ -15,5 +15,4 @@ struct FrustumInfo
     daxa_f32 aspect_ratio;
     daxa_f32 vertical_fov;
     daxa_f32 horizontal_fov;
-
 };

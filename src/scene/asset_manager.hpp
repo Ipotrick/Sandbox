@@ -11,7 +11,7 @@
 
 #include "../sandbox.hpp"
 #include "../rendering/gpu_context.hpp"
-#include "../mesh/mesh.inl"
+#include "../../shader_shared/mesh.inl"
 
 using MeshIndex = size_t;
 using ImageIndex = size_t;

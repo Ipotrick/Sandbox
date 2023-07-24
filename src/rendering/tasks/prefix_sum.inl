@@ -3,9 +3,8 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
-#include "../../mesh/mesh.inl"
-#include "../../scene/scene.inl"
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
 
 #define PREFIX_SUM_BLOCK_SIZE 1024
 #define PREFIX_SUM_WORKGROUP_SIZE PREFIX_SUM_BLOCK_SIZE

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../sandbox.hpp"
-#include "../mesh/mesh.inl"
+#include "../../shader_shared/mesh.inl"
 #include "scene.inl"
 #include "asset_manager.hpp"
 

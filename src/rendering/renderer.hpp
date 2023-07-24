@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../window.hpp"
-#include "../mesh/mesh.inl"
+#include "../../shader_shared/mesh.inl"
 #include "../scene/scene.hpp"
 
 #include "gpu_context.hpp"

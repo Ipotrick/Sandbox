@@ -54,7 +54,7 @@ void main()
         {
             // TODO: make this a texture gather.
             const uint vis_id = texelFetch(daxa_utexture2D(u_visbuffer), quad_indices[quad_i], 0).x;
-            if (vis_id != INVALID_PIXEL_ID)
+            if (vis_id != INVALID_TRIANGLE_ID)
             {
                 uint instantiated_meshlet_index;
                 uint triangle_index;
@@ -125,7 +125,7 @@ void main()
                 const uint test_id = texelFetch(daxa_utexture2D(u_visbuffer), test_index, 0).x;
                 const uint test_flat_index = test_index.x + test_index.y * push.width;
                 bool unique = true;
-                if (test_id == INVALID_PIXEL_ID)
+                if (test_id == INVALID_TRIANGLE_ID)
                 {
                     unique = false;
                 }

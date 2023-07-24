@@ -3,6 +3,7 @@
 #include <daxa/daxa.inl>
 #include "analyze_visbuffer.inl"
 #include "visbuffer.glsl"
+#include "visbuffer.glsl"
 
 void get_quad_unique_meshlets(uint meshlet_ids[4], out uint unique_meshlet_ids[4], out uint count)
 {
@@ -45,7 +46,7 @@ void main()
         {
             // TODO: make this a texture gather.
             const uint vis_id = texelFetch(daxa_utexture2D(u_visbuffer), quad_indices[quad_i], 0).x;
-            if (vis_id != INVALID_PIXEL_ID)
+            if (vis_id != INVALID_TRIANGLE_ID)
             {
                 uint instantiated_meshlet_index;
                 uint triangle_index;

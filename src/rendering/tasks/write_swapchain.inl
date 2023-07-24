@@ -3,14 +3,14 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/visbuffer.inl"
 #include "../../scene/scene.inl"
-#include "../../mesh/mesh.inl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
 
 DAXA_DECL_TASK_USES_BEGIN(WriteSwapchain, 1)
 DAXA_TASK_USE_IMAGE(swapchain, REGULAR_2D, COMPUTE_SHADER_STORAGE_WRITE_ONLY)
-DAXA_TASK_USE_IMAGE(vis_image, REGULAR_2D, COMPUTE_SHADER_STORAGE_READ_WRITE)
+DAXA_TASK_USE_IMAGE(vis_image, REGULAR_2D, COMPUTE_SHADER_STORAGE_READ_ONLY)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
 DAXA_DECL_TASK_USES_END()
 

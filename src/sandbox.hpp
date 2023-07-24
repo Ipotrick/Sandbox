@@ -20,7 +20,7 @@
 #include <glm/gtc/constants.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 // Project headers:
-#include "../shaders/shared.inl"
+#include "../shader_shared/shared.inl"
 
 using namespace daxa::types;
 using namespace std::chrono_literals;

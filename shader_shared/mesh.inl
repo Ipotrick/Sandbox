@@ -10,6 +10,10 @@
 // Can never be greater then 384!
 #define MAX_VERTICES_PER_MESHLET (128)
 
+#define ENTITY_MESHLET_VISIBILITY_ARENA_SIZE (1<<20)
+#define ENTITY_MESHLET_VISIBILITY_ARENA_BIT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE * 8)
+#define ENTITY_MESHLET_VISIBILITY_ARENA_UINT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE / 4)
+
 // Used to tell threads in the meshlet cull dispatch what to work on.
 struct MeshletCullIndirectArg
 {
@@ -41,14 +45,14 @@ struct Meshlet
 };
 DAXA_DECL_BUFFER_PTR(Meshlet)
 
-struct InstantiatedMeshlet
+struct MeshletInstance
 {
     daxa_u32 entity_index;
     daxa_u32 mesh_id;
     daxa_u32 mesh_index;
-    daxa_u32 meshlet_index;
+    daxa_u32 entity_meshlist_index;
 };
-DAXA_DECL_BUFFER_PTR(InstantiatedMeshlet)
+DAXA_DECL_BUFFER_PTR(MeshletInstance)
 
 struct BoundingSphere{
     daxa_f32vec3 center;
@@ -56,7 +60,7 @@ struct BoundingSphere{
 };
 DAXA_DECL_BUFFER_PTR(BoundingSphere)
 
-#if defined(DAXA_SHADER)
+#if 0
 #define DEBUG_VERTEX_ID 1
 void encode_vertex_id(daxa_u32 instantiated_meshlet_index, daxa_u32 triangle_index, daxa_u32 triangle_corner, out daxa_u32 vertex_id)
 {
@@ -80,19 +84,6 @@ void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_inde
 }
 #endif // #if defined(DAXA_SHADER)
 
-/// 
-/// A Mesh is a piece of a model.
-/// All triangles within a Mesh have the same material and textures.
-/// A mesh is allocated into one chunk of memory, in one buffer. That is the mesh_buffer.
-/// A mesh has at least one:
-/// * meshlet buffer
-/// * meshlet micro index buffer
-/// * meshlet indirect vertex buffer
-/// * vertex position buffer
-///
-/// To access any of these buffers, get the buffer device address of the mesh_buffer and add on it the relevant offset.
-/// The address can then be casted to a daxa_RWBuffer(TYPE), to access the data efficiently. 
-/// 
 struct Mesh
 {
     daxa_BufferId mesh_buffer;
@@ -124,3 +115,33 @@ struct MeshList
     daxa_u32 count;
 };
 DAXA_DECL_BUFFER_PTR(MeshList)
+
+struct InstantiatedMeshlets
+{
+    daxa_u32 first_count;
+    daxa_u32 second_count;
+    MeshletInstance meshlets[MAX_INSTANTIATED_MESHLETS];
+};
+DAXA_DECL_BUFFER_PTR(InstantiatedMeshlets)
+
+struct VisibleMeshletList
+{
+    daxa_u32 count;
+    daxa_u32 meshlet_ids[MAX_INSTANTIATED_MESHLETS];
+};
+DAXA_DECL_BUFFER_PTR(VisibleMeshletList)
+
+struct EntityMeshletVisibilityBitfieldOffsets
+{
+    daxa_u32 mesh_bitfield_offset[7];
+    daxa_u32 padd;
+};
+DAXA_DECL_BUFFER_PTR(EntityMeshletVisibilityBitfieldOffsets)
+
+#if !defined(__cplusplus)
+DAXA_BUFFER_REFERENCE_LAYOUT buffer EntityMeshletVisibilityBitfieldOffsetsView
+{
+    daxa_u32 back_offset;
+    EntityMeshletVisibilityBitfieldOffsets entity_offsets[];
+};
+#endif

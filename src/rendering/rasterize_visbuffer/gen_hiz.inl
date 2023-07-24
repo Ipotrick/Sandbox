@@ -3,9 +3,8 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
-#include "../../mesh/mesh.inl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
 
 #define GEN_HIZ_X 32
 #define GEN_HIZ_Y 32

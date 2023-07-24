@@ -3,10 +3,8 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
-#include "../../mesh/mesh.inl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
-
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
 #define PREPOPULATE_INST_MESHLETS_X 1024
 
 #if __cplusplus || defined(PrepopulateInstantiatedMeshletsCommandWrite_COMMAND)

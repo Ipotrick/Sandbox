@@ -1,6 +1,6 @@
 #include "gpu_context.hpp"
 
-#include "../mesh/mesh.inl"
+#include "../../shader_shared/mesh.inl"
 
 #if defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -43,7 +43,7 @@ GPUContext::GPUContext(Window const &window)
           .device = this->device,
           .shader_compile_options = daxa::ShaderCompileOptions{
               .root_paths = {
-                  "./shaders",
+                  "./shader_shared",
                   DAXA_SHADER_INCLUDE_DIR,
               },
               .write_out_preprocessed_code = "./preproc",

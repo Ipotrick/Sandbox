@@ -3,16 +3,15 @@
 #include <daxa/daxa.inl>
 #include <daxa/utils/task_graph.inl>
 
-#include "../../../shaders/shared.inl"
-#include "../../mesh/mesh.inl"
-#include "../../mesh/visbuffer_meshlet_util.inl"
+#include "../../../shader_shared/shared.inl"
+#include "../../../shader_shared/mesh.inl"
 
 #define ANALYZE_VIS_BUFFER_WORKGROUP_X 8
 #define ANALYZE_VIS_BUFFER_WORKGROUP_Y 16
 
 DAXA_DECL_TASK_USES_BEGIN(AnalyzeVisbuffer2, 1)
 DAXA_TASK_USE_IMAGE(u_visbuffer, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlet), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstance), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_visible_meshlets, daxa_RWBufferPtr(VisibleMeshletList), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
