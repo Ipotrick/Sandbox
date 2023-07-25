@@ -17,4 +17,5 @@ struct FrustumInfo
     daxa_f32 horizontal_fov;
 };
 
-#define CULL_MESHLETS_WORKGROUP_X 32
+#define CULL_MESHLETS_WORKGROUP_X 128
+#define TASK_SHADER_WORKGROUP_X 32

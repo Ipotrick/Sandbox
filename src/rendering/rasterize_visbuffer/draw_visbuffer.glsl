@@ -29,7 +29,7 @@ void main()
         }
         case DRAW_VISBUFFER_PASS_OBSERVER:
         {
-            meshlets_to_draw = deref(u_instantiated_meshlets).first_count + deref(u_instantiated_meshlets).second_count;
+            meshlets_to_draw = deref(u_instantiated_meshlets).second_count;
             break;
         }
         default: break;
@@ -73,7 +73,7 @@ void main()
     uint inst_meshlet_index;
     uint triangle_index;
     
-    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
+    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE) ? 0 : deref(u_instantiated_meshlets).first_count;
     inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
     triangle_index = gl_VertexIndex / 3;
 
@@ -136,35 +136,27 @@ void main()
 #endif
 
 #if (MESH_SHADER_CULL_AND_DRAW) && ((DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK) || (DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH))
-//struct TaskPayload{
-//    MeshletInstance meshlet_instance;
-//    uint meshlet_instance_index;
-//};
-//taskPayloadSharedEXT TaskPayload tps[CULL_MESHLETS_WORKGROUP_X];
 struct NewTaskPayload
 {
-    uint cull_meshlets_arg_offset;
-    uint meshlet_instance_offset;
-    uint mask;
+    uint global_meshlet_args_offset;
+    uint global_meshlet_instances_offset;
+    uint local_surviving_meshlet_args_mask;
 };
 taskPayloadSharedEXT NewTaskPayload tps;
 #endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferCullAndDrawPush, push)
-layout(local_size_x = 32) in;
-shared uint s_meshlet_count; 
-shared uint s_meshlet_instance_offset;
-shared uint s_local_meshlet_instance_offset;
+layout(local_size_x = TASK_SHADER_WORKGROUP_X) in;
 void main()
 {
-    MeshletInstance instanced_meshlet;
-    bool active_thread = get_meshlet_instance_from_arg(gl_GlobalInvocationID.x, push.bucket_index, u_meshlet_cull_indirect_args, instanced_meshlet);
+    MeshletInstance meshlet_instance;
+    bool active_thread = get_meshlet_instance_from_arg(gl_GlobalInvocationID.x, push.bucket_index, u_meshlet_cull_indirect_args, meshlet_instance);
 #if ENABLE_MESHLET_CULLING
     if (active_thread)
     {
         active_thread = active_thread && !is_meshlet_occluded(
-            instanced_meshlet,
+            meshlet_instance,
             u_entity_meshlet_visibility_bitfield_offsets,
             u_entity_meshlet_visibility_bitfield_arena,
             u_entity_combined_transforms,
@@ -172,31 +164,25 @@ void main()
             u_hiz);
     }
 #endif
-    uint meshlet_instance_index = ~0; 
-    uint local_index = gl_LocalInvocationID.x;
-    if (gl_LocalInvocationID.x == 0)
+    const uint local_arg_offset = gl_SubgroupInvocationID.x;
+    const uint local_surviving_meshlet_count = subgroupBallotBitCount(subgroupBallot(active_thread));
+    const uint local_meshlet_instances_offset = subgroupExclusiveAdd(active_thread ? 1 : 0);
+    const uint local_surviving_meshlet_args_mask = subgroupBallot(active_thread).x;
+    uint global_meshlet_instances_offset;
+    if (subgroupElect())
     {
-        s_meshlet_count = 0;
+        global_meshlet_instances_offset = atomicAdd(deref(u_instantiated_meshlets).second_count, local_surviving_meshlet_count) + deref(u_instantiated_meshlets).first_count;
+        tps.global_meshlet_instances_offset = global_meshlet_instances_offset;
+        tps.global_meshlet_args_offset = gl_GlobalInvocationID.x;
+        tps.local_surviving_meshlet_args_mask = local_surviving_meshlet_args_mask;
     }
-    barrier();
-    uint local_compact_index = atomicAdd(s_meshlet_count, active_thread ? 1 : 0);
-    barrier();
-    if (gl_LocalInvocationID.x == 0)
-    {
-        s_meshlet_instance_offset = atomicAdd(deref(u_instantiated_meshlets).second_count, s_meshlet_count) + deref(u_instantiated_meshlets).first_count;
-        tps.meshlet_instance_offset = s_meshlet_instance_offset;
-        tps.cull_meshlets_arg_offset = gl_GlobalInvocationID.x;
-        tps.mask = 0;
-    }
-    barrier();
+    global_meshlet_instances_offset = subgroupBroadcastFirst(global_meshlet_instances_offset);
     if (active_thread)
     {
-        atomicOr(tps.mask, 1u << local_index);
-        const uint meshlet_instance_index = local_compact_index + s_meshlet_instance_offset;
-        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = instanced_meshlet;
+        const uint meshlet_instance_index = global_meshlet_instances_offset + local_meshlet_instances_offset;
+        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = meshlet_instance;
     }
-    
-    EmitMeshTasksEXT(s_meshlet_count,1,1);
+    EmitMeshTasksEXT(local_surviving_meshlet_count,1,1);
 }
 #endif 
 
@@ -224,6 +210,7 @@ struct Vertex
     #endif
 };
 shared Vertex s_vertices[MAX_VERTICES_PER_MESHLET];
+shared uint s_local_meshlet_arg_offset;
 #if MESH_SHADER_TRIANGLE_CULL
 shared uint s_surviving_triangles[MAX_TRIANGLES_PER_MESHLET];
 shared uvec3 s_surviving_triangles_indices[MAX_TRIANGLES_PER_MESHLET];
@@ -231,7 +218,6 @@ shared uint s_surviving_vertices[MAX_VERTICES_PER_MESHLET];
 shared uint s_surviving_triangle_count;
 shared uint s_surviving_vertex_count;
 #endif
-shared uint s_local_index;
 layout(location = 0) perprimitiveEXT out uint fin_triangle_id[];
 layout(location = 1) perprimitiveEXT out uint fin_instantiated_meshlet_index[];
 void main()
@@ -245,24 +231,26 @@ void main()
         barrier();
     #endif
     #if MESH_SHADER_CULL_AND_DRAW
-    const uint compact_local_index = gl_WorkGroupID.x;
-    const uint set_bits_prefix_sum = subgroupInclusiveAdd((tps.mask & (1 << gl_LocalInvocationID.x)) != 0 ? 1 : 0);
-    if (set_bits_prefix_sum == (compact_local_index + 1))
+    const uint local_meshlet_instances_offset = gl_WorkGroupID.x;
+    const uint test_thread_local_meshlet_arg_offset = gl_SubgroupInvocationID.x;
+    const uint set_bits_prefix_sum = subgroupInclusiveAdd(((tps.local_surviving_meshlet_args_mask & (1u << test_thread_local_meshlet_arg_offset)) != 0) ? 1 : 0);
+    if (set_bits_prefix_sum == (local_meshlet_instances_offset + 1))
     {
         if(subgroupElect())
         {
-            s_local_index = gl_LocalInvocationID.x;
+            s_local_meshlet_arg_offset = test_thread_local_meshlet_arg_offset;
         }
     }
     barrier();
-    const uint arg_index = tps.cull_meshlets_arg_offset + s_local_index;
-    const uint inst_meshlet_index = tps.meshlet_instance_offset + s_local_index;
+    const uint arg_index = tps.global_meshlet_args_offset + s_local_meshlet_arg_offset;
+    const uint meshlet_instance_index = tps.global_meshlet_instances_offset + local_meshlet_instances_offset;
     MeshletInstance instantiated_meshlet;
     bool active_thread = get_meshlet_instance_from_arg(arg_index, push.bucket_index, u_meshlet_cull_indirect_args, instantiated_meshlet);
     #else
-    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
-    const uint inst_meshlet_index = gl_WorkGroupID.x + meshlet_offset;
-    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+    //const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
+    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE) ? 0 : deref(u_instantiated_meshlets).first_count;
+    const uint meshlet_instance_index = gl_WorkGroupID.x + meshlet_offset;
+    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[meshlet_instance_index];
     #endif
 
 
@@ -404,7 +392,7 @@ void main()
         }
         gl_PrimitiveTriangleIndicesEXT[out_index] = post_cull_triangle_micro_indices;
         uint triangle_id;
-        encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id); // this is actually wrong, you cant reorder the triangle index of the meshlet here!!!
+        encode_triangle_id(meshlet_instance_index, triangle_index, triangle_id); // this is actually wrong, you cant reorder the triangle index of the meshlet here!!!
         fin_triangle_id[out_index] = triangle_id;
     }
     #else
@@ -432,7 +420,7 @@ void main()
             get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + 2));
         gl_PrimitiveTriangleIndicesEXT[triangle_index] = triangle_micro_indices;
         uint triangle_id;
-        encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id);
+        encode_triangle_id(meshlet_instance_index, triangle_index, triangle_id);
         fin_triangle_id[triangle_index] = triangle_id;
     }
     #endif

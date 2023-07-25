@@ -116,12 +116,13 @@ void main()
         {
             const uint threads_per_indirect_arg = 1 << bucket_index;
             
+            const uint work_group_size = (globals.settings.enable_mesh_shader == 1) ? TASK_SHADER_WORKGROUP_X : CULL_MESHLETS_WORKGROUP_X;
             const uint prev_indirect_arg_count = arg_array_offset;
             const uint prev_needed_threads = threads_per_indirect_arg * prev_indirect_arg_count;
-            const uint prev_needed_workgroups = (prev_needed_threads + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
+            const uint prev_needed_workgroups = (prev_needed_threads + work_group_size - 1) / work_group_size;
             const uint cur_indirect_arg_count = arg_array_offset + 1;
             const uint cur_needed_threads = threads_per_indirect_arg * cur_indirect_arg_count;
-            const uint cur_needed_workgroups = (cur_needed_threads + CULL_MESHLETS_WORKGROUP_X - 1) / CULL_MESHLETS_WORKGROUP_X;
+            const uint cur_needed_workgroups = (cur_needed_threads + work_group_size - 1) / work_group_size;
 
             const bool update_cull_meshlets_dispatch = prev_needed_workgroups != cur_needed_workgroups;
             if (update_cull_meshlets_dispatch)
