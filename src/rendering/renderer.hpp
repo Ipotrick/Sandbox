@@ -33,7 +33,7 @@ struct Renderer
     void window_resized();
     auto create_main_task_list() -> daxa::TaskGraph;
     void update_settings();
-    void render_frame(CameraInfo const &camera_info, f32 const delta_time);
+    void render_frame(CameraInfo const &camera_info, CameraInfo const &observer_camera_info, f32 const delta_time);
 
     daxa::TaskBuffer zero_buffer = {};
 

@@ -242,6 +242,7 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
+        {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW},
         {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
     };
     for (auto [name, info] : rasters)
@@ -417,7 +418,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_cull_and_draw_visbuffer({
         .context = context,
         .tg = task_list,
-        .enable_mesh_shader = false,
+        .enable_mesh_shader = context->settings.enable_mesh_shader == 1,
         .cull_meshlets_commands = cull_meshlets_commands,
         .meshlet_cull_indirect_args = meshlet_cull_indirect_args,
         .entity_meta_data = entity_meta,
@@ -490,7 +491,7 @@ void Renderer::update_settings()
     context->settings.render_target_size_inv = {1.0f / context->settings.render_target_size.x, 1.0f / context->settings.render_target_size.y};
 }
 
-void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
+void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &observer_camera_info, f32 const delta_time)
 {
     if (this->window->size.x == 0 || this->window->size.y == 0)
     {
@@ -520,12 +521,11 @@ void Renderer::render_frame(CameraInfo const &camera_info, f32 const delta_time)
     this->context->shader_globals.globals.settings = this->context->settings;
     this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
     this->context->shader_globals.globals.delta_time = delta_time;
-    this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-    this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-    this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-    this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-    this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-    if (!this->context->settings.enable_observer)
+    this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&observer_camera_info.up);
+    this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&observer_camera_info.pos);
+    this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.view);
+    this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.proj);
+    this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.vp);
     {
         this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
         this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);

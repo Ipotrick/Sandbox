@@ -1,12 +1,15 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+#if DAXA_SHADER_STAGE != DAXA_SHADER_STAGE_FRAGMENT
 #include "draw_visbuffer.inl"
-#include "depth_util.glsl"
 #include "../../../shader_shared/visbuffer.glsl"
+#include "depth_util.glsl"
+#include "cull_util.glsl"
+#endif
 
 
-#if defined(DrawVisbufferWriteCommand_COMMAND)
+#if defined(DrawVisbufferWriteCommand_COMMAND) || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferWriteCommandPush, push)
 layout(local_size_x = 1) in;
 void main()
@@ -63,7 +66,7 @@ void main()
 layout(location = 0) flat VERTEX_OUT uint vout_triange_id;
 #endif
 
-#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
 void main()
 {
@@ -112,15 +115,16 @@ void main()
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
-    const vec4 pos = view_proj * deref(u_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
+    const vec4 pos = view_proj * deref(u_entity_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
 
     uint triangle_id;
     encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id);
     vout_triange_id = triangle_id;
     gl_Position = pos.xyzw;
 }
-#elif DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
-DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
+#endif
+
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT || !defined(DAXA_SHADER)
 layout(location = 0) out uint visibility_id;
 void main()
 {
@@ -128,18 +132,74 @@ void main()
 }
 #endif
 
-#if MESH_SHADER
-#extension GL_EXT_mesh_shader : require
-#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK
-layout(local_size_x = 32) in;
+#if (MESH_SHADER || MESH_SHADER_CULL_AND_DRAW) && ((DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK) || (DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH))
+#extension GL_EXT_mesh_shader : enable
+#endif
+
+#if (MESH_SHADER_CULL_AND_DRAW) && ((DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK) || (DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH))
+struct TaskPayload{
+    MeshletInstance meshlet_instance;
+    uint meshlet_instance_index;
+};
+taskPayloadSharedEXT TaskPayload tps[128];
+#endif
+
+#if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_TASK || !defined(DAXA_SHADER)
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferCullAndDrawPush, push)
+layout(local_size_x = 128) in;
+shared uint s_meshlet_count; 
 void main()
 {
+    MeshletInstance instanced_meshlet;
+    bool active_thread = get_meshlet_instance_from_arg(gl_GlobalInvocationID.x, push.bucket_index, u_meshlet_cull_indirect_args, instanced_meshlet);
+    if (!active_thread)
+    {
+        return;
+    }
+#if ENABLE_MESHLET_CULLING
+    if (active_thread)
+    {
+        active_thread = active_thread && !is_meshlet_occluded(
+            instanced_meshlet,
+            u_entity_meshlet_visibility_bitfield_offsets,
+            u_entity_meshlet_visibility_bitfield_arena,
+            u_entity_combined_transforms,
+            u_meshes,
+            u_hiz);
+    }
+#endif
+    uint meshlet_instance_index = ~0; 
+    if (active_thread)
+    {
+        const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_count, 1);
+        const uint offset = deref(u_instantiated_meshlets).first_count;
+        meshlet_instance_index = out_index + offset;
+        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = instanced_meshlet;
+    }
 
+    if (gl_LocalInvocationID.x == 0)
+    {
+        s_meshlet_count = 0;
+    }
+    barrier();
+    if (active_thread)
+    {
+        const uint out_index = atomicAdd(s_meshlet_count, 1);
+        tps[out_index].meshlet_instance = instanced_meshlet;
+        tps[out_index].meshlet_instance_index = meshlet_instance_index;
+    }
+    barrier();
+    
+    EmitMeshTasksEXT(s_meshlet_count,1,1);
 }
 #endif 
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH || !defined(DAXA_SHADER)
+#if MESH_SHADER_CULL_AND_DRAW
+DAXA_DECL_PUSH_CONSTANT(DrawVisbufferCullAndDrawPush, push)
+#else
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferPush, push)
+#endif
 layout(local_size_x = MESH_SHADER_WORKGROUP_X) in;
 layout(triangles) out;
 layout(max_vertices = MAX_VERTICES_PER_MESHLET, max_primitives = MAX_TRIANGLES_PER_MESHLET) out;
@@ -158,8 +218,14 @@ layout(location = 0) perprimitiveEXT out uint fin_triangle_id[];
 layout(location = 1) perprimitiveEXT out uint fin_instantiated_meshlet_index[];
 void main()
 {
+    #if MESH_SHADER_CULL_AND_DRAW
+    const uint inst_meshlet_index = tps[gl_WorkGroupID.x].meshlet_instance_index;
+    MeshletInstance instantiated_meshlet = tps[gl_WorkGroupID.x].meshlet_instance;
+    #else
     const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
     const uint inst_meshlet_index = gl_WorkGroupID.x + meshlet_offset;
+    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+    #endif
 
     if (gl_LocalInvocationID.x == 0)
     {
@@ -167,13 +233,6 @@ void main()
         s_surviving_vertex_count = 0;
     }
     barrier();
-
-    // MeshletInstance:
-    // daxa_u32 entity_index;
-    // daxa_u32 mesh_id;
-    // daxa_u32 mesh_index;
-    // daxa_u32 entity_meshlist_index;
-    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
 
     // Mesh:
     // daxa_BufferId mesh_buffer;
@@ -203,8 +262,12 @@ void main()
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
 
     // Transform vertices:
-    const mat4 model_matrix = deref(u_combined_transforms[instantiated_meshlet.entity_index]);
+    const mat4 model_matrix = deref(u_entity_combined_transforms[instantiated_meshlet.entity_index]);
+    #if MESH_SHADER_CULL_AND_DRAW
+    const mat4 view_proj_matrix = globals.camera_view_projection;
+    #else
     const mat4 view_proj_matrix = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
+    #endif
     for (uint offset = 0; offset < meshlet.vertex_count; offset += MESH_SHADER_WORKGROUP_X)
     {
         const uint meshlet_local_vertex_index = gl_LocalInvocationID.x + offset;
@@ -309,4 +372,3 @@ void main()
     }
 }
 #endif 
-#endif

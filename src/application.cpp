@@ -174,7 +174,7 @@ auto Application::run() -> i32
             renderer.window_resized();
         }
         this->update();
-        this->renderer.render_frame(this->camera_controller.cam_info, delta_time);
+        this->renderer.render_frame(this->camera_controller.cam_info, this->observer_camera_controller.cam_info, delta_time);
     }
     return 0;
 }
@@ -185,12 +185,32 @@ void Application::update()
     {
         return;
     }
-    camera_controller.process_input(this->window, this->delta_time);
-    camera_controller.update_matrices(this->window);
+    if (control_observer)
+    {
+        observer_camera_controller.process_input(this->window, this->delta_time);
+        observer_camera_controller.update_matrices(this->window);
+    }
+    else
+    {
+        camera_controller.process_input(this->window, this->delta_time);
+        camera_controller.update_matrices(this->window);
+    }
     if (window.key_just_pressed(GLFW_KEY_H))
     {
         std::cout << "switched enable_observer from " << renderer.context->settings.enable_observer << " to " << !(renderer.context->settings.enable_observer) << std::endl;
         renderer.context->settings.enable_observer = !renderer.context->settings.enable_observer;
+    }
+    if (window.key_just_pressed(GLFW_KEY_J))
+    {
+        std::cout << "switched control_observer from " << control_observer << " to " << !(control_observer) << std::endl;
+        control_observer = !control_observer;
+    }
+    if (window.key_just_pressed(GLFW_KEY_K))
+    {
+        std::cout << "reset observer" << std::endl;
+        control_observer = false;
+        renderer.context->settings.enable_observer = false;
+        observer_camera_controller = camera_controller;
     }
     if (window.key_just_pressed(GLFW_KEY_M))
     {

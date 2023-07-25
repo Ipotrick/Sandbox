@@ -1,6 +1,8 @@
 #pragma once
 
 #include <daxa/daxa.inl>
+#include "shared.inl"
+#include "mesh.inl"
 
 struct NdcBounds
 {
@@ -140,4 +142,21 @@ bool is_meshlet_occluded(
         }
     }
     return false;
+}
+
+bool get_meshlet_instance_from_arg(uint thread_id, uint arg_bucket_index, daxa_BufferPtr(MeshletCullIndirectArgTable) meshlet_cull_indirect_args, out MeshletInstance instanced_meshlet)
+{
+    const uint indirect_arg_index = thread_id >> arg_bucket_index;
+    const uint valid_arg_count = deref(meshlet_cull_indirect_args).indirect_arg_counts[arg_bucket_index];
+    if (indirect_arg_index >= valid_arg_count)
+    {
+        return false;
+    }
+    const uint arg_work_offset = thread_id - (indirect_arg_index << arg_bucket_index);
+    const MeshletCullIndirectArg arg = deref(deref(meshlet_cull_indirect_args).indirect_arg_ptrs[arg_bucket_index][indirect_arg_index]);
+    instanced_meshlet.entity_index = arg.entity_id;
+    instanced_meshlet.mesh_id = arg.mesh_id;
+    instanced_meshlet.mesh_index = arg.entity_meshlist_index;
+    instanced_meshlet.entity_meshlist_index = arg.meshlet_index_start_offset + arg_work_offset;
+    return true;
 }
