@@ -257,6 +257,7 @@ struct CullAndDrawVisbufferTask
             },
         };
         cmd.begin_renderpass(render_pass_begin_info);
+        cmd.set_pipeline(*context->raster_pipelines.at(DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW.name));
         for (u32 i = 0; i < 32; ++i)
         {
             cmd.push_constant(DrawVisbufferCullAndDrawPush{.bucket_index = i});

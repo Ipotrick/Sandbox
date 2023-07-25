@@ -1,12 +1,11 @@
 #include <daxa/daxa.inl>
 #include "cull_meshes.inl"
+#include "cull_util.inl"
 
 #define DEBUG_MESH_CULL 0
 #define DEBUG_MESH_CULL1 0
 
 #extension GL_EXT_debug_printf : enable
-
-#define CULL_MESHLETS_WORKGROUP_X 128
 
 #if defined(CullMeshesCommand_COMMAND)
 layout(local_size_x = 32) in;
@@ -136,6 +135,7 @@ void main()
         arg.entity_meshlist_index = mesh_index;
         arg.meshlet_index_start_offset = meshlet_offset;
         deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[bucket_index][arg_array_offset]) = arg;
+        //debugPrintfEXT("test\n");
         meshlet_offset += indirect_arg_meshlet_count;
     }
     #if DEBUG_MESH_CULL1

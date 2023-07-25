@@ -6,8 +6,7 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../scene/scene.inl"
 #include "../../../shader_shared/mesh.inl"
-
-#define CULL_MESHLETS_WORKGROUP_X 128
+#include "../../../shader_shared/cull_util.inl"
 
 #if __cplusplus || defined(CullMeshlets_)
 DAXA_DECL_TASK_USES_BEGIN(CullMeshlets, 1)
