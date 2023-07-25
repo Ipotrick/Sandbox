@@ -22,7 +22,13 @@ using HWND = void *;
 
 GPUContext::GPUContext(Window const &window)
     : context{daxa::create_instance({.enable_validation = false})},
-      device{this->context.create_device({.max_allowed_images = 100000, .max_allowed_buffers = 100000, .enable_mesh_shader = true, .name = "Sandbox Device"})},
+      device{this->context.create_device({
+        .max_allowed_images = 100000, 
+        .max_allowed_buffers = 100000, 
+        #if COMPILE_IN_MESH_SHADER
+        .enable_mesh_shader = true, 
+        #endif
+        .name = "Sandbox Device"})},
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
           .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,

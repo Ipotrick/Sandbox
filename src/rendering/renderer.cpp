@@ -242,8 +242,10 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
+        #if COMPILE_IN_MESH_SHADER
         {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW},
         {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
+        #endif
     };
     for (auto [name, info] : rasters)
     {
@@ -433,11 +435,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .debug_image = debug_image,
         .depth_image = depth,
     });
-    auto meshlet_visibility_bitfields = task_list.create_transient_buffer({
-        .size = static_cast<u32>(sizeof(daxa_u32vec4) * MAX_INSTANTIATED_MESHLETS),
-        .name = "meshlet_visibility_counters",
-    });
-    task_clear_buffer(task_list, meshlet_visibility_bitfields, 0);
     auto visible_meshlets_bitfield = task_list.create_transient_buffer({sizeof(daxa_u32) * MAX_INSTANTIATED_MESHLETS, "visible meshlets bitfield"});
     task_clear_buffer(task_list, visible_meshlets, 0, 4);
     task_clear_buffer(task_list, visible_meshlets_bitfield, 0);

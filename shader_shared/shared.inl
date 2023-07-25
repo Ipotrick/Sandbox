@@ -16,6 +16,7 @@
 #define WARP_SIZE 32
 #define MAX_ENTITY_COUNT (1 << 16)
 #define MESH_SHADER_WORKGROUP_X 32
+#define COMPILE_IN_MESH_SHADER 1
 
 #define ENABLE_MESHLET_CULLING 1
 #define ENABLE_TRIANGLE_CULLING 1
@@ -33,6 +34,7 @@ struct Settings
     daxa_f32vec2 render_target_size_inv;
     daxa_u32 enable_mesh_shader;
     daxa_u32 enable_observer;
+    daxa_u32 observer_show_pass;
 #if __cplusplus
     auto operator==(Settings const &other) const -> bool = default;
     auto operator!=(Settings const &other) const -> bool = default;

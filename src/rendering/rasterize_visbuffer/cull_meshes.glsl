@@ -69,7 +69,7 @@ void main()
     //   - instead of x writeouts, only do log2(x), one writeout per set bit in the meshletcount.
     //   - when you want to write out 17 meshlet work units, instead of writing 7 args into a buffer, 
     //     you write one 1x arg, no 2x arg, no 4x arg, no 8x arg and one 16x arg. the 1x and the 16x args together contain 17 work units.
-    // - still not good enough, in large cases like 2^16 - 1 meshlets it would need 15 writeouts
+    // - still not good enough, in large cases like 2^16 - 1 meshlets it would need 15 writeouts, that is too much!
     //   - solution is to limit the writeouts to some smaller number (i chose 5, as it has a max thread waste of < 5%)
     //   - A strong compromise is to round up invocation count from meshletcount in such a way that the round up value only has 4 bits set at most.
     //   - as we do one writeout per bit set in meshlet count, this limits the writeout to 5.

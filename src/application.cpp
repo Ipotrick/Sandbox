@@ -212,10 +212,17 @@ void Application::update()
         renderer.context->settings.enable_observer = false;
         observer_camera_controller = camera_controller;
     }
+    #if COMPILE_IN_MESH_SHADER
     if (window.key_just_pressed(GLFW_KEY_M))
     {
         std::cout << "switched enable_mesh_shader from " << renderer.context->settings.enable_mesh_shader << " to " << !(renderer.context->settings.enable_mesh_shader) << std::endl;
         renderer.context->settings.enable_mesh_shader = !renderer.context->settings.enable_mesh_shader;
+    }
+    #endif
+    if (window.key_just_pressed(GLFW_KEY_O))
+    {
+        std::cout << "switched observer_show_pass from " << renderer.context->settings.observer_show_pass << " to " << ((renderer.context->settings.observer_show_pass + 1) % 3) << std::endl;
+        renderer.context->settings.observer_show_pass = (renderer.context->settings.observer_show_pass + 1) % 3;
     }
 }
 

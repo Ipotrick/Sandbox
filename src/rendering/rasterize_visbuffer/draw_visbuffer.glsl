@@ -6,7 +6,7 @@
 #include "depth_util.glsl"
 #include "cull_util.glsl"
 #include "cull_util.inl"
-
+#include "observer.glsl"
 
 #if defined(DrawVisbufferWriteCommand_COMMAND) || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferWriteCommandPush, push)
@@ -29,7 +29,7 @@ void main()
         }
         case DRAW_VISBUFFER_PASS_OBSERVER:
         {
-            meshlets_to_draw = deref(u_instantiated_meshlets).second_count;
+            meshlets_to_draw = observer_get_meshlet_instance_draw_count(u_instantiated_meshlets);
             break;
         }
         default: break;
@@ -54,6 +54,17 @@ void main()
 }
 #endif
 
+uint get_meshlet_draw_offset_from_pass(daxa_BufferPtr(InstantiatedMeshlets) meshlet_instances, uint pass)
+{
+    switch (pass)
+    {
+        case DRAW_VISBUFFER_PASS_ONE: return 0;
+        case DRAW_VISBUFFER_PASS_TWO: return deref(meshlet_instances).first_count;
+        case DRAW_VISBUFFER_PASS_OBSERVER: return observer_get_meshlet_instance_draw_offset(meshlet_instances);
+        default: return 0;
+    }
+}
+
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX
 #define VERTEX_OUT out 
 #endif
@@ -73,7 +84,7 @@ void main()
     uint inst_meshlet_index;
     uint triangle_index;
     
-    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE) ? 0 : deref(u_instantiated_meshlets).first_count;
+    const uint meshlet_offset = get_meshlet_draw_offset_from_pass(u_instantiated_meshlets, push.pass);
     inst_meshlet_index = gl_InstanceIndex + meshlet_offset;
     triangle_index = gl_VertexIndex / 3;
 
@@ -247,8 +258,7 @@ void main()
     MeshletInstance instantiated_meshlet;
     bool active_thread = get_meshlet_instance_from_arg(arg_index, push.bucket_index, u_meshlet_cull_indirect_args, instantiated_meshlet);
     #else
-    //const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE || push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? 0 : deref(u_instantiated_meshlets).first_count;
-    const uint meshlet_offset = (push.pass == DRAW_VISBUFFER_PASS_ONE) ? 0 : deref(u_instantiated_meshlets).first_count;
+    const uint meshlet_offset = get_meshlet_draw_offset_from_pass(u_instantiated_meshlets, push.pass);
     const uint meshlet_instance_index = gl_WorkGroupID.x + meshlet_offset;
     MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[meshlet_instance_index];
     #endif

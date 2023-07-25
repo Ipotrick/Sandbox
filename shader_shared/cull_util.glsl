@@ -127,18 +127,24 @@ bool is_meshlet_occluded(
         const float mip = ceil(log2(half_pixel_range));
 
         const ivec2 quad_corner_texel = ivec2(min_texel_i) >> uint(mip);
+        const int imip = int(mip);
+        const ivec2 mip_size = max(ivec2(0,0),ivec2(globals.settings.render_target_size >> (1 + imip)) - 1);
 
         const vec4 fetch = vec4(
-            texelFetch(daxa_texture2D(hiz), quad_corner_texel + ivec2(0,0), int(mip)).x,
-            texelFetch(daxa_texture2D(hiz), quad_corner_texel + ivec2(0,1), int(mip)).x,
-            texelFetch(daxa_texture2D(hiz), quad_corner_texel + ivec2(1,0), int(mip)).x,
-            texelFetch(daxa_texture2D(hiz), quad_corner_texel + ivec2(1,1), int(mip)).x
+            texelFetch(daxa_texture2D(hiz), clamp(quad_corner_texel + ivec2(0,0), ivec2(0,0), mip_size), int(mip)).x,
+            texelFetch(daxa_texture2D(hiz), clamp(quad_corner_texel + ivec2(0,1), ivec2(0,0), mip_size), int(mip)).x,
+            texelFetch(daxa_texture2D(hiz), clamp(quad_corner_texel + ivec2(1,0), ivec2(0,0), mip_size), int(mip)).x,
+            texelFetch(daxa_texture2D(hiz), clamp(quad_corner_texel + ivec2(1,1), ivec2(0,0), mip_size), int(mip)).x
         );
         const float depth = min(min(fetch.x,fetch.y), min(fetch.z, fetch.w));
         const bool depth_cull = (depth > ndc_bounds.ndc_max.z);
         if (depth_cull)
         {
             return true;
+        }
+        else if (fetch.x == 0.0f)
+        {
+            //debugPrintfEXT("no cull, index: (%i,%i) mip: %f\n", quad_corner_texel.x, quad_corner_texel.y, mip);
         }
     }
     return false;
