@@ -13,7 +13,7 @@
 /// It also generates a list of meshlet counts for each mesh, that the following meshlet culling uses.
 ///
 
-#define CULL_MESHES_WORKGROUP_X 16
+#define CULL_MESHES_WORKGROUP_X 8
 #define CULL_MESHES_WORKGROUP_Y 7
 
 #if __cplusplus || defined(CullMeshesCommand_COMMAND)

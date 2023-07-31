@@ -7,7 +7,7 @@
 #include "../../../shader_shared/mesh.inl"
 
 #define ANALYZE_VIS_BUFFER_WORKGROUP_X 8
-#define ANALYZE_VIS_BUFFER_WORKGROUP_Y 16
+#define ANALYZE_VIS_BUFFER_WORKGROUP_Y 8
 
 DAXA_DECL_TASK_USES_BEGIN(AnalyzeVisbuffer2, 1)
 DAXA_TASK_USE_IMAGE(u_visbuffer, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
@@ -47,8 +47,8 @@ struct AnalyzeVisBufferTask2
             .width = x,
             .height = y,
         });
-        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * 2);
-        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * 2);
+        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X);
+        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y);
         cmd.dispatch(dispatch_x, dispatch_y, 1);
     }
 };
