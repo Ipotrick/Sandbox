@@ -18,8 +18,7 @@ DAXA_DECL_TASK_USES_END()
 
 struct AnalyzeVisbufferPush2
 {
-    daxa_u32 width;
-    daxa_u32 height;
+    daxa_u32vec2 size;
 };
 
 #if __cplusplus
@@ -44,11 +43,10 @@ struct AnalyzeVisBufferTask2
         auto const x = ti.get_device().info_image(uses.u_visbuffer.image()).size.x;
         auto const y = ti.get_device().info_image(uses.u_visbuffer.image()).size.y;
         cmd.push_constant(AnalyzeVisbufferPush2{
-            .width = x,
-            .height = y,
+            .size = {x, y},
         });
-        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X);
-        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y);
+        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * 4);
+        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * 4);
         cmd.dispatch(dispatch_x, dispatch_y, 1);
     }
 };

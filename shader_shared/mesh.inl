@@ -5,7 +5,7 @@
 #define INVALID_MESHLET_INDEX (~(0u))
 
 // Can never be greater then 128!
-#define MAX_TRIANGLES_PER_MESHLET (124)
+#define MAX_TRIANGLES_PER_MESHLET (64)
 
 // Can never be greater then 384!
 #define MAX_VERTICES_PER_MESHLET (64)
@@ -98,7 +98,7 @@ struct Mesh
 };
 DAXA_DECL_BUFFER_PTR(Mesh)
 
-#if defined(DAXA_SHADER)
+#if DAXA_SHADER
 uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offset)
 {
     uint pack_index = index_offset / 4;

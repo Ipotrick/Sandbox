@@ -6,7 +6,7 @@
 
 struct EntityId
 {
-#if defined(DAXA_SHADER)
+#if (DAXA_SHADER)
     daxa_u32 index;
 #else
     daxa::types::u32 index = INVALID_ENTITY_INDEX;
@@ -15,7 +15,7 @@ struct EntityId
 DAXA_DECL_BUFFER_PTR(EntityId)
 
 
-#if !defined(DAXA_SHADER)
+#if !(DAXA_SHADER)
 inline
 #endif
 bool entity_id_valid(EntityId id)

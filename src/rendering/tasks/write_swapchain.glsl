@@ -10,7 +10,9 @@ layout(local_size_x = WRITE_SWAPCHAIN_WG_X, local_size_y = WRITE_SWAPCHAIN_WG_Y)
 void main()
 {
     const ivec2 index = ivec2(gl_GlobalInvocationID.xy);
-    
+    float checker = ((((index.x / (4)) & 1) == 0) ^^ (((index.y / (4)) & 1) == 0)) ? 1.0f : 0.9f;
+    const float checker2 = ((((index.x / (4*8)) & 1) == 0) ^^ (((index.y / (4*4)) & 1) == 0)) ? 1.0f : 0.9f;
+    checker *= checker2;
     const uint triangle_id = imageLoad(daxa_uimage2D(vis_image), index).x;
     if (triangle_id != INVALID_TRIANGLE_ID)
     {
@@ -26,10 +28,10 @@ void main()
 
         vec4 result = vec4(0,0,0,1);
 
-        imageStore(daxa_image2D(swapchain), index, vec4(debug_color,1));
+        imageStore(daxa_image2D(swapchain), index, vec4(debug_color * checker,1));
     }
     else
     {
-        imageStore(daxa_image2D(swapchain), index, vec4(1,1,1,1));
+        imageStore(daxa_image2D(swapchain), index, vec4(vec3(1,1,1) * checker,1));
     }
 }

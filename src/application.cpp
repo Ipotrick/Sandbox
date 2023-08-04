@@ -123,7 +123,7 @@ void CameraController::update_matrices(Window &window)
 }
  
 Application::Application()
-    : window{400, 300, "sandbox"},
+    : window{3840, 2160, "sandbox"},
       gpu_context{this->window},
       asset_manager{this->gpu_context.device},
       scene{},

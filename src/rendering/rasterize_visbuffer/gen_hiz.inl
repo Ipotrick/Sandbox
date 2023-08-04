@@ -6,9 +6,11 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
 
-#define GEN_HIZ_X 32
-#define GEN_HIZ_Y 32
-#define GEN_HIZ_LEVELS_PER_DISPATCH 6
+#define GEN_HIZ_X 16
+#define GEN_HIZ_Y 16
+#define GEN_HIZ_LEVELS_PER_DISPATCH 12
+#define GEN_HIZ_WINDOW_X 64
+#define GEN_HIZ_WINDOW_Y 64
 
 struct GenHizPush
 {
@@ -18,6 +20,8 @@ struct GenHizPush
     daxa_u32 width;
     daxa_u32 height;
     daxa_u32 mips;
+    daxa_u64 counter_address;
+    daxa_u32 total_workgroup_count;
 };
 
 #if __cplusplus
@@ -43,7 +47,7 @@ daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_gr
         .sample_count = 1,
         .name = "hiz",
     });
-    for (u32 dispatch_i = 0; dispatch_i < (mips + GEN_HIZ_LEVELS_PER_DISPATCH - 1) / GEN_HIZ_LEVELS_PER_DISPATCH; ++dispatch_i)
+    for (u32 dispatch_i = 0; dispatch_i < 1; ++dispatch_i)
     {
         using namespace daxa::task_resource_uses;
         const u32 first_mip = dispatch_i * GEN_HIZ_LEVELS_PER_DISPATCH;
@@ -52,7 +56,7 @@ daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_gr
         std::vector<daxa::GenericTaskResourceUse> uses = {};
         daxa::TaskImageView src_view = (dispatch_i == 0 ? src.view({.base_mip_level = 0}) : hiz.view({.base_mip_level = first_mip-1}));
         uses.push_back(ImageComputeShaderSampled<>{ src_view });
-        daxa::TaskImageView dst_views[GEN_HIZ_LEVELS_PER_DISPATCH] = { {}, {}, {}, {}, {} };
+        daxa::TaskImageView dst_views[GEN_HIZ_LEVELS_PER_DISPATCH] = { };
         for (u32 i = 0; i < mips_this_dispatch; ++i)
         {
             dst_views[i] = hiz.view({.base_mip_level = first_mip + i});
@@ -70,8 +74,10 @@ daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_gr
                 auto const src_y = device.info_image(ti.uses[src_view].image()).size.y >> (ti.uses[src_view].handle.slice.base_mip_level);
                 auto const x = std::max(1u,device.info_image(ti.uses[dst_views[0]].image()).size.x >> (ti.uses[dst_views[0]].handle.slice.base_mip_level));
                 auto const y = std::max(1u,device.info_image(ti.uses[dst_views[0]].image()).size.y >> (ti.uses[dst_views[0]].handle.slice.base_mip_level));
-                auto const dispatch_x = round_up_div(x, GEN_HIZ_X);
-                auto const dispatch_y = round_up_div(y, GEN_HIZ_Y);
+                auto const dispatch_x = round_up_div(x, GEN_HIZ_WINDOW_X/2);
+                auto const dispatch_y = round_up_div(y, GEN_HIZ_WINDOW_Y/2);
+                auto counter_alloc = ti.get_allocator().allocate(sizeof(u32), sizeof(u32)).value();
+                *reinterpret_cast<u32*>(counter_alloc.host_address) = 0;
                 GenHizPush push{ 
                     .src = ti.uses[src_view].view(),
                     .dst = {{},{},{},{},{}},
@@ -79,6 +85,8 @@ daxa::TaskImageView task_gen_hiz(GPUContext * context, daxa::TaskGraph & task_gr
                     .width = src_x, 
                     .height = src_y, 
                     .mips = mips_this_dispatch,
+                    .counter_address = counter_alloc.device_address,
+                    .total_workgroup_count = dispatch_x * dispatch_y,
                 };
                 for (u32 i = 0; i < mips_this_dispatch; ++i)
                 {
