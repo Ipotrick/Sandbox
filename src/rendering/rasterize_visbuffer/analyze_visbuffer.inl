@@ -6,6 +6,8 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
 
+#define ANALYZE_VIS_BUFFER_QUAD_X 2
+#define ANALYZE_VIS_BUFFER_QUAD_Y 2
 #define ANALYZE_VIS_BUFFER_WORKGROUP_X 8
 #define ANALYZE_VIS_BUFFER_WORKGROUP_Y 8
 
@@ -14,6 +16,8 @@ DAXA_TASK_USE_IMAGE(u_visbuffer, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstance), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_visible_meshlets, daxa_RWBufferPtr(VisibleMeshletList), COMPUTE_SHADER_READ_WRITE)
+// DxDy Image
+// UV Image
 DAXA_DECL_TASK_USES_END()
 
 struct AnalyzeVisbufferPush2
@@ -45,8 +49,8 @@ struct AnalyzeVisBufferTask2
         cmd.push_constant(AnalyzeVisbufferPush2{
             .size = {x, y},
         });
-        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * 4);
-        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * 4);
+        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * ANALYZE_VIS_BUFFER_QUAD_X);
+        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * ANALYZE_VIS_BUFFER_QUAD_Y);
         cmd.dispatch(dispatch_x, dispatch_y, 1);
     }
 };
