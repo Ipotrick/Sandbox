@@ -139,7 +139,7 @@ struct EntityMeshletVisibilityBitfieldOffsets
 DAXA_DECL_BUFFER_PTR(EntityMeshletVisibilityBitfieldOffsets)
 
 #if !defined(__cplusplus)
-DAXA_BUFFER_REFERENCE_LAYOUT buffer EntityMeshletVisibilityBitfieldOffsetsView
+DAXA_DECL_BUFFER_REFERENCE EntityMeshletVisibilityBitfieldOffsetsView
 {
     daxa_u32 back_offset;
     EntityMeshletVisibilityBitfieldOffsets entity_offsets[];

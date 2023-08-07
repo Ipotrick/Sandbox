@@ -389,7 +389,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .debug_image = debug_image,
         .depth_image = depth,
     });
-    auto hiz = task_gen_hiz(context, task_list, depth);
+    auto hiz = task_gen_hiz_single_pass(context, task_list, depth);
     const u32vec2 hiz_size = u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
     const u32 hiz_mips = static_cast<u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
@@ -465,6 +465,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .depth_image = depth,
         });
     }
+    task_list.submit({});
     task_list.add_task(WriteSwapchainTask{
         .uses = {
             .swapchain = swapchain_image,

@@ -6,8 +6,6 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
 
-#define ANALYZE_VIS_BUFFER_QUAD_X 2
-#define ANALYZE_VIS_BUFFER_QUAD_Y 2
 #define ANALYZE_VIS_BUFFER_WORKGROUP_X 8
 #define ANALYZE_VIS_BUFFER_WORKGROUP_Y 8
 
@@ -49,8 +47,8 @@ struct AnalyzeVisBufferTask2
         cmd.push_constant(AnalyzeVisbufferPush2{
             .size = {x, y},
         });
-        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * ANALYZE_VIS_BUFFER_QUAD_X);
-        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * ANALYZE_VIS_BUFFER_QUAD_Y);
+        auto const dispatch_x = round_up_div(x, ANALYZE_VIS_BUFFER_WORKGROUP_X * 2);
+        auto const dispatch_y = round_up_div(y, ANALYZE_VIS_BUFFER_WORKGROUP_Y * 2);
         cmd.dispatch(dispatch_x, dispatch_y, 1);
     }
 };
