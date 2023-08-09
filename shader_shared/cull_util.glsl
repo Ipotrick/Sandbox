@@ -60,7 +60,7 @@ bool is_meshlet_occluded(
     const uint bitfield_uint_offset = instanced_meshlet.entity_meshlist_index / 32;
     const uint bitfield_uint_bit = 1u << (instanced_meshlet.entity_meshlist_index % 32);
     const uint entity_arena_offset = entity_meshlet_visibility_bitfield_offsets.entity_offsets[instanced_meshlet.entity_index].mesh_bitfield_offset[instanced_meshlet.mesh_index];
-    if (entity_arena_offset != ~0)
+    if (entity_arena_offset != ENT_MESHLET_VIS_OFFSET_UNALLOCATED && entity_arena_offset != ENT_MESHLET_VIS_OFFSET_EMPTY)
     {
         const uint mask = deref(entity_meshlet_visibility_bitfield_arena[entity_arena_offset + bitfield_uint_offset]);
         const bool visible_last_frame = (mask & bitfield_uint_bit) != 0;

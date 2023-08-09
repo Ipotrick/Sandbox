@@ -55,7 +55,9 @@ struct WriteIndirectDispatchArgsPushBaseTask
     }
 };
 
-void task_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, u32 value, i32 range = -1)
+#define CLEAR_REST -1
+
+void task_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, u32 value, i32 range = CLEAR_REST)
 {
     tg.add_task({
         .uses = {daxa::task_resource_uses::BufferTransferWrite{buffer}},
@@ -64,10 +66,39 @@ void task_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, u32 va
             cmd.clear_buffer({
                 .buffer = ti.uses[buffer].buffer(),
                 .offset = 0,
-                .size = (range == -1) ? ti.get_device().info_buffer(ti.uses[buffer].buffer()).size : static_cast<u32>(range),
+                .size = (range == CLEAR_REST) ? ti.get_device().info_buffer(ti.uses[buffer].buffer()).size : static_cast<u32>(range),
                 .clear_value = value,
             });
         },
         .name = std::string("clear task buffer"),
+    });
+}
+
+struct ClearRange
+{
+    u32 value = {};
+    u32 offset = {};
+    i32 size = {};
+};
+template<size_t N>
+void task_multi_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, std::array<ClearRange, N> clear_ranges)
+{
+    tg.add_task({
+        .uses = {daxa::task_resource_uses::BufferTransferWrite{buffer}},
+        .task = [=](daxa::TaskInterface ti){
+            auto cmd = ti.get_command_list();
+            auto buffer_size = ti.get_device().info_buffer(ti.uses[buffer].buffer()).size;
+            for (auto range : clear_ranges)
+            {
+                auto copy_size = (range.size == CLEAR_REST) ? (buffer_size - range.offset) : static_cast<u32>(range.size);
+                cmd.clear_buffer({
+                    .buffer = ti.uses[buffer].buffer(),
+                    .offset = range.offset,
+                    .size = copy_size,
+                    .clear_value = range.value,
+                });
+            }
+        },
+        .name = std::string("multi clear task buffer"),
     });
 }

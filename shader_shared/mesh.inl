@@ -14,6 +14,19 @@
 #define ENTITY_MESHLET_VISIBILITY_ARENA_BIT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE * 8)
 #define ENTITY_MESHLET_VISIBILITY_ARENA_UINT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE / 4)
 
+#if defined(DAXA_SHADER) && DAXA_SHADER
+uint triangle_mask_bit_from_triangle_index(uint triangle_index)
+{
+    #if MAX_TRIANGLES_PER_MESHLET > 64
+        return 1u << (triangle_index >> 2);
+    #elif MAX_TRIANGLES_PER_MESHLET > 32
+        return 1u << (triangle_index >> 1);
+    #else
+        return 1u << triangle_index;
+    #endif
+}
+#endif // #if defined(DAXA_SHADER) && DAXA_SHADER
+
 // Used to tell threads in the meshlet cull dispatch what to work on.
 struct MeshletCullIndirectArg
 {
@@ -138,10 +151,17 @@ struct EntityMeshletVisibilityBitfieldOffsets
 };
 DAXA_DECL_BUFFER_PTR(EntityMeshletVisibilityBitfieldOffsets)
 
-#if !defined(__cplusplus)
+#define ENT_MESHLET_VIS_OFFSET_UNALLOCATED (~0u)
+#define ENT_MESHLET_VIS_OFFSET_EMPTY ((~0u) ^ 1u)
+
+#if defined(__cplusplus)
+static_assert(ENT_MESHLET_VIS_OFFSET_EMPTY != ENT_MESHLET_VIS_OFFSET_UNALLOCATED);
+#endif
+
+#if defined(DAXA_SHADER) && DAXA_SHADER
 DAXA_DECL_BUFFER_REFERENCE EntityMeshletVisibilityBitfieldOffsetsView
 {
-    daxa_u32 back_offset;
-    EntityMeshletVisibilityBitfieldOffsets entity_offsets[];
+    queuefamilycoherent daxa_u32 back_offset;
+    queuefamilycoherent EntityMeshletVisibilityBitfieldOffsets entity_offsets[];
 };
 #endif

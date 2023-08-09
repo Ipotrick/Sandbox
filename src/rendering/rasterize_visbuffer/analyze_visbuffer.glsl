@@ -6,11 +6,24 @@
 #include "shared.inl"
 
 // MUST BE SMALLER EQUAL TO WARP_SIZE!
-#define UNIQUE_VALUE_LIST 32
+#define COALESE_MESHLET_INSTANCE_WRITE_COUNT 32
 
 vec2 make_gather_uv(vec2 inv_size, uvec2 top_left_index)
 {
     return (vec2(top_left_index) + 1.0f) * inv_size;
+}
+
+void update_visibility_masks_and_list(uint meshlet_instance_index, uint triangle_mask)
+{
+    const uint prev_value = atomicOr(deref(u_meshlet_visibility_bitfield[meshlet_instance_index]), triangle_mask);
+    if (prev_value == 0)
+    {
+        // prev value == zero means, that we are the first thread to ever see this meshlet visible.
+        // As this condition only happens once per meshlet that is marked visible,
+        // this thread in the position to uniquely write out this meshlets index to the visible meshlet list.
+        const uint offset = atomicAdd(deref(u_visible_meshlets).count, 1);
+        deref(u_visible_meshlets).meshlet_ids[offset] = meshlet_instance_index;
+    }
 }
 
 DAXA_DECL_PUSH_CONSTANT(AnalyzeVisbufferPush2, push)
@@ -26,9 +39,9 @@ void main()
     //   Launch an invocation per pixel, do the atomicOr and conditional append per thread.
     //   VERY slow, as it has brutal atomic contention.
     // Better Solution:
-    //   Launch one invoc per pixel, then find the minimal list of unique values from the values of each thread in the warp. 
+    //   Launch one invoc per pixel, then find the minimal list of unique values from the values of each thread in the warp.
     //     Find unique value list:
-    //       In a loop, elect a value from the threads, 
+    //       In a loop, elect a value from the threads,
     //       each thread checks if they have the elected value, if so mark to be done (when marked as done, thread does not participate in vote anymore),
     //       write out value to list.
     //       early out when all threads are marked done.
@@ -43,52 +56,54 @@ void main()
     const ivec2 index = ivec2(gl_GlobalInvocationID.xy);
     const ivec2 sampleIndex = min(index << 1, ivec2(push.size) - 1);
     uvec4 vis_ids = textureGather(daxa_usampler2D(u_visbuffer, globals.samplers.linear_clamp), make_gather_uv(1.0f / push.size, sampleIndex), 0);
-    uint id_mask = (vis_ids[0] != ~0 ? 1 : 0) | (vis_ids[1] != ~0 ? 2 : 0) | (vis_ids[2] != ~0 ? 4 : 0) | (vis_ids[3] != ~0 ? 8 : 0);
+    uint list_mask = (vis_ids[0] != INVALID_TRIANGLE_ID ? 1 : 0) |
+                     (vis_ids[1] != INVALID_TRIANGLE_ID ? 2 : 0) |
+                     (vis_ids[2] != INVALID_TRIANGLE_ID ? 4 : 0) |
+                     (vis_ids[3] != INVALID_TRIANGLE_ID ? 8 : 0);
+    uvec4 triangle_masks;
+    uvec4 meshlet_instance_indices;
     [[unroll]] for (uint i = 0; i < 4; ++i)
     {
-        vis_ids[i] = vis_ids[i] >> 7;
+        triangle_masks[i] = triangle_mask_bit_from_triangle_index(triangle_index_from_triangle_id(vis_ids[i]));
+        meshlet_instance_indices[i] = meshlet_instance_index_from_triangle_id(vis_ids[i]);
     }
-    uint assigned_id = ~0;
-    uint assigned_id_count = 0;
-    for (; assigned_id_count < UNIQUE_VALUE_LIST && subgroupAny(id_mask != 0); ++assigned_id_count)
+    uint assigned_meshlet_instance_index = ~0;
+    uint assigned_triangle_mask = 0;
+    uint assigned_meshlet_index_count = 0;
+    for (; assigned_meshlet_index_count < COALESE_MESHLET_INSTANCE_WRITE_COUNT && subgroupAny(list_mask != 0); ++assigned_meshlet_index_count)
     {
-        const bool lane_on = id_mask != 0;
-        const uint voted_for_id = lane_on ? vis_ids[findLSB(id_mask)] : ~0;
-        const uint elected_id = subgroupBroadcast(voted_for_id, subgroupBallotFindLSB(subgroupBallot(lane_on)));
+        const bool lane_on = list_mask != 0;
+        const uint voted_for_id = lane_on ? meshlet_instance_indices[findLSB(list_mask)] : ~0;
+        const uint elected_meshlet_instance_index = subgroupBroadcast(voted_for_id, subgroupBallotFindLSB(subgroupBallot(lane_on)));
         // If we have the elected id in our list, remove it.
+        uint triangle_mask_contribution = 0;
         [[unroll]] for (uint i = 0; i < 4; ++i)
         {
-            if (vis_ids[i] == elected_id)
+            if (meshlet_instance_indices[i] == elected_meshlet_instance_index)
             {
-                id_mask &= ~(1u << i);
+                triangle_mask_contribution |= triangle_masks[i];
+                list_mask &= ~(1u << i);
             }
         }
-        if (assigned_id_count == gl_SubgroupInvocationID.x)
+        const uint warp_merged_triangle_mask = subgroupOr(triangle_mask_contribution);
+        if (assigned_meshlet_index_count == gl_SubgroupInvocationID.x)
         {
-            assigned_id = elected_id;
+            assigned_meshlet_instance_index = elected_meshlet_instance_index;
+            assigned_triangle_mask = warp_merged_triangle_mask;
         }
     }
-    // Write out 
-    if (gl_SubgroupInvocationID.x < assigned_id_count)
+    // Write out
+    if (gl_SubgroupInvocationID.x < assigned_meshlet_index_count)
     {
-        const uint prev_value = atomicOr(deref(u_meshlet_visibility_bitfield[assigned_id]), 1);
-        if (prev_value == 0)
-        {
-            const uint offset = atomicAdd(deref(u_visible_meshlets).count, 1);
-            deref(u_visible_meshlets).meshlet_ids[offset] = assigned_id;
-        }
+        update_visibility_masks_and_list(assigned_meshlet_instance_index, assigned_triangle_mask);
     }
     // Write out rest of local meshlet list:
-    [[loop]] while (id_mask != 0)
+    [[loop]] while (list_mask != 0)
     {
-        const uint lsb = findLSB(id_mask);
-        const uint meshlet_index = vis_ids[lsb];
-        id_mask &= ~(1 << lsb);
-        const uint prev_value = atomicOr(deref(u_meshlet_visibility_bitfield[meshlet_index]), 1);
-        if (prev_value == 0)
-        {
-            const uint offset = atomicAdd(deref(u_visible_meshlets).count, 1);
-            deref(u_visible_meshlets).meshlet_ids[offset] = meshlet_index;
-        }
+        const uint lsb = findLSB(list_mask);
+        const uint meshlet_instance_index = meshlet_instance_indices[lsb];
+        const uint triangle_index_mask = triangle_masks[lsb];
+        list_mask &= ~(1 << lsb);
+        update_visibility_masks_and_list(meshlet_instance_index, triangle_index_mask);
     }
 }
