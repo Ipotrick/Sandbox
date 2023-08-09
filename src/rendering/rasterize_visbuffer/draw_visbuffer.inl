@@ -158,7 +158,6 @@ struct DrawVisbufferTask
     void callback(daxa::TaskInterface ti)
     {
         daxa::ImageId vis_image = uses.u_vis_image.image();
-        //daxa::ImageId debug_image = uses.u_debug_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
@@ -344,7 +343,6 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_meshes = info.meshes,
                 .u_entity_combined_transforms = info.entity_combined_transforms,
                 .u_vis_image = info.vis_image,
-                //.u_debug_image = info.debug_image,
                 .u_depth_image = info.depth_image,
             },
             .context = info.context,

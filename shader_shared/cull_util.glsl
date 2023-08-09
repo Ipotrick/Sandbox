@@ -42,6 +42,45 @@ void add_vertex_to_ndc_bounds(inout NdcBounds ndc_bounds, vec3 ndc_pos)
     ndc_bounds.valid_vertices += 1;
 }
 
+bool is_out_of_frustum(vec3 ws_center, float ws_radius)
+{
+    const vec3 frustum_planes[5] = {
+        globals.camera_right_plane_normal,
+        globals.camera_left_plane_normal,
+        globals.camera_top_plane_normal,
+        globals.camera_bottom_plane_normal,
+        globals.camera_near_plane_normal,
+    };
+    bool out_of_frustum = false;
+    for (uint i = 0; i < 5; ++i)
+    {
+        out_of_frustum = out_of_frustum || (dot((ws_center - globals.camera_pos), frustum_planes[i]) - ws_radius) > 0.0f;
+    }
+    return out_of_frustum;
+}
+
+bool is_tri_out_of_frustum(vec3 tri[3])
+{
+    const vec3 frustum_planes[5] = {
+        globals.camera_right_plane_normal,
+        globals.camera_left_plane_normal,
+        globals.camera_top_plane_normal,
+        globals.camera_bottom_plane_normal,
+        globals.camera_near_plane_normal,
+    };
+    bool out_of_frustum = false;
+    for (uint i = 0; i < 5; ++i)
+    {
+        bool tri_out_of_plane = true;
+        for (uint ti = 0; ti < 3; ++ti)
+        {
+            tri_out_of_plane = tri_out_of_plane && dot((tri[ti] - globals.camera_pos), frustum_planes[i]) > 0.0f;
+        }
+        out_of_frustum = out_of_frustum || tri_out_of_plane;
+    }
+    return out_of_frustum;
+}
+
 
 bool is_meshlet_occluded(
     MeshletInstance instanced_meshlet,
@@ -100,19 +139,7 @@ bool is_meshlet_occluded(
             }
         }
     }
-    const vec3 frustum_planes[5] = {
-        globals.camera_right_plane_normal,
-        globals.camera_left_plane_normal,
-        globals.camera_top_plane_normal,
-        globals.camera_bottom_plane_normal,
-        globals.camera_near_plane_normal,
-    };
-    bool out_of_frustum = false;
-    for (uint i = 0; i < 5; ++i)
-    {
-        out_of_frustum = out_of_frustum || (dot((ws_center - globals.camera_pos), frustum_planes[i]) - scaled_radius) > 0.0f;
-    }
-    if (out_of_frustum)
+    if (is_out_of_frustum(ws_center, scaled_radius))
     {
         return true;
     }
@@ -141,10 +168,6 @@ bool is_meshlet_occluded(
         if (depth_cull)
         {
             return true;
-        }
-        else if (fetch.x == 0.0f)
-        {
-            //debugPrintfEXT("no cull, index: (%i,%i) mip: %f\n", quad_corner_texel.x, quad_corner_texel.y, mip);
         }
     }
     return false;
