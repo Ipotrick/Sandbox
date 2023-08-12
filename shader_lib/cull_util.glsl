@@ -1,8 +1,8 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include "shared.inl"
-#include "mesh.inl"
+#include "../shader_shared/shared.inl"
+#include "../shader_shared/mesh.inl"
 
 struct NdcBounds
 {
@@ -80,7 +80,6 @@ bool is_tri_out_of_frustum(vec3 tri[3])
     }
     return out_of_frustum;
 }
-
 
 bool is_meshlet_occluded(
     MeshletInstance instanced_meshlet,

@@ -158,7 +158,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
 
     Assimp::Importer importer;
 
-    aiScene const *aiscene = importer.ReadFile(file_path.string(), aiProcess_JoinIdenticalVertices);
+    aiScene const *aiscene = importer.ReadFile(file_path.string(), aiProcess_JoinIdenticalVertices | aiProcess_FindInvalidData);
 
     if (aiscene == nullptr)
     {

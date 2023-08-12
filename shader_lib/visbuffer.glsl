@@ -1,6 +1,6 @@
 #pragma once
 
-#include "visbuffer.inl"
+#include "../shader_shared/visbuffer.inl"
 
 void encode_triangle_id(uint instantiated_meshlet_index, uint triangle_index, out uint id)
 {

@@ -1,8 +1,8 @@
 #pragma once
 
 #include <daxa/daxa.inl>
-#include "shared.inl"
-#include "mesh.inl"
+#include "../shader_shared/shared.inl"
+#include "../shader_shared/mesh.inl"
 
 uint observer_get_meshlet_instance_draw_count(daxa_BufferPtr(InstantiatedMeshlets) meshlet_instances)
 {

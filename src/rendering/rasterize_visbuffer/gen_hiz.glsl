@@ -1,8 +1,10 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+
 #include "gen_hiz.inl"
-#include "cull_util.glsl"
+
+#include "shader_lib/cull_util.glsl"
 
 DAXA_DECL_BUFFER_REFERENCE CounterView
 {

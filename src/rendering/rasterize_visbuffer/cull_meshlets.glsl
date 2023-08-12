@@ -1,8 +1,10 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+
 #include "cull_meshlets.inl"
-#include "cull_util.glsl"
+
+#include "shader_lib/cull_util.glsl"
 
 DAXA_DECL_PUSH_CONSTANT(CullMeshletsPush,push)
 layout(local_size_x = CULL_MESHLETS_WORKGROUP_X) in;

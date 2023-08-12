@@ -7,14 +7,14 @@
 #define MAX_SURFACE_RES_X 3840
 #define MAX_SURFACE_RES_Y 2160
 
-#define MAX_INSTANTIATED_MESHES 100000u
-#define MAX_INSTANTIATED_MESHLETS 1000000u
+#define MAX_INSTANTIATED_MESHES 100000
+#define MAX_INSTANTIATED_MESHLETS 1000000
 #define VISIBLE_ENTITY_MESHLETS_BITFIELD_SCRATCH 1000000
 #define MAX_DRAWN_TRIANGLES (MAX_SURFACE_RES_X * MAX_SURFACE_RES_Y)
-#define MAX_DRAWN_MESHES 100000u
+#define MAX_DRAWN_MESHES 100000
 #define TRIANGLE_SIZE 12
 #define WARP_SIZE 32
-#define MAX_ENTITY_COUNT (1 << 16)
+#define MAX_ENTITY_COUNT (1u << 24u)
 #define MESH_SHADER_WORKGROUP_X 32
 #define ENABLE_MESHLET_CULLING 1
 #define ENABLE_TRIANGLE_CULLING 1
@@ -37,10 +37,18 @@ struct Settings
 #if __cplusplus
     auto operator==(Settings const &other) const -> bool = default;
     auto operator!=(Settings const &other) const -> bool = default;
+    Settings()
+        : render_target_size{ 16, 16 },
+        render_target_size_inv{ 1.0f / this->render_target_size.x, 1.0f / this->render_target_size.y },
+        enable_mesh_shader{ 0 },
+        enable_observer{ 0 },
+        observer_show_pass{ 0 }
+    {
+    }
 #endif
 };
 
-struct Samplers
+struct GlobalSamplers
 {
     daxa_SamplerId linear_clamp;
     daxa_SamplerId nearest_clamp;
@@ -66,12 +74,11 @@ struct ShaderGlobals
     daxa_u32 frame_index;
     daxa_f32 delta_time;
     Settings settings;
-    Samplers samplers;
+    GlobalSamplers samplers;
 };
 DAXA_DECL_BUFFER_PTR(ShaderGlobals)
 
-DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT)
-ShaderGlobalsBlock
+DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
 {
     ShaderGlobals globals;
 };

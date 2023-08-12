@@ -1,7 +1,10 @@
-#include <daxa/daxa.inl>
 #extension GL_EXT_debug_printf : enable
+
+#include <daxa/daxa.inl>
+
 #include "prepopulate_inst_meshlets.inl"
-#include "cull_util.glsl"
+
+#include "shader_lib/cull_util.glsl"
 
 #define WORKGROUP_SIZE PREPOPULATE_INST_MESHLETS_X
 

@@ -1,6 +1,7 @@
 #include <daxa/daxa.inl>
+
 #include "cull_meshes.inl"
-#include "cull_util.inl"
+#include "shader_shared/cull_util.inl"
 
 #define DEBUG_MESH_CULL 0
 #define DEBUG_MESH_CULL1 0

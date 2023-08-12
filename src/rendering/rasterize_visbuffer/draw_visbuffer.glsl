@@ -1,12 +1,14 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+
 #include "draw_visbuffer.inl"
-#include "../../../shader_shared/visbuffer.glsl"
-#include "depth_util.glsl"
-#include "cull_util.glsl"
-#include "cull_util.inl"
-#include "observer.glsl"
+#include "shader_shared/cull_util.inl"
+
+#include "shader_lib/visbuffer.glsl"
+#include "shader_lib/depth_util.glsl"
+#include "shader_lib/cull_util.glsl"
+#include "shader_lib/observer.glsl"
 
 #if defined(DrawVisbufferWriteCommand_COMMAND) || !defined(DAXA_SHADER)
 DAXA_DECL_PUSH_CONSTANT(DrawVisbufferWriteCommandPush, push)

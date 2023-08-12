@@ -1,9 +1,11 @@
 #extension GL_EXT_debug_printf : enable
 
 #include <daxa/daxa.inl>
+
 #include "analyze_visbuffer.inl"
-#include "visbuffer.glsl"
-#include "shared.inl"
+#include "shader_shared/shared.inl"
+
+#include "shader_lib/visbuffer.glsl"
 
 // MUST BE SMALLER EQUAL TO WARP_SIZE!
 #define COALESE_MESHLET_INSTANCE_WRITE_COUNT 32

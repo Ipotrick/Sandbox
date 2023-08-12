@@ -130,7 +130,7 @@ Application::Application()
       renderer{&(this->window), &(this->gpu_context), &(this->scene), &(this->asset_manager)}
 {
     this->scene_loader = SceneLoader{"./assets/"};
-    this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx");
+    this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"
     this->scene.process_transforms();
     auto cmd = this->asset_manager.get_update_commands().value();
     auto cmd2 = this->gpu_context.device.create_command_list({});

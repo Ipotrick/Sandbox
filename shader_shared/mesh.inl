@@ -2,12 +2,12 @@
 
 #include <daxa/daxa.inl>
 
-#define INVALID_MESHLET_INDEX (~(0u))
+#define INVALID_MESHLET_INDEX (~(0))
 
-// Can never be greater then 128!
+// Can never be greater then 124!
 #define MAX_TRIANGLES_PER_MESHLET (64)
 
-// Can never be greater then 384!
+// Can never be greater then 372!
 #define MAX_VERTICES_PER_MESHLET (64)
 
 #define ENTITY_MESHLET_VISIBILITY_ARENA_SIZE (1<<20)
@@ -18,9 +18,9 @@
 uint triangle_mask_bit_from_triangle_index(uint triangle_index)
 {
     #if MAX_TRIANGLES_PER_MESHLET > 64
-        return 1u << (triangle_index >> 2);
+        return 1u << (triangle_index >> 2u);
     #elif MAX_TRIANGLES_PER_MESHLET > 32
-        return 1u << (triangle_index >> 1);
+        return 1u << (triangle_index >> 1u);
     #else
         return 1u << triangle_index;
     #endif
