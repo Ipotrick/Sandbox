@@ -12,7 +12,7 @@ using HWND = void *;
 #endif
 #include <GLFW/glfw3native.h>
 
-#include "../scene/scene.inl"
+#include "../../shader_shared/scene.inl"
 
 // Not needed, this is set by cmake.
 // Intellisense doesnt get it, so this prevents it from complaining.

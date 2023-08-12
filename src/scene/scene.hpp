@@ -2,7 +2,7 @@
 
 #include "../sandbox.hpp"
 #include "../../shader_shared/mesh.inl"
-#include "scene.inl"
+#include "../../shader_shared/scene.inl"
 #include "asset_manager.hpp"
 
 struct Scene

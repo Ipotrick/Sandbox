@@ -5,7 +5,7 @@
 
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
-#include "../../scene/scene.inl"
+#include "../../../shader_shared/scene.inl"
 
 /// 
 /// CullMeshesTask goes through all entities and their meshlists.

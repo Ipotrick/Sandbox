@@ -6,7 +6,7 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
 #include "../../../shader_shared/visbuffer.inl"
-#include "../../scene/scene.inl"
+#include "../../../shader_shared/scene.inl"
 
 #if __cplusplus || defined(DrawVisbufferWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferWriteCommand, 1)

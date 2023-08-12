@@ -1,6 +1,6 @@
 #include "renderer.hpp"
 
-#include "../scene/scene.inl"
+#include "../../shader_shared/scene.inl"
 
 #include "rasterize_visbuffer/draw_visbuffer.inl"
 #include "rasterize_visbuffer/cull_meshes.inl"

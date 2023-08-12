@@ -2,7 +2,7 @@
 
 #include <daxa/daxa.inl>
 
-#define INVALID_ENTITY_INDEX (~(0))
+#define INVALID_ENTITY_INDEX (~(0u))
 
 struct EntityId
 {

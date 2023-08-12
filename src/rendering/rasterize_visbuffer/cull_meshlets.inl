@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../scene/scene.inl"
+#include "../../../shader_shared/scene.inl"
 #include "../../../shader_shared/mesh.inl"
 #include "../../../shader_shared/cull_util.inl"
 

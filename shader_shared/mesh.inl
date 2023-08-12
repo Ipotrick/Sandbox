@@ -2,7 +2,7 @@
 
 #include <daxa/daxa.inl>
 
-#define INVALID_MESHLET_INDEX (~(0))
+#define INVALID_MESHLET_INDEX (~(0u))
 
 // Can never be greater then 124!
 #define MAX_TRIANGLES_PER_MESHLET (64)

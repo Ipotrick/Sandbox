@@ -6,7 +6,7 @@
 #include "../../../shader_shared/shared.inl"
 #include "../../../shader_shared/mesh.inl"
 #include "../../../shader_shared/visbuffer.inl"
-#include "../../scene/scene.inl"
+#include "../../../shader_shared/scene.inl"
 
 DAXA_DECL_TASK_USES_BEGIN(WriteSwapchain, 1)
 DAXA_TASK_USE_IMAGE(swapchain, REGULAR_2D, COMPUTE_SHADER_STORAGE_WRITE_ONLY)
