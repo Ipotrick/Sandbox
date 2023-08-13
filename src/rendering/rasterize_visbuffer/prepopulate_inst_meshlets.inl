@@ -91,8 +91,8 @@ struct PrepopInfo
 {
     daxa::TaskBufferView meshes = {};
     daxa::TaskBufferView visible_meshlets_prev = {};
-    daxa::TaskBufferView instantiated_meshlets_prev = {};
-    daxa::TaskBufferView instantiated_meshlets = {};
+    daxa::TaskBufferView meshlet_instances_last_frame = {};
+    daxa::TaskBufferView meshlet_instances = {};
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_offsets = {};
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_arena = {};
 };
@@ -105,7 +105,7 @@ inline void task_prepopulate_instantiated_meshlets(GPUContext *context, daxa::Ta
         ClearRange{.value = 0, .offset = 0, .size = sizeof(daxa_u32)},
     };
     task_multi_clear_buffer(tg, info.entity_meshlet_visibility_bitfield_offsets, clear_ranges);
-    task_clear_buffer(tg, info.instantiated_meshlets, 0, sizeof(u32vec2));
+    task_clear_buffer(tg, info.meshlet_instances, 0, sizeof(u32vec2));
     task_clear_buffer(tg, info.entity_meshlet_visibility_bitfield_arena, 0);
     auto command_buffer = tg.create_transient_buffer({sizeof(DispatchIndirectStruct), "command buffer task_prepopulate_instantiated_meshlets"});
     tg.add_task(PrepopulateInstantiatedMeshletsCommandWriteTask{
@@ -119,9 +119,9 @@ inline void task_prepopulate_instantiated_meshlets(GPUContext *context, daxa::Ta
         .uses = {
             .u_command = command_buffer,
             .u_visible_meshlets_prev = info.visible_meshlets_prev,
-            .u_instantiated_meshlets_prev = info.instantiated_meshlets_prev,
+            .u_instantiated_meshlets_prev = info.meshlet_instances_last_frame,
             .u_meshes = info.meshes,
-            .u_instantiated_meshlets = info.instantiated_meshlets,
+            .u_instantiated_meshlets = info.meshlet_instances,
             .u_entity_meshlet_visibility_bitfield_offsets = info.entity_meshlet_visibility_bitfield_offsets,
         },
         .context = context,
@@ -129,7 +129,7 @@ inline void task_prepopulate_instantiated_meshlets(GPUContext *context, daxa::Ta
     tg.add_task(SetEntityMeshletVisibilityBitMasksTask{
         .uses = {
             .u_command = command_buffer,
-            .u_instantiated_meshlets = info.instantiated_meshlets,
+            .u_instantiated_meshlets = info.meshlet_instances,
             .u_entity_meshlet_visibility_bitfield_offsets = info.entity_meshlet_visibility_bitfield_offsets,
             .u_entity_meshlet_visibility_bitfield_arena = info.entity_meshlet_visibility_bitfield_arena,
         },

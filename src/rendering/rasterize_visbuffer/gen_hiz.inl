@@ -83,7 +83,7 @@ daxa::TaskImageView task_gen_hiz_single_pass(GPUContext * context, daxa::TaskGra
         },
         .name = "gen hiz level single pass",
     });
-    return hiz;
+    return hiz.view({.level_count = mip_count});
 }
 
 #endif

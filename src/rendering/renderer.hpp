@@ -45,9 +45,9 @@ struct Renderer
     daxa::TaskBuffer entity_parents = {};
     daxa::TaskBuffer entity_meshlists = {};
 
-    daxa::TaskBuffer instantiated_meshlets = {};
-    daxa::TaskBuffer instantiated_meshlets_prev = {};
-    daxa::TaskBuffer visible_meshlets = {};
+    daxa::TaskBuffer meshlet_instances = {};
+    daxa::TaskBuffer meshlet_instances_last_frame = {};
+    daxa::TaskBuffer visible_meshlet_instances = {};
 
     std::vector<daxa::TaskBuffer> buffers = {};
 

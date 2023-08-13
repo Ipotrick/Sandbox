@@ -285,7 +285,7 @@ struct TaskCullAndDrawVisbufferInfo
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_offsets = {};
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_arena = {};
     daxa::TaskImageView hiz = {};
-    daxa::TaskBufferView instantiated_meshlets = {};
+    daxa::TaskBufferView meshlet_instances = {};
     daxa::TaskImageView vis_image = {};
     daxa::TaskImageView debug_image = {};
     daxa::TaskImageView depth_image = {};
@@ -298,7 +298,7 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
             .uses = {
                 .u_command = info.cull_meshlets_commands,
                 .u_meshlet_cull_indirect_args = info.meshlet_cull_indirect_args,
-                .u_instantiated_meshlets = info.instantiated_meshlets,
+                .u_instantiated_meshlets = info.meshlet_instances,
                 .u_meshes = info.meshes,
                 .u_entity_meta = info.entity_meta_data,
                 .u_entity_meshlists = info.entity_meshlists,
@@ -331,7 +331,7 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_entity_meshlet_visibility_bitfield_offsets = info.entity_meshlet_visibility_bitfield_offsets,
                 .u_entity_meshlet_visibility_bitfield_arena = info.entity_meshlet_visibility_bitfield_arena,
                 .u_hiz = info.hiz,
-                .u_instantiated_meshlets = info.instantiated_meshlets,
+                .u_instantiated_meshlets = info.meshlet_instances,
                 .u_draw_command = draw_command,
             },
             .context = info.context,
@@ -339,7 +339,7 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
         info.tg.add_task(DrawVisbufferTask{
             .uses = {
                 .u_command = draw_command,
-                .u_instantiated_meshlets = info.instantiated_meshlets,
+                .u_instantiated_meshlets = info.meshlet_instances,
                 .u_meshes = info.meshes,
                 .u_entity_combined_transforms = info.entity_combined_transforms,
                 .u_vis_image = info.vis_image,
@@ -359,7 +359,7 @@ struct TaskDrawVisbufferInfo
     DrawVisbuffer::Uses uses = {};
     const bool enable_mesh_shader = {};
     const u32 pass = {};
-    daxa::TaskBufferView instantiated_meshlets = {};
+    daxa::TaskBufferView meshlet_instances = {};
     daxa::TaskBufferView meshes = {};
     daxa::TaskBufferView combined_transforms = {};
     daxa::TaskImageView vis_image = {};
@@ -374,7 +374,7 @@ inline void task_draw_visbuffer(TaskDrawVisbufferInfo const & info)
     });
     info.tg.add_task(DrawVisbufferWriteCommandTask{
         .uses = {
-            .u_instantiated_meshlets = info.instantiated_meshlets,
+            .u_instantiated_meshlets = info.meshlet_instances,
             .u_command = draw_command,
         },
         .context = info.context,
@@ -383,7 +383,7 @@ inline void task_draw_visbuffer(TaskDrawVisbufferInfo const & info)
     info.tg.add_task(DrawVisbufferTask{
         .uses = {
             .u_command = draw_command,
-            .u_instantiated_meshlets = info.instantiated_meshlets,
+            .u_instantiated_meshlets = info.meshlet_instances,
             .u_meshes = info.meshes,
             .u_entity_combined_transforms = info.combined_transforms,
             .u_vis_image = info.vis_image,

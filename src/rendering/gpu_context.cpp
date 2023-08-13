@@ -1,6 +1,7 @@
 #include "gpu_context.hpp"
 
 #include "../../shader_shared/mesh.inl"
+#include "../../shader_shared/scene.inl"
 
 #if defined(_WIN32)
 #define GLFW_EXPOSE_NATIVE_WIN32
@@ -12,7 +13,6 @@ using HWND = void *;
 #endif
 #include <GLFW/glfw3native.h>
 
-#include "../../shader_shared/scene.inl"
 
 // Not needed, this is set by cmake.
 // Intellisense doesnt get it, so this prevents it from complaining.

@@ -12,134 +12,38 @@
 #include "tasks/prefix_sum.inl"
 #include "tasks/write_swapchain.inl"
 
+inline auto create_task_buffer(GPUContext *context, auto size, auto task_buf_name, auto buf_name)
+{
+    return daxa::TaskBuffer{{
+        .initial_buffers = {
+            .buffers = std::array{
+                context->device.create_buffer({
+                    .size = static_cast<u32>(size),
+                    .name = buf_name,
+                }),
+            },
+        },
+        .name = task_buf_name,
+    }};
+}
+
 Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
     : window{window},
       context{context},
       scene{scene},
       asset_manager{asset_manager}
 {
-    zero_buffer = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(daxa_u32),
-                    .name = "zero_buffer",
-                }),
-            },
-        },
-        .name = "zero_buffer",
-    }};
-    entity_meta = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(EntityMetaData) * MAX_ENTITY_COUNT,
-                    .name = "entity_meta",
-                }),
-            },
-        },
-        .name = "entity_meta",
-    }};
-    entity_transforms = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
-                    .name = "entity_transforms",
-                }),
-            },
-        },
-        .name = "entity_transforms",
-    }};
-    entity_combined_transforms = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT,
-                    .name = "entity_combined_transforms",
-                }),
-            },
-        },
-        .name = "entity_combined_transforms",
-    }};
-    entity_first_children = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                    .name = "entity_first_children",
-                }),
-            },
-        },
-        .name = "entity_first_children",
-    }};
-    entity_next_silbings = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                    .name = "entity_next_silbings",
-                }),
-            },
-        },
-        .name = "entity_next_silbings",
-    }};
-    entity_parents = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(EntityId) * MAX_ENTITY_COUNT,
-                    .name = "entity_parents",
-                }),
-            },
-        },
-        .name = "entity_parents",
-    }};
-    entity_meshlists = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(MeshList) * MAX_ENTITY_COUNT,
-                    .name = "entity_meshlists",
-                }),
-            },
-        },
-        .name = "entity_meshlists",
-    }};
-
-    instantiated_meshlets = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlets),
-                    .name = "instantiated_meshlets",
-                }),
-            },
-        },
-        .name = "instantiated_meshlets",
-    }};
-    instantiated_meshlets_prev = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(InstantiatedMeshlets),
-                    .name = "instantiated_meshlets_prev",
-                }),
-            },
-        },
-        .name = "instantiated_meshlets_prev",
-    }};
-    visible_meshlets = daxa::TaskBuffer{{
-        .initial_buffers = {
-            .buffers = std::array{
-                context->device.create_buffer({
-                    .size = sizeof(VisibleMeshletList),
-                    .name = "visible_meshlets",
-                }),
-            },
-        },
-        .name = "visible_meshlets",
-    }};
+    zero_buffer = create_task_buffer(context, sizeof(u32), "zero_buffer", "zero_buffer");
+    entity_meta = create_task_buffer(context, sizeof(EntityMetaData) * MAX_ENTITY_COUNT, "entity_meta", "entity_meta");
+    entity_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
+    entity_combined_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
+    entity_first_children = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_first_children", "entity_first_children");
+    entity_next_silbings = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
+    entity_parents = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_parents", "entity_parents");
+    entity_meshlists = create_task_buffer(context, sizeof(MeshList) * MAX_ENTITY_COUNT, "entity_meshlists", "entity_meshlists");
+    meshlet_instances = create_task_buffer(context, sizeof(InstantiatedMeshlets), "meshlet_instances", "meshlet_instances_a");
+    meshlet_instances_last_frame = create_task_buffer(context, sizeof(InstantiatedMeshlets), "meshlet_instances_last_frame", "meshlet_instances_b");
+    visible_meshlet_instances = create_task_buffer(context, sizeof(VisibleMeshletList), "visible_meshlet_instances", "visible_meshlet_instances");
 
     buffers = {
         zero_buffer,
@@ -150,9 +54,9 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
         entity_next_silbings,
         entity_parents,
         entity_meshlists,
-        instantiated_meshlets,
-        instantiated_meshlets_prev,
-        visible_meshlets};
+        meshlet_instances,
+        meshlet_instances_last_frame,
+        visible_meshlet_instances};
 
     swapchain_image = daxa::TaskImage{{
         .swapchain_image = true,
@@ -242,10 +146,10 @@ void Renderer::compile_pipelines()
 {
     std::vector<std::tuple<std::string_view, daxa::RasterPipelineCompileInfo>> rasters = {
         {DrawVisbufferTask::PIPELINE_COMPILE_INFO.name, DrawVisbufferTask::PIPELINE_COMPILE_INFO},
-        #if COMPILE_IN_MESH_SHADER
+#if COMPILE_IN_MESH_SHADER
         {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW},
         {DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name, DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER},
-        #endif
+#endif
     };
     for (auto [name, info] : rasters)
     {
@@ -298,10 +202,10 @@ void Renderer::clear_select_buffers()
         .swapchain = this->context->swapchain,
         .name = "clear task list",
     }};
-    list.use_persistent_buffer(instantiated_meshlets);
-    task_clear_buffer(list, instantiated_meshlets, 0, sizeof(u32));
-    list.use_persistent_buffer(visible_meshlets);
-    task_clear_buffer(list, visible_meshlets, 0, sizeof(u32));
+    list.use_persistent_buffer(meshlet_instances);
+    task_clear_buffer(list, meshlet_instances, 0, sizeof(u32));
+    list.use_persistent_buffer(visible_meshlet_instances);
+    task_clear_buffer(list, visible_meshlet_instances, 0, sizeof(u32));
     list.submit({});
     list.complete({});
     list.execute({});
@@ -319,33 +223,37 @@ void Renderer::window_resized()
 
 auto Renderer::create_main_task_list() -> daxa::TaskGraph
 {
-    // Rendering process:
-    //  - update metadata
-    //  - clear buffers
-    //  - analyze last frames visible meshlet list:
-    //    - create a bitfield and lookuptable into bitfield, describing what meshlet of each mesh of each entity is visible or not.
-    //    - prepopulate instantiated meshlets buffer with meshlets visible from last frame
-    //  - first draw pass:
-    //    - depth, visbuffer
-    //    - draws instantiated meshlets, written by prepopulate pass
-    //    - meshshader path:
-    //      - drawTasksIndirect on the previous frames meshlet list
-    //        - cull meshlets that have 0 visible triangles
-    //        - write out not culled meshlets to current frame meshlet list.
-    //        - cull triangles that are not set as visible
-    //      - fallback path:
-    //        - go over all instantiated meshlets to that point and draw them instanced non indexed
-    //  - build HIZ depth
-    //  - cull meshes against: hiz, frustum
-    //  - second draw pass:
-    //    - meshshader path:
-    //      - dispatch task shaders:
-    //        - cull meshlets against: hiz, frustum, whether or not they were drawn in first pass
-    //        - cull triangles against: hiz, frustum
-    //    - fallback path:
-    //      - compute shader cull meshlets against: hiz, frustum, whether or not they were drawn in first pass
-    //      - draw instanced indirect meshlets
-    //  - analyze visbuffer, create list of visible meshlets from this frame
+    // Rasterize Visbuffer:
+    // - reset/clear certain buffers
+    // - prepopulate meshlet instances, these meshlet instances are drawn in the first pass.
+    //     - uses list of visible meshlets of last frame (visible_meshlet_instances) and meshlet instance list from last frame (meshlet_instances_last_frame)
+    //     - filteres meshlets when their entities/ meshes got invalidated.
+    //     - builds bitfields (entity_meshlet_visibility_bitfield_offsets), that denote if a meshlet of an entity is drawn in the first pass.
+    // - draw first pass
+    //     - draws meshlet instances, generated by prepopulate_instantiated_meshlets.
+    //     - draws trianlge id and depth. triangle id indexes into the meshlet instance list (that is freshly generated every frame), also stores triangle index within meshlet.
+    //     - effectively draws the meshlets that were visible last frame as the first thing.
+    // - build hiz depth map
+    //     - lowest mip is half res of render target resolution, depth map at full res is not copied into the hiz.
+    //     - single pass downsample dispatch. Each workgroup downsamples a 64x64 region, the very last workgroup to finish downsamples all the results of the previous workgroups.
+    // - cull meshes
+    //     - dispatch over all entities for all their meshes
+    //     - cull against: hiz, frustum
+    //     - builds argument lists for meshlet culling.
+    //     - 32 meshlet cull argument lists, each beeing a bucket for arguments. An argument in each bucket represents 2^bucket_index meshlets to be processed.
+    // - cull and draw meshlets
+    //     - 32 dispatches each going over one of the generated cull argument lists.
+    //     - when mesh shaders are enabled, this is a single pipeline. Task shaders cull in this case.
+    //     - when mesh shaders are disabled, a compute shader culls.
+    //     - in either case, the task/compute cull shader fill the list of meshlet instances. This list is used to compactly reference meshlets via pixel id.
+    //     - draws triangle id and depth
+    //     - meshlet cull against: frustum, hiz
+    //     - triangle cull (only on with mesh shaders) against: backface
+    // - analyze visbuffer:
+    //     - reads final opaque visbuffer
+    //     - generates list of visible meshlets
+    //     - marks visible triangles of meshlet instances in bitfield.
+    //     - can optionally generate list of unique triangles.
     using namespace daxa;
     TaskGraph task_list{{
         .device = this->context->device,
@@ -369,20 +277,18 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         task_list,
         PrepopInfo{
             .meshes = asset_manager->tmeshes,
-            .visible_meshlets_prev = visible_meshlets,
-            .instantiated_meshlets_prev = instantiated_meshlets_prev,
-            .instantiated_meshlets = instantiated_meshlets,
+            .visible_meshlets_prev = visible_meshlet_instances,
+            .meshlet_instances_last_frame = meshlet_instances_last_frame,
+            .meshlet_instances = meshlet_instances,
             .entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
             .entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
-        }
-    );
-    // Draw initial triangles to the visbuffer using the previously generated meshlets and triangle lists.
+        });
     task_draw_visbuffer({
         .context = context,
         .tg = task_list,
         .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
         .pass = DRAW_VISBUFFER_PASS_ONE,
-        .instantiated_meshlets = instantiated_meshlets,
+        .meshlet_instances = meshlet_instances,
         .meshes = asset_manager->tmeshes,
         .combined_transforms = entity_combined_transforms,
         .vis_image = visbuffer,
@@ -390,8 +296,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .depth_image = depth,
     });
     auto hiz = task_gen_hiz_single_pass(context, task_list, depth);
-    const u32vec2 hiz_size = u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
-    const u32 hiz_mips = static_cast<u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
         .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_INSTANTIATED_MESHLETS * 2,
         .name = "meshlet_cull_indirect_args",
@@ -409,14 +313,10 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .u_entity_meshlists = entity_meshlists,
             .u_entity_transforms = entity_transforms,
             .u_entity_combined_transforms = entity_combined_transforms,
-            .u_hiz = hiz.view({.level_count = hiz_mips}),
+            .u_hiz = hiz,
             .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
             .u_cull_meshlets_commands = cull_meshlets_commands,
         });
-    // When culling Meshlets, we consider 3 reasons to cull:
-    // - out of frustum
-    // - covered by hiz depth
-    // - was drawn in first pass (all visible meshlets from last frame are drawn in first pass)
     task_cull_and_draw_visbuffer({
         .context = context,
         .tg = task_list,
@@ -429,24 +329,22 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .meshes = asset_manager->tmeshes,
         .entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
         .entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
-        .hiz = hiz.view({.level_count = hiz_mips}),
-        .instantiated_meshlets = instantiated_meshlets,
+        .hiz = hiz,
+        .meshlet_instances = meshlet_instances,
         .vis_image = visbuffer,
         .debug_image = debug_image,
         .depth_image = depth,
     });
     auto visible_meshlets_bitfield = task_list.create_transient_buffer({sizeof(daxa_u32) * MAX_INSTANTIATED_MESHLETS, "visible meshlets bitfield"});
-    task_clear_buffer(task_list, visible_meshlets, 0, 4);
+    task_clear_buffer(task_list, visible_meshlet_instances, 0, 4);
     task_clear_buffer(task_list, visible_meshlets_bitfield, 0);
-    // While analyzing the visbuffer, the bitfields are written.
-    // Before that can be done it needs to be cleared, as it still contains last frames contents.
     task_clear_buffer(task_list, entity_meshlet_visibility_bitfield_arena, 0);
     task_list.add_task(AnalyzeVisBufferTask2{
         .uses = {
             .u_visbuffer = visbuffer,
-            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_instantiated_meshlets = meshlet_instances,
             .u_meshlet_visibility_bitfield = visible_meshlets_bitfield,
-            .u_visible_meshlets = visible_meshlets,
+            .u_visible_meshlets = visible_meshlet_instances,
         },
         .context = context,
     });
@@ -457,7 +355,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
             .tg = task_list,
             .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
             .pass = DRAW_VISBUFFER_PASS_OBSERVER,
-            .instantiated_meshlets = instantiated_meshlets,
+            .meshlet_instances = meshlet_instances,
             .meshes = asset_manager->tmeshes,
             .combined_transforms = entity_combined_transforms,
             .vis_image = visbuffer,
@@ -470,7 +368,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .uses = {
             .swapchain = swapchain_image,
             .vis_image = visbuffer,
-            .u_instantiated_meshlets = instantiated_meshlets,
+            .u_instantiated_meshlets = meshlet_instances,
         },
         .context = context,
     });
@@ -478,7 +376,6 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_list.submit({});
     task_list.present({});
     task_list.complete({});
-    // std::cout << task_list.get_debug_string() << std::endl;
     return task_list;
 }
 
@@ -552,7 +449,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
         return;
     }
     this->swapchain_image.set_images({.images = std::array{swapchain_image}});
-    instantiated_meshlets.swap_buffers(instantiated_meshlets_prev);
+    meshlet_instances.swap_buffers(meshlet_instances_last_frame);
 
     if (static_cast<u32>(context->swapchain.get_cpu_timeline_value()) == 0)
     {
