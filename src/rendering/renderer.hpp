@@ -1,7 +1,9 @@
 #pragma once
 
+#include <daxa/utils/imgui.hpp>
+
 #include "../window.hpp"
-#include "../../shader_shared/mesh.inl"
+#include "../../shader_shared/asset.inl"
 #include "../scene/scene.hpp"
 
 #include "gpu_context.hpp"
@@ -31,7 +33,7 @@ struct Renderer
     void recreate_framebuffer();
     void clear_select_buffers();
     void window_resized();
-    auto create_main_task_list() -> daxa::TaskGraph;
+    auto create_main_task_graph() -> daxa::TaskGraph;
     void update_settings();
     void render_frame(CameraInfo const &camera_info, CameraInfo const &observer_camera_info, f32 const delta_time);
 
@@ -64,6 +66,7 @@ struct Renderer
     GPUContext *context = {};
     Scene *scene = {};
     AssetManager *asset_manager = {};
-    daxa::TaskGraph main_task_list;
+    daxa::TaskGraph main_task_graph;
     daxa::CommandSubmitInfo submit_info = {};
+    daxa::ImGuiRenderer imgui_renderer;
 };

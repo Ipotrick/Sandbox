@@ -14,12 +14,12 @@
 #define MAX_DRAWN_MESHES 100000
 #define TRIANGLE_SIZE 12
 #define WARP_SIZE 32
-#define MAX_ENTITY_COUNT (1u << 24u)
+#define MAX_ENTITY_COUNT (1u << 20u)
 #define MESH_SHADER_WORKGROUP_X 32
 #define ENABLE_MESHLET_CULLING 1
 #define ENABLE_TRIANGLE_CULLING 1
 #define ENABLE_SHADER_PRINT_DEBUG 1
-#define COMPILE_IN_MESH_SHADER 1
+#define COMPILE_IN_MESH_SHADER 0
 
 #if __cplusplus
 #define SHADER_ONLY(x)
@@ -33,7 +33,7 @@ struct Settings
     daxa_f32vec2 render_target_size_inv;
     daxa_u32 enable_mesh_shader;
     daxa_u32 enable_observer;
-    daxa_u32 observer_show_pass;
+    daxa_i32 observer_show_pass;
 #if __cplusplus
     auto operator==(Settings const &other) const -> bool = default;
     auto operator!=(Settings const &other) const -> bool = default;

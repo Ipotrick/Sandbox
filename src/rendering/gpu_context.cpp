@@ -1,18 +1,7 @@
 #include "gpu_context.hpp"
 
-#include "../../shader_shared/mesh.inl"
+#include "../../shader_shared/asset.inl"
 #include "../../shader_shared/scene.inl"
-
-#if defined(_WIN32)
-#define GLFW_EXPOSE_NATIVE_WIN32
-#define GLFW_NATIVE_INCLUDE_NONE
-using HWND = void *;
-#elif defined(__linux__)
-#define GLFW_EXPOSE_NATIVE_X11
-#define GLFW_EXPOSE_NATIVE_WAYLAND
-#endif
-#include <GLFW/glfw3native.h>
-
 
 // Not needed, this is set by cmake.
 // Intellisense doesnt get it, so this prevents it from complaining.

@@ -2,7 +2,7 @@
 
 #include <daxa/daxa.inl>
 #include "../shader_shared/shared.inl"
-#include "../shader_shared/mesh.inl"
+#include "../shader_shared/asset.inl"
 
 struct NdcBounds
 {
@@ -86,11 +86,11 @@ bool is_meshlet_occluded(
     EntityMeshletVisibilityBitfieldOffsetsView entity_meshlet_visibility_bitfield_offsets,
     daxa_BufferPtr(daxa_u32) entity_meshlet_visibility_bitfield_arena,
     daxa_BufferPtr(daxa_f32mat4x4) entity_combined_transforms,
-    daxa_BufferPtr(Mesh) meshes,
+    daxa_BufferPtr(GPUMesh) meshes,
     daxa_ImageViewId hiz
 )
 {
-    Mesh mesh_data = deref(meshes[instanced_meshlet.mesh_id]);
+    GPUMesh mesh_data = deref(meshes[instanced_meshlet.mesh_id]);
     if (instanced_meshlet.entity_meshlist_index >= mesh_data.meshlet_count)
     {
         return true;

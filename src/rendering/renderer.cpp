@@ -31,11 +31,12 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     : window{window},
       context{context},
       scene{scene},
-      asset_manager{asset_manager}
+      asset_manager{asset_manager},
+      imgui_renderer{{context->device, context->swapchain.get_format()}}
 {
     zero_buffer = create_task_buffer(context, sizeof(u32), "zero_buffer", "zero_buffer");
-    entity_meta = create_task_buffer(context, sizeof(EntityMetaData) * MAX_ENTITY_COUNT, "entity_meta", "entity_meta");
-    entity_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
+    entity_meta = create_task_buffer(context, sizeof(EntityMetaData), "entity_meta", "entity_meta");
+    entity_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_transforms", "entity_transforms");
     entity_combined_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
     entity_first_children = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_first_children", "entity_first_children");
     entity_next_silbings = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
@@ -119,7 +120,7 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     context->settings.enable_mesh_shader = 0;
     context->settings.enable_observer = 0;
     update_settings();
-    main_task_list = create_main_task_list();
+    main_task_graph = create_main_task_graph();
 }
 
 Renderer::~Renderer()
@@ -221,7 +222,7 @@ void Renderer::window_resized()
     recreate_framebuffer();
 }
 
-auto Renderer::create_main_task_list() -> daxa::TaskGraph
+auto Renderer::create_main_task_graph() -> daxa::TaskGraph
 {
     // Rasterize Visbuffer:
     // - reset/clear certain buffers
@@ -263,13 +264,14 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     for (auto const &tbuffer : buffers)
     {
         task_list.use_persistent_buffer(tbuffer);
-    }
+    } 
     task_list.use_persistent_buffer(asset_manager->tmeshes);
     for (auto const &timage : images)
     {
         task_list.use_persistent_image(timage);
     }
     task_list.use_persistent_image(swapchain_image);
+
     auto entity_meshlet_visibility_bitfield_offsets = task_list.create_transient_buffer({sizeof(EntityMeshletVisibilityBitfieldOffsets) * MAX_ENTITY_COUNT + sizeof(u32), "entity_meshlet_visibility_bitfield_offsets"});
     auto entity_meshlet_visibility_bitfield_arena = task_list.create_transient_buffer({ENTITY_MESHLET_VISIBILITY_ARENA_SIZE, "entity_meshlet_visibility_bitfield_arena"});
     task_prepopulate_instantiated_meshlets(
@@ -320,7 +322,7 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
     task_cull_and_draw_visbuffer({
         .context = context,
         .tg = task_list,
-        .enable_mesh_shader = context->settings.enable_mesh_shader == 1,
+        .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
         .cull_meshlets_commands = cull_meshlets_commands,
         .meshlet_cull_indirect_args = meshlet_cull_indirect_args,
         .entity_meta_data = entity_meta,
@@ -368,9 +370,22 @@ auto Renderer::create_main_task_list() -> daxa::TaskGraph
         .uses = {
             .swapchain = swapchain_image,
             .vis_image = visbuffer,
+            .u_debug_image = debug_image,
             .u_instantiated_meshlets = meshlet_instances,
         },
         .context = context,
+    });
+    task_list.add_task({
+        .uses = {
+            ImageColorAttachment<>{swapchain_image},
+        },
+        .task = [=](daxa::TaskInterface ti)
+        {
+            auto cmd_list = ti.get_command_list();
+            auto size = ti.get_device().info_image(ti.uses[swapchain_image].image()).size;
+            imgui_renderer.record_commands(ImGui::GetDrawData(), cmd_list, ti.uses[swapchain_image].image(), size.x, size.y);
+        },
+        .name = "ImGui Draw",
     });
 
     task_list.submit({});
@@ -408,7 +423,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     bool const settings_changed = context->settings != context->prev_settings;
     if (settings_changed)
     {
-        this->main_task_list = create_main_task_list();
+        this->main_task_graph = create_main_task_graph();
     }
     this->context->prev_settings = this->context->settings;
 
@@ -421,18 +436,16 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.view);
     this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.proj);
     this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.vp);
-    {
-        this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-        this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-        this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-        this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-        this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-        this->context->shader_globals.globals.camera_near_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_near_plane_normal);
-        this->context->shader_globals.globals.camera_right_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_right_plane_normal);
-        this->context->shader_globals.globals.camera_left_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_left_plane_normal);
-        this->context->shader_globals.globals.camera_top_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_top_plane_normal);
-        this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
-    }
+    this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
+    this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
+    this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
+    this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
+    this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
+    this->context->shader_globals.globals.camera_near_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_near_plane_normal);
+    this->context->shader_globals.globals.camera_right_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_right_plane_normal);
+    this->context->shader_globals.globals.camera_left_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_left_plane_normal);
+    this->context->shader_globals.globals.camera_top_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_top_plane_normal);
+    this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
     // Upload Shader Globals.
     context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
     context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobalsBlock) * flight_frame_index;
@@ -460,6 +473,6 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->submit_info.signal_timeline_semaphores = {
         {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
     };
-    main_task_list.execute({});
+    main_task_graph.execute({});
     context->prev_settings = context->settings;
 }

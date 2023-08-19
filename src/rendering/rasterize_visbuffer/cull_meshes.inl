@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/asset.inl"
 #include "../../../shader_shared/scene.inl"
 
 /// 
@@ -27,7 +27,7 @@ DAXA_DECL_TASK_USES_END()
 #if __cplusplus || !defined(CullMeshesCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(CullMeshes, 1)
 DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_transforms, daxa_BufferPtr(daxa_f32mat4x4), COMPUTE_SHADER_READ)

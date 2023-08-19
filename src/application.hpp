@@ -8,6 +8,7 @@
 #include "window.hpp"
 #include "rendering/renderer.hpp"
 #include "scene/scene.hpp"
+#include "ui.hpp"
 
 struct CameraController {
     void process_input(Window& window, f32 dt);
@@ -38,6 +39,7 @@ struct Application
     GPUContext gpu_context;
     AssetManager asset_manager;
     Scene scene;
+    UIEngine ui_engine;
     Renderer renderer;
     SceneLoader scene_loader;
     CameraController camera_controller;

@@ -1,4 +1,5 @@
 #include "application.hpp"
+#include "ui.hpp"
 
 void CameraController::process_input(Window &window, f32 dt)
 {
@@ -81,17 +82,17 @@ void CameraController::update_matrices(Window &window)
     }
     auto inf_depth_reverse_z_perspective = [](auto fov_rads, auto aspect, auto zNear)
     {
-		assert(abs(aspect - std::numeric_limits<f32>::epsilon()) > 0.0f);
+        assert(abs(aspect - std::numeric_limits<f32>::epsilon()) > 0.0f);
 
-		f32 const tanHalfFovy = 1.0f / std::tan(fov_rads * 0.5f);
+        f32 const tanHalfFovy = 1.0f / std::tan(fov_rads * 0.5f);
 
-		glm::mat4x4 ret(0.0f);
-		ret[0][0] = tanHalfFovy / aspect;
-		ret[1][1] = tanHalfFovy;
+        glm::mat4x4 ret(0.0f);
+        ret[0][0] = tanHalfFovy / aspect;
+        ret[1][1] = tanHalfFovy;
         ret[2][2] = 0.0f;
         ret[2][3] = -1.0f;
         ret[3][2] = zNear;
-		return ret;
+        return ret;
     };
     glm::mat4 prespective = inf_depth_reverse_z_perspective(glm::radians(fov), f32(window.get_width()) / f32(window.get_height()), near);
     prespective[1][1] *= -1.0f;
@@ -108,7 +109,7 @@ void CameraController::update_matrices(Window &window)
         {
             for (u32 x = 0; x < 2; ++x)
             {
-                glm::vec3 corner = glm::vec3((glm::vec2(x,y) - 0.5f) * 2.0f, 1.0f - z * 0.5f);
+                glm::vec3 corner = glm::vec3((glm::vec2(x, y) - 0.5f) * 2.0f, 1.0f - z * 0.5f);
                 glm::vec4 proj_corner = inv_view_proj * glm::vec4(corner, 1);
                 ws_ndc_corners[x][y][z] = glm::vec3(proj_corner) / proj_corner.w;
             }
@@ -121,12 +122,13 @@ void CameraController::update_matrices(Window &window)
     this->cam_info.camera_bottom_plane_normal = glm::normalize(glm::cross(ws_ndc_corners[0][1][1] - ws_ndc_corners[0][1][0], ws_ndc_corners[1][1][0] - ws_ndc_corners[0][1][0]));
     int i = 0;
 }
- 
+
 Application::Application()
     : window{3840, 2160, "sandbox"},
       gpu_context{this->window},
       asset_manager{this->gpu_context.device},
       scene{},
+      ui_engine{this->window},
       renderer{&(this->window), &(this->gpu_context), &(this->scene), &(this->asset_manager)}
 {
     this->scene_loader = SceneLoader{"./assets/"};
@@ -135,9 +137,9 @@ Application::Application()
     auto cmd = this->asset_manager.get_update_commands().value();
     auto cmd2 = this->gpu_context.device.create_command_list({});
     this->scene.record_full_entity_update(
-        this->gpu_context.device, 
-        cmd2, 
-        this->scene, 
+        this->gpu_context.device,
+        cmd2,
+        this->scene,
         this->renderer.entity_meta.get_state().buffers[0],
         this->renderer.entity_transforms.get_state().buffers[0],
         this->renderer.entity_combined_transforms.get_state().buffers[0],
@@ -185,6 +187,7 @@ void Application::update()
     {
         return;
     }
+    ui_engine.main_update(gpu_context.settings);
     if (control_observer)
     {
         observer_camera_controller.process_input(this->window, this->delta_time);
@@ -212,13 +215,13 @@ void Application::update()
         renderer.context->settings.enable_observer = false;
         observer_camera_controller = camera_controller;
     }
-    #if COMPILE_IN_MESH_SHADER
+#if COMPILE_IN_MESH_SHADER
     if (window.key_just_pressed(GLFW_KEY_M))
     {
         std::cout << "switched enable_mesh_shader from " << renderer.context->settings.enable_mesh_shader << " to " << !(renderer.context->settings.enable_mesh_shader) << std::endl;
         renderer.context->settings.enable_mesh_shader = !renderer.context->settings.enable_mesh_shader;
     }
-    #endif
+#endif
     if (window.key_just_pressed(GLFW_KEY_O))
     {
         std::cout << "switched observer_show_pass from " << renderer.context->settings.observer_show_pass << " to " << ((renderer.context->settings.observer_show_pass + 1) % 3) << std::endl;

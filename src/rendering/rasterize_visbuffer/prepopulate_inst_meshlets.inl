@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/asset.inl"
 #define PREPOPULATE_INST_MESHLETS_X 256
 
 #if __cplusplus || defined(PrepopulateInstantiatedMeshletsCommandWrite_COMMAND)
@@ -20,7 +20,7 @@ DAXA_DECL_TASK_USES_BEGIN(PrepopulateInstantiatedMeshlets, 1)
 DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_visible_meshlets_prev, daxa_BufferPtr(VisibleMeshletList), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets_prev, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshletVisibilityBitfieldOffsetsView, COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()

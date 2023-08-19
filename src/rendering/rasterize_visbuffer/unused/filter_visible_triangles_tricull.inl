@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../shader_shared/mesh.inl"
+#include "../../shader_shared/asset.inl"
 
 #if __cplusplus || defined(FilterVisibleTrianglesWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(FilterVisibleTrianglesWriteCommand, 1)

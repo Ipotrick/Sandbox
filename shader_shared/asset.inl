@@ -27,6 +27,28 @@ uint triangle_mask_bit_from_triangle_index(uint triangle_index)
 }
 #endif // #if defined(DAXA_SHADER) && DAXA_SHADER
 
+struct Handle
+{
+    daxa_u32 value;
+};
+SHARED_FUNCTION daxa_u32 version_of_handle(Handle handle)
+{
+    return handle.value & 0xFFu;
+}
+SHARED_FUNCTION daxa_u32 index_of_handle(Handle handle)
+{
+    return handle.value >> 8u;
+}
+
+struct Material
+{
+    #if __cplusplus
+    daxa::ImageId diffuse = {};
+    #else
+    daxa_ImageId diffuse;
+    #endif
+};
+
 // Used to tell threads in the meshlet cull dispatch what to work on.
 struct MeshletCullIndirectArg
 {
@@ -97,19 +119,20 @@ void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_inde
 }
 #endif // #if defined(DAXA_SHADER)
 
-struct Mesh
+struct GPUMesh
 {
     daxa_BufferId mesh_buffer;
     daxa_u32 meshlet_count;
     daxa_u32 vertex_count;
-    daxa_u64 end_ptr;
+    Handle material_handle;
     daxa_BufferPtr(Meshlet) meshlets;
     daxa_BufferPtr(BoundingSphere) meshlet_bounds;
     daxa_BufferPtr(daxa_u32) micro_indices;
     daxa_BufferPtr(daxa_u32) indirect_vertices;
     daxa_BufferPtr(daxa_f32vec3) vertex_positions;
+    daxa_BufferPtr(daxa_f32vec2) vertex_uvs;
 };
-DAXA_DECL_BUFFER_PTR(Mesh)
+DAXA_DECL_BUFFER_PTR_ALIGN(GPUMesh, 8)
 
 #if DAXA_SHADER
 uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offset)

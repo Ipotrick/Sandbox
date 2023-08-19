@@ -81,6 +81,7 @@ uint get_meshlet_draw_offset_from_pass(daxa_BufferPtr(InstantiatedMeshlets) mesh
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX || DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT
 layout(location = 0) flat VERTEX_OUT uint vout_triange_id;
+layout(location = 1) VERTEX_OUT vec2 vout_uv;
 #endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_VERTEX || !defined(DAXA_SHADER)
@@ -102,7 +103,7 @@ void main()
     // daxa_u32 entity_meshlist_index;
     MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
 
-    // Mesh:
+    // GPUMesh:
     // daxa_BufferId mesh_buffer;
     // daxa_u32 meshlet_count;
     // daxa_BufferPtr(Meshlet) meshlets;
@@ -110,7 +111,7 @@ void main()
     // daxa_BufferPtr(daxa_u32) micro_indices;
     // daxa_BufferPtr(daxa_u32) indirect_vertices;
     // daxa_BufferPtr(daxa_f32vec3) vertex_positions;
-    Mesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
+    GPUMesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
 
     // Meshlet:
     // daxa_u32 indirect_vertex_offset;
@@ -133,19 +134,27 @@ void main()
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
     const vec4 pos = view_proj * deref(u_entity_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
+    vec2 uv = vec2(0,0);
+    if (daxa_u64(mesh.vertex_uvs) != 0)
+    {
+        uv = deref(mesh.vertex_uvs[vertex_index]);
+    }
 
     uint triangle_id;
     encode_triangle_id(inst_meshlet_index, triangle_index, triangle_id);
     vout_triange_id = triangle_id;
+    vout_uv = uv;
     gl_Position = pos.xyzw;
 }
 #endif
 
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_FRAGMENT || !defined(DAXA_SHADER)
 layout(location = 0) out uint visibility_id;
+layout(location = 1) out vec4 debug_image;
 void main()
 {
     visibility_id = vout_triange_id;
+    debug_image = vec4(vout_uv,1,1);
 }
 #endif
 
@@ -208,7 +217,7 @@ void main()
 // For culling we must be very smart about using as little as possible.
 #define MESH_SHADER_TRIANGLE_CULL 1
 // Slightly worsenes perf, but looks nice:
-#define MESH_SHADER_TRIANGLE_CULL_FRUSTUM 0
+#define MESH_SHADER_TRIANGLE_CULL_FRUSTUM 1
 
 // Big problems with culling here:
 #if DAXA_SHADER_STAGE == DAXA_SHADER_STAGE_MESH || !defined(DAXA_SHADER)
@@ -250,7 +259,7 @@ void main()
     MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[meshlet_instance_index];
 #endif
 
-    // Mesh:
+    // GPUMesh:
     // daxa_BufferId mesh_buffer;
     // daxa_u32 meshlet_count;
     // daxa_BufferPtr(Meshlet) meshlets;
@@ -258,7 +267,7 @@ void main()
     // daxa_BufferPtr(daxa_u32) micro_indices;
     // daxa_BufferPtr(daxa_u32) indirect_vertices;
     // daxa_BufferPtr(daxa_f32vec3) vertex_positions;
-    Mesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
+    GPUMesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
 
     // Meshlet:
     // daxa_u32 indirect_vertex_offset;

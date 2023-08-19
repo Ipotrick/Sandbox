@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/asset.inl"
 
 #define GEN_HIZ_X 16
 #define GEN_HIZ_Y 16

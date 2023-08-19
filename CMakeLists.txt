@@ -10,6 +10,7 @@ add_executable(${PROJECT_NAME}
     "src/rendering/gpu_context.cpp"
     "src/scene/asset_manager.cpp"
     "src/scene/scene.cpp"
+    "src/ui.cpp"
 )
 find_package(daxa CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)     

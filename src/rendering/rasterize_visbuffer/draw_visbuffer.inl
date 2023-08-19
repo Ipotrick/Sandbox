@@ -4,7 +4,7 @@
 #include <daxa/utils/task_graph.inl>
 
 #include "../../../shader_shared/shared.inl"
-#include "../../../shader_shared/mesh.inl"
+#include "../../../shader_shared/asset.inl"
 #include "../../../shader_shared/visbuffer.inl"
 #include "../../../shader_shared/scene.inl"
 
@@ -19,10 +19,10 @@ DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
-//DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -32,7 +32,7 @@ DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferMeshShaderCullAndDraw, 1)
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullIndirectArgTable), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(Mesh), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
@@ -40,6 +40,7 @@ DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshlet
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_arena, daxa_BufferPtr(daxa_u32), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_hiz, REGULAR_2D, GRAPHICS_SHADER_SAMPLED)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
+DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -84,6 +85,9 @@ static inline daxa::DepthTestInfo DRAW_VISBUFFER_DEPTH_TEST_INFO = {
 static inline std::vector<daxa::RenderAttachment> DRAW_VISBUFFER_RENDER_ATTACHMENT_INFOS = {
     daxa::RenderAttachment{
         .format = daxa::Format::R32_UINT,
+    },
+    daxa::RenderAttachment{
+        .format = daxa::Format::R16G16B16A16_SFLOAT,
     },
 };
 
@@ -159,6 +163,7 @@ struct DrawVisbufferTask
     {
         daxa::ImageId vis_image = uses.u_vis_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
+        daxa::ImageId debug_image = uses.u_debug_image.image();
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
@@ -184,6 +189,13 @@ struct DrawVisbufferTask
                 .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
                 .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_TRIANGLE_ID, 0, 0, 0}},
+            },
+            daxa::RenderAttachmentInfo{
+                .image_view = debug_image.default_view(),
+                .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
+                .load_op = load_op,
+                .store_op = daxa::AttachmentStoreOp::STORE,
+                .clear_value = daxa::ClearValue{std::array<u32, 4>{0, 0, 0, 0}},
             },
         };
         cmd.begin_renderpass(render_pass_begin_info);
@@ -228,6 +240,7 @@ struct CullAndDrawVisbufferTask
     {
         daxa::ImageId vis_image = uses.u_vis_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
+        daxa::ImageId debug_image = uses.u_debug_image.image();
         auto cmd = ti.get_command_list();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
@@ -253,6 +266,13 @@ struct CullAndDrawVisbufferTask
                 .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
                 .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_TRIANGLE_ID, 0, 0, 0}},
+            },
+            daxa::RenderAttachmentInfo{
+                .image_view = debug_image.default_view(),
+                .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
+                .load_op = load_op,
+                .store_op = daxa::AttachmentStoreOp::STORE,
+                .clear_value = daxa::ClearValue{std::array<u32, 4>{0, 0, 0, 0}},
             },
         };
         cmd.begin_renderpass(render_pass_begin_info);
@@ -307,6 +327,7 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_entity_meshlet_visibility_bitfield_arena = info.entity_meshlet_visibility_bitfield_arena,
                 .u_hiz = info.hiz,
                 .u_vis_image = info.vis_image,
+                .u_debug_image = info.debug_image,
                 .u_depth_image = info.depth_image,
             },
             .context = info.context,
@@ -343,6 +364,7 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_meshes = info.meshes,
                 .u_entity_combined_transforms = info.entity_combined_transforms,
                 .u_vis_image = info.vis_image,
+                .u_debug_image = info.debug_image,
                 .u_depth_image = info.depth_image,
             },
             .context = info.context,
@@ -387,7 +409,7 @@ inline void task_draw_visbuffer(TaskDrawVisbufferInfo const & info)
             .u_meshes = info.meshes,
             .u_entity_combined_transforms = info.combined_transforms,
             .u_vis_image = info.vis_image,
-            //.u_debug_image = info.debug_image,
+            .u_debug_image = info.debug_image,
             .u_depth_image = info.depth_image,
         },
         .context = info.context,

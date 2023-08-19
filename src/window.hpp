@@ -1,9 +1,17 @@
 #pragma once
 
-// Standart headers:
-// Library headers:
-// Project headers:
 #include "sandbox.hpp"
+
+#include <GLFW/glfw3.h>
+#if defined(_WIN32)
+#define GLFW_EXPOSE_NATIVE_WIN32
+#define GLFW_NATIVE_INCLUDE_NONE
+using HWND = void *;
+#elif defined(__linux__)
+#define GLFW_EXPOSE_NATIVE_X11
+#define GLFW_EXPOSE_NATIVE_WAYLAND
+#endif
+#include <GLFW/glfw3native.h>
 
 struct WindowState
 {

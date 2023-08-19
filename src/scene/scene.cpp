@@ -67,21 +67,6 @@ void Scene::record_full_entity_update(
     upload(this->entity_meshlists, b_entity_meshlists, MeshList{}, MAX_ENTITY_COUNT);
 }
 
-//template<typename T, size_t N, size_t M>
-//auto transpose(daxa::detail::GenericMatrix<T,N,M> mat) -> daxa::detail::GenericMatrix<T,M,N>
-//{
-//    daxa::types::GenericMatrix<T,M,N> ret = {};
-//    for (u32 y = 0; y < M; ++y)
-//    {
-//        for (u32 x = 0; x < N; ++x)
-//        {
-//            ret[y][x] = mat[x][y];
-//        }
-//    }
-//    return ret;
-//}
-
-
 template<typename T, size_t N, size_t M>
 auto y_to_z_up(daxa::detail::GenericMatrix<T,N,M> mat) -> daxa::detail::GenericMatrix<T,N,M>
 {
@@ -174,7 +159,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
 
     for (usize mesh_i = 0; mesh_i < aiscene->mNumMeshes; ++mesh_i)
     {
-        auto dummy = asset_manager.get_or_create_mesh(aiscene->mMeshes[mesh_i]);
+        auto dummy = asset_manager.get_or_create_mesh(aiscene, aiscene->mMeshes[mesh_i]);
     }
     std::cout << "total meshlet count: " << asset_manager.total_meshlet_count << std::endl;
 
@@ -209,7 +194,7 @@ void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manag
         for (usize mesh_i = 0; mesh_i < current_node->mNumMeshes; ++mesh_i)
         {
             aiMesh* mesh_ptr = aiscene->mMeshes[current_node->mMeshes[mesh_i]];
-            auto fetch = asset_manager.get_or_create_mesh(mesh_ptr);
+            auto fetch = asset_manager.get_or_create_mesh(aiscene, mesh_ptr);
             current_entity.meshes->mesh_ids[mesh_i] = fetch.first;
         }
         std::cout << "Node has " << current_node->mNumMeshes << "meshes" << std::endl;
