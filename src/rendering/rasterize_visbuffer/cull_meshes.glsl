@@ -24,11 +24,11 @@ void main()
     uint64_t sizeof_arg_table = my_sizeof(MeshletCullIndirectArgTable);
     uint64_t sizeof_arg = my_sizeof(MeshletCullIndirectArg);
     // Each table is half the size of the previous one.
-    // Table power 0 is the size of MAX_INSTANTIATED_MESHLETS.
-    // index 0 starts at sizeof_arg_table + sizeof_arg * MAX_INSTANTIATED_MESHLETS,
-    // indes 1 starts at sizeof_arg_table + sizeof_arg * MAX_INSTANTIATED_MESHLETS * 1/2,
+    // Table power 0 is the size of MAX_MESHLET_INSTANCES.
+    // index 0 starts at sizeof_arg_table + sizeof_arg * MAX_MESHLET_INSTANCES,
+    // indes 1 starts at sizeof_arg_table + sizeof_arg * MAX_MESHLET_INSTANCES * 1/2,
     // index 2 ...
-    daxa_u64 addr = daxa_u64(u_meshlet_cull_indirect_args) + sizeof_arg_table + (sizeof_arg * MAX_INSTANTIATED_MESHLETS >> index);
+    daxa_u64 addr = daxa_u64(u_meshlet_cull_indirect_args) + sizeof_arg_table + (sizeof_arg * MAX_MESHLET_INSTANCES >> index);
     deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[index] = daxa_RWBufferPtr(MeshletCullIndirectArg)(addr);
     deref(u_meshlet_cull_indirect_args).indirect_arg_counts[index] = 0;
     deref(u_cull_meshlets_commands[index]).x = 0;

@@ -85,7 +85,7 @@ struct PrefixSumUpsweepTask
     PrefixSumPush push = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(PrefixSumUpsweep::NAME));
@@ -114,7 +114,7 @@ struct PrefixSumDownsweepTask
     PrefixSumPush push = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(PrefixSumDownsweep::NAME));

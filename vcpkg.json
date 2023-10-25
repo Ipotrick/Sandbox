@@ -17,7 +17,7 @@
     "meshoptimizer",
     "fastgltf"
   ],
-  "builtin-baseline": "739824a6d3179d85820eedc0637e81c0c68b874c",
+  "builtin-baseline": "db0473513e5dc73ec6b6f431ff05d2f398eea042",
   "vcpkg-configuration": {
     "overlay-ports": [
       "D:/repos/Daxa/cmake/vcpkg-port"

@@ -7,20 +7,23 @@
 struct EntityId
 {
 #if (DAXA_SHADER)
-    daxa_u32 index;
+    daxa_u32 value;
 #else
-    daxa::types::u32 index = INVALID_ENTITY_INDEX;
+    daxa::types::u32 value = INVALID_ENTITY_INDEX;
 #endif
 };
 DAXA_DECL_BUFFER_PTR(EntityId)
-
-
-#if !(DAXA_SHADER)
-inline
-#endif
-bool entity_id_valid(EntityId id)
+SHARED_FUNCTION daxa_u32 version_of_entity_id(EntityId id)
 {
-    return id.index != INVALID_ENTITY_INDEX;
+    return id.value & 0xFF;
+}
+SHARED_FUNCTION daxa_u32 index_of_entity_id(EntityId id)
+{
+    return id.value >> 8;
+}
+SHARED_FUNCTION bool entity_id_valid(EntityId id)
+{
+    return version_of_entity_id(id) != 0 && index_of_entity_id(id) != 0;
 }
 
 struct EntityMetaData

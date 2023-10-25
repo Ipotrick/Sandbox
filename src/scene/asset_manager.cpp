@@ -296,11 +296,11 @@ auto AssetManager::get_or_create_mesh(aiScene const *scene, aiMesh * aimesh) -> 
     return ret.value();
 }
 
-auto AssetManager::get_update_commands() -> std::optional<daxa::CommandList>
+auto AssetManager::get_update_commands() -> std::optional<daxa::ExecutableCommandList>
 {
     if (this->asset_update_cmd_list.has_value())
     {
-        daxa::CommandList cmd = std::move(this->asset_update_cmd_list.value());
+        daxa::CommandEncoder cmd = std::move(this->asset_update_cmd_list.value());
         this->asset_update_cmd_list.reset();
         auto staging_buffer = device.create_buffer({ .size = sizeof(GPUMesh) * MAX_MESHES, .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM, .name = "mesh buffer staging upload buffer" });
         cmd.destroy_buffer_deferred(staging_buffer);
@@ -356,8 +356,7 @@ auto AssetManager::get_update_commands() -> std::optional<daxa::CommandList>
                 .image_id = texture_id,
             });
         }
-        cmd.complete();
-        return cmd;
+        return cmd.complete_current_commands();
     }
     return {};
 }

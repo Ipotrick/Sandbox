@@ -8,7 +8,7 @@
 #define MAX_SURFACE_RES_Y 2160
 
 #define MAX_INSTANTIATED_MESHES 100000
-#define MAX_INSTANTIATED_MESHLETS 1000000
+#define MAX_MESHLET_INSTANCES 1000000
 #define VISIBLE_ENTITY_MESHLETS_BITFIELD_SCRATCH 1000000
 #define MAX_DRAWN_TRIANGLES (MAX_SURFACE_RES_X * MAX_SURFACE_RES_Y)
 #define MAX_DRAWN_MESHES 100000
@@ -35,8 +35,14 @@ struct Settings
     daxa_u32 enable_observer;
     daxa_i32 observer_show_pass;
 #if __cplusplus
-    auto operator==(Settings const &other) const -> bool = default;
-    auto operator!=(Settings const &other) const -> bool = default;
+    auto operator==(Settings const &other) const -> bool 
+    {
+        return std::memcmp(this, &other, sizeof(Settings)) == 0;
+    }
+    auto operator!=(Settings const &other) const -> bool
+    {
+        return std::memcmp(this, &other, sizeof(Settings)) != 0;
+    }
     Settings()
         : render_target_size{ 16, 16 },
         render_target_size_inv{ 1.0f / this->render_target_size.x, 1.0f / this->render_target_size.y },

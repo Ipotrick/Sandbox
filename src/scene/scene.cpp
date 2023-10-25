@@ -2,9 +2,6 @@
 
 #include <fstream>
 
-#include <daxa/utils/math_operators.hpp>
-using namespace daxa::math_operators;
-
 Scene::Scene()
 {
 }
@@ -31,7 +28,7 @@ auto Scene::get_entity_ref(EntityId ent_id) -> EntityRef
 
 void Scene::record_full_entity_update(
     daxa::Device &device, 
-    daxa::CommandList &cmd, 
+    daxa::CommandRecorder &cmd, 
     Scene &scene, 
     daxa::BufferId b_entity_meta,
     daxa::BufferId b_entity_transforms,
@@ -48,10 +45,10 @@ void Scene::record_full_entity_update(
         auto staging = device.create_buffer({
             .size = size,
             .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_RANDOM,
-            .name = device.info_buffer(dst_buffer).name + " staging",
+            .name = std::string(device.info_buffer(dst_buffer).value().name.view()) + " staging",
         });
         cmd.destroy_buffer_deferred(staging);
-        std::memcpy(reinterpret_cast<DATA_T*>(device.get_host_address(staging)), &src_field, size);
+        std::memcpy(reinterpret_cast<DATA_T*>(device.get_host_address(staging).value()), &src_field, size);
         cmd.copy_buffer_to_buffer({
             .src_buffer = staging,
             .dst_buffer = dst_buffer,

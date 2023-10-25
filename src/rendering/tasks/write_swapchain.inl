@@ -12,7 +12,7 @@ DAXA_DECL_TASK_USES_BEGIN(WriteSwapchain, 1)
 DAXA_TASK_USE_IMAGE(swapchain, REGULAR_2D, COMPUTE_SHADER_STORAGE_WRITE_ONLY)
 DAXA_TASK_USE_IMAGE(vis_image, REGULAR_2D, COMPUTE_SHADER_STORAGE_READ_ONLY)
 DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COMPUTE_SHADER_STORAGE_READ_ONLY)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), COMPUTE_SHADER_READ)
 DAXA_DECL_TASK_USES_END()
 
 struct WriteSwapchainPush
@@ -39,7 +39,7 @@ struct WriteSwapchainTask
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(WriteSwapchain::NAME));
         u32 const dispatch_x = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.x, WRITE_SWAPCHAIN_WG_X);

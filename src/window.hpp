@@ -68,12 +68,12 @@ struct Window
     void set_name(std::string name);
     auto get_name() -> std::string const &;
 
-    i32vec2 size = {};
+    daxa_i32vec2 size = {};
     std::unique_ptr<WindowState> window_state = {};
-    u32 glfw_window_id = {};
+    daxa_u32 glfw_window_id = {};
     bool cursor_captured = {};
     std::string name = {};
     GLFWwindow *glfw_handle = {};
-    i32 cursor_pos_change_x = {};
-    i32 cursor_pos_change_y = {};
+    daxa_i32 cursor_pos_change_x = {};
+    daxa_i32 cursor_pos_change_y = {};
 };

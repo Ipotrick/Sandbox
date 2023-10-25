@@ -34,8 +34,8 @@ inline static const daxa::ComputePipelineCompileInfo GEN_HIZ_PIPELINE_COMPILE_IN
 
 daxa::TaskImageView task_gen_hiz_single_pass(GPUContext * context, daxa::TaskGraph & task_graph, daxa::TaskImageView src)
 {
-    const u32vec2 hiz_size = u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
-    const u32 mip_count = static_cast<u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
+    const daxa_u32vec2 hiz_size = daxa_u32vec2(context->settings.render_target_size.x / 2, context->settings.render_target_size.y / 2);
+    const daxa_u32 mip_count = static_cast<daxa_u32>(std::ceil(std::log2(std::max(hiz_size.x, hiz_size.y))));
     daxa::TaskImageView hiz = task_graph.create_transient_image({
         .format = daxa::Format::R32_SFLOAT,
         .size = { hiz_size.x, hiz_size.y, 1 },
@@ -45,12 +45,12 @@ daxa::TaskImageView task_gen_hiz_single_pass(GPUContext * context, daxa::TaskGra
         .name = "hiz",
     });
     using namespace daxa::task_resource_uses;
-    const u32 mips_this_dispatch = std::min(mip_count, u32(GEN_HIZ_LEVELS_PER_DISPATCH)) - 1;
+    const daxa_u32 mips_this_dispatch = std::min(mip_count, u32(GEN_HIZ_LEVELS_PER_DISPATCH)) - 1;
     std::vector<daxa::GenericTaskResourceUse> uses = {};
     daxa::TaskImageView src_view = src.view({.base_mip_level = 0});
     uses.push_back(ImageComputeShaderSampled<>{ src_view });
     daxa::TaskImageView dst_views[GEN_HIZ_LEVELS_PER_DISPATCH] = { };
-    for (u32 i = 0; i < mips_this_dispatch; ++i)
+    for (daxa_u32 i = 0; i < mips_this_dispatch; ++i)
     {
         dst_views[i] = hiz.view({.base_mip_level = i});
         uses.push_back(ImageComputeShaderStorageWriteOnly<>{ dst_views[i] });                                 
@@ -59,7 +59,7 @@ daxa::TaskImageView task_gen_hiz_single_pass(GPUContext * context, daxa::TaskGra
         .uses = uses,
         .task = [=](daxa::TaskInterface ti)
         {
-            auto cmd = ti.get_command_list();
+            auto & cmd = ti.get_recorder();
             auto & device = ti.get_device();
             cmd.set_uniform_buffer(context->shader_globals_set_info);
             cmd.set_pipeline(*context->compute_pipelines.at(GEN_HIZ_PIPELINE_COMPILE_INFO.name));

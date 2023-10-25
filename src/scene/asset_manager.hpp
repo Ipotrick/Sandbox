@@ -33,7 +33,7 @@ struct AssetManager
 {
     static inline constexpr daxa::ImageUsageFlags TEXTURE_USE_FLAGS = daxa::ImageUsageFlagBits::SHADER_SAMPLED | daxa::ImageUsageFlagBits::TRANSFER_DST;
     daxa::Device device = {};
-    std::optional<daxa::CommandList> asset_update_cmd_list = {};
+    std::optional<daxa::CommandRecorder> asset_update_cmd_list = {};
     std::vector<std::pair<daxa::BufferId, daxa::ImageId>> texture_upload_list = {};
     daxa::BufferId meshes_buffer = {};
     daxa::TaskBuffer tmeshes = {};
@@ -61,5 +61,5 @@ struct AssetManager
 
     auto get_or_create_mesh(aiScene const*scene, aiMesh * aimesh) -> std::pair<u32, GPUMesh const *>;
 
-    auto get_update_commands() -> std::optional<daxa::CommandList>;
+    auto get_update_commands() -> std::optional<daxa::ExecutableCommandList>;
 };

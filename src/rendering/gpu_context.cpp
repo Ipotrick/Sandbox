@@ -10,7 +10,7 @@
 #endif
 
 GPUContext::GPUContext(Window const &window)
-    : context{daxa::create_instance({.enable_validation = false})},
+    : context{daxa::create_instance({})},
       device{this->context.create_device({
         .max_allowed_images = 100000, 
         .max_allowed_buffers = 100000, 
@@ -21,7 +21,7 @@ GPUContext::GPUContext(Window const &window)
       swapchain{this->device.create_swapchain({
           .native_window = glfwGetWin32Window(window.glfw_handle),
           .native_window_platform = daxa::NativeWindowPlatform::WIN32_API,
-          .surface_format_selector = [&](daxa::Format format) -> i32
+          .surface_format_selector = [](daxa::Format format) -> i32
           {
                 switch (format)
                 {
@@ -79,6 +79,6 @@ auto GPUContext::dummy_string() -> std::string
 GPUContext::~GPUContext()
 {
     device.destroy_buffer(shader_globals_buffer);
-    device.destroy_sampler(shader_globals.globals.samplers.linear_clamp);
-    device.destroy_sampler(shader_globals.globals.samplers.nearest_clamp);
+    device.destroy_sampler(std::bit_cast<daxa::SamplerId>(shader_globals.globals.samplers.linear_clamp));
+    device.destroy_sampler(std::bit_cast<daxa::SamplerId>(shader_globals.globals.samplers.nearest_clamp));
 }

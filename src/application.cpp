@@ -134,8 +134,8 @@ Application::Application()
     this->scene_loader = SceneLoader{"./assets/"};
     this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"
     this->scene.process_transforms();
-    auto cmd = this->asset_manager.get_update_commands().value();
-    auto cmd2 = this->gpu_context.device.create_command_list({});
+    daxa::ExecutableCommandList exec_commands0 = this->asset_manager.get_update_commands().value();
+    auto cmd2 = this->gpu_context.device.create_command_recorder({});
     this->scene.record_full_entity_update(
         this->gpu_context.device,
         cmd2,
@@ -151,9 +151,8 @@ Application::Application()
         .src_access = daxa::AccessConsts::TRANSFER_WRITE,
         .dst_access = daxa::AccessConsts::READ,
     });
-    cmd2.complete();
     this->gpu_context.device.submit_commands({
-        .command_lists = {std::move(cmd), std::move(cmd2)},
+        .command_lists = std::array{ exec_commands0, cmd2.complete_current_commands() },
     });
     last_time_point = std::chrono::steady_clock::now();
 }
@@ -168,7 +167,7 @@ auto Application::run() -> i32
         this->last_time_point = new_time_point;
         window.update(delta_time);
         keep_running &= !static_cast<bool>(glfwWindowShouldClose(this->window.glfw_handle));
-        i32vec2 new_window_size;
+        daxa_i32vec2 new_window_size;
         glfwGetWindowSize(this->window.glfw_handle, &new_window_size.x, &new_window_size.y);
         if (this->window.size.x != new_window_size.x || this->window.size.y != new_window_size.y)
         {

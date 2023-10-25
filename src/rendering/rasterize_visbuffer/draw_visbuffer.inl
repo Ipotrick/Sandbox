@@ -10,7 +10,7 @@
 
 #if __cplusplus || defined(DrawVisbufferWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferWriteCommand, 1)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, COMPUTE_SHADER_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -18,7 +18,7 @@ DAXA_DECL_TASK_USES_END()
 DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, DRAW_INDIRECT_INFO_READ)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
@@ -31,7 +31,7 @@ DAXA_DECL_TASK_USES_BEGIN(DrawVisbufferMeshShaderCullAndDraw, 1)
 // When drawing triangles, this draw command has triangle ids appended to the end of the command.
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullIndirectArgTable), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(MeshletInstances), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), GRAPHICS_SHADER_READ)
@@ -75,7 +75,6 @@ static constexpr inline char const DRAW_VISBUFFER_SHADER_PATH[] =
 
 static inline daxa::DepthTestInfo DRAW_VISBUFFER_DEPTH_TEST_INFO = {
     .depth_attachment_format = daxa::Format::D32_SFLOAT,
-    .enable_depth_test = true,
     .enable_depth_write = true,
     .depth_test_compare_op = daxa::CompareOp::GREATER,
     .min_depth_bounds = 0.0f,
@@ -164,7 +163,7 @@ struct DrawVisbufferTask
         daxa::ImageId vis_image = uses.u_vis_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
         daxa::ImageId debug_image = uses.u_debug_image.image();
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         const bool clear_images = pass == DRAW_VISBUFFER_PASS_ONE || pass == DRAW_VISBUFFER_PASS_OBSERVER;
@@ -175,11 +174,11 @@ struct DrawVisbufferTask
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                 .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
-                .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
+                .clear_value = daxa::DepthValue{0.0f, 0},
             },
             .render_area = daxa::Rect2D{
-                .width = (ti.get_device().info_image(depth_image).size.x),
-                .height = (ti.get_device().info_image(depth_image).size.y),
+                .width = (ti.get_device().info_image(depth_image).value().size.x),
+                .height = (ti.get_device().info_image(depth_image).value().size.y),
             },
         };
         render_pass_begin_info.color_attachments = {
@@ -188,7 +187,7 @@ struct DrawVisbufferTask
                 .layout = daxa::ImageLayout::ATTACHMENT_OPTIMAL,
                 .load_op = load_op,
                 .store_op = daxa::AttachmentStoreOp::STORE,
-                .clear_value = daxa::ClearValue{std::array<u32, 4>{INVALID_TRIANGLE_ID, 0, 0, 0}},
+                .clear_value = std::array<u32, 4>{INVALID_TRIANGLE_ID, 0, 0, 0},
             },
             daxa::RenderAttachmentInfo{
                 .image_view = debug_image.default_view(),
@@ -198,21 +197,21 @@ struct DrawVisbufferTask
                 .clear_value = daxa::ClearValue{std::array<u32, 4>{0, 0, 0, 0}},
             },
         };
-        cmd.begin_renderpass(render_pass_begin_info);
+        auto render_cmd = std::move(cmd).begin_renderpass(render_pass_begin_info);
         if (mesh_shader)
         {
-            cmd.set_pipeline(*context->raster_pipelines.at(DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name));
+            render_cmd.set_pipeline(*context->raster_pipelines.at(DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER.name));
         }
         else
         {
-            cmd.set_pipeline(*context->raster_pipelines.at(PIPELINE_COMPILE_INFO.name));
+            render_cmd.set_pipeline(*context->raster_pipelines.at(PIPELINE_COMPILE_INFO.name));
         }
-        cmd.push_constant(DrawVisbufferPush{
+        render_cmd.push_constant(DrawVisbufferPush{
             .pass = pass,
         });
         if (mesh_shader)
         {
-            cmd.draw_mesh_tasks_indirect({
+            render_cmd.draw_mesh_tasks_indirect({
                 .indirect_buffer = uses.u_command.buffer(),
                 .offset = 0,
                 .draw_count = 1,
@@ -221,13 +220,13 @@ struct DrawVisbufferTask
         }
         else
         {
-            cmd.draw_indirect({
+            render_cmd.draw_indirect({
                 .draw_command_buffer = uses.u_command.buffer(),
                 .draw_count = 1,
                 .draw_command_stride = sizeof(DrawIndirectStruct),
             });
         }
-        cmd.end_renderpass();
+        cmd = std::move(render_cmd).end_renderpass();
     }
 };
 
@@ -241,7 +240,7 @@ struct CullAndDrawVisbufferTask
         daxa::ImageId vis_image = uses.u_vis_image.image();
         daxa::ImageId depth_image = uses.u_depth_image.image();
         daxa::ImageId debug_image = uses.u_debug_image.image();
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         const bool clear_images = false;
@@ -255,8 +254,8 @@ struct CullAndDrawVisbufferTask
                 .clear_value = daxa::ClearValue{daxa::DepthValue{0.0f, 0}},
             },
             .render_area = daxa::Rect2D{
-                .width = (ti.get_device().info_image(depth_image).size.x),
-                .height = (ti.get_device().info_image(depth_image).size.y),
+                .width = (ti.get_device().info_image(depth_image).value().size.x),
+                .height = (ti.get_device().info_image(depth_image).value().size.y),
             },
         };
         render_pass_begin_info.color_attachments = {
@@ -275,19 +274,19 @@ struct CullAndDrawVisbufferTask
                 .clear_value = daxa::ClearValue{std::array<u32, 4>{0, 0, 0, 0}},
             },
         };
-        cmd.begin_renderpass(render_pass_begin_info);
+        auto render_cmd = std::move(cmd).begin_renderpass(render_pass_begin_info);
         cmd.set_pipeline(*context->raster_pipelines.at(DRAW_VISBUFFER_PIPELINE_COMPILE_INFO_MESH_SHADER_CULL_AND_DRAW.name));
         for (u32 i = 0; i < 32; ++i)
         {
-            cmd.push_constant(DrawVisbufferCullAndDrawPush{.bucket_index = i});
-            cmd.draw_mesh_tasks_indirect({
+            render_cmd.push_constant(DrawVisbufferCullAndDrawPush{.bucket_index = i});
+            render_cmd.draw_mesh_tasks_indirect({
                 .indirect_buffer = uses.u_command.buffer(),
                 .offset = sizeof(DispatchIndirectStruct) * i,
                 .draw_count = 1,
                 .stride = sizeof(DispatchIndirectStruct),
             });
         }
-        cmd.end_renderpass();
+        cmd = std::move(render_cmd).end_renderpass();
     }
 };
 

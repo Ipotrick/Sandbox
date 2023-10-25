@@ -20,7 +20,7 @@ struct WriteIndirectDispatchArgsBaseTask
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(T_USES_BASE::NAME));
@@ -46,7 +46,7 @@ struct WriteIndirectDispatchArgsPushBaseTask
     T_PUSH push = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(T_USES_BASE::NAME));
@@ -62,11 +62,11 @@ void task_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, u32 va
     tg.add_task({
         .uses = {daxa::task_resource_uses::BufferTransferWrite{buffer}},
         .task = [=](daxa::TaskInterface ti){
-            auto cmd = ti.get_command_list();
+            auto & cmd = ti.get_recorder();
             cmd.clear_buffer({
                 .buffer = ti.uses[buffer].buffer(),
                 .offset = 0,
-                .size = (range == CLEAR_REST) ? ti.get_device().info_buffer(ti.uses[buffer].buffer()).size : static_cast<u32>(range),
+                .size = (range == CLEAR_REST) ? ti.get_device().info_buffer(ti.uses[buffer].buffer()).value().size : static_cast<daxa_u32>(range),
                 .clear_value = value,
             });
         },
@@ -86,7 +86,7 @@ void task_multi_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, 
     tg.add_task({
         .uses = {daxa::task_resource_uses::BufferTransferWrite{buffer}},
         .task = [=](daxa::TaskInterface ti){
-            auto cmd = ti.get_command_list();
+            auto & cmd = ti.get_recorder();
             auto buffer_size = ti.get_device().info_buffer(ti.uses[buffer].buffer()).size;
             for (auto range : clear_ranges)
             {

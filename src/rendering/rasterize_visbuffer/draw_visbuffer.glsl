@@ -57,7 +57,7 @@ void main()
 }
 #endif
 
-uint get_meshlet_draw_offset_from_pass(daxa_BufferPtr(InstantiatedMeshlets) meshlet_instances, uint pass)
+uint get_meshlet_draw_offset_from_pass(daxa_BufferPtr(MeshletInstances) meshlet_instances, uint pass)
 {
     switch (pass)
     {

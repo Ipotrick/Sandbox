@@ -38,12 +38,12 @@ struct AnalyzeVisBufferTask2
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(AnalyzeVisbuffer2::NAME));
-        auto const x = ti.get_device().info_image(uses.u_visbuffer.image()).size.x;
-        auto const y = ti.get_device().info_image(uses.u_visbuffer.image()).size.y;
+        auto const x = ti.get_device().info_image(uses.u_visbuffer.image()).value().size.x;
+        auto const y = ti.get_device().info_image(uses.u_visbuffer.image()).value().size.y;
         cmd.push_constant(AnalyzeVisbufferPush2{
             .size = {x, y},
         });

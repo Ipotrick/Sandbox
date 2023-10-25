@@ -42,8 +42,8 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     entity_next_silbings = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
     entity_parents = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_parents", "entity_parents");
     entity_meshlists = create_task_buffer(context, sizeof(MeshList) * MAX_ENTITY_COUNT, "entity_meshlists", "entity_meshlists");
-    meshlet_instances = create_task_buffer(context, sizeof(InstantiatedMeshlets), "meshlet_instances", "meshlet_instances_a");
-    meshlet_instances_last_frame = create_task_buffer(context, sizeof(InstantiatedMeshlets), "meshlet_instances_last_frame", "meshlet_instances_b");
+    meshlet_instances = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances", "meshlet_instances_a");
+    meshlet_instances_last_frame = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances_last_frame", "meshlet_instances_b");
     visible_meshlet_instances = create_task_buffer(context, sizeof(VisibleMeshletList), "visible_meshlet_instances", "visible_meshlet_instances");
 
     buffers = {
@@ -299,7 +299,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
     });
     auto hiz = task_gen_hiz_single_pass(context, task_list, depth);
     auto meshlet_cull_indirect_args = task_list.create_transient_buffer({
-        .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_INSTANTIATED_MESHLETS * 2,
+        .size = sizeof(MeshletCullIndirectArgTable) + sizeof(MeshletCullIndirectArg) * MAX_MESHLET_INSTANCES * 2,
         .name = "meshlet_cull_indirect_args",
     });
     auto cull_meshlets_commands = task_list.create_transient_buffer({
@@ -337,7 +337,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         .debug_image = debug_image,
         .depth_image = depth,
     });
-    auto visible_meshlets_bitfield = task_list.create_transient_buffer({sizeof(daxa_u32) * MAX_INSTANTIATED_MESHLETS, "visible meshlets bitfield"});
+    auto visible_meshlets_bitfield = task_list.create_transient_buffer({sizeof(daxa_u32) * MAX_MESHLET_INSTANCES, "visible meshlets bitfield"});
     task_clear_buffer(task_list, visible_meshlet_instances, 0, 4);
     task_clear_buffer(task_list, visible_meshlets_bitfield, 0);
     task_clear_buffer(task_list, entity_meshlet_visibility_bitfield_arena, 0);
@@ -381,8 +381,8 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         },
         .task = [=](daxa::TaskInterface ti)
         {
-            auto cmd_list = ti.get_command_list();
-            auto size = ti.get_device().info_image(ti.uses[swapchain_image].image()).size;
+            auto & cmd_list = ti.get_recorder();
+            auto size = ti.get_device().info_image(ti.uses[swapchain_image].image()).value().size;
             imgui_renderer.record_commands(ImGui::GetDrawData(), cmd_list, ti.uses[swapchain_image].image(), size.x, size.y);
         },
         .name = "ImGui Draw",
@@ -408,16 +408,16 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
         return;
     }
     auto reloaded_result = context->pipeline_manager.reload_all();
-    if (auto reload_err = std::get_if<daxa::PipelineReloadError>(&reloaded_result))
+    if (auto reload_err = daxa::get_if<daxa::PipelineReloadError>(&reloaded_result))
     {
         std::cout << "Failed to reload " << reload_err->message << '\n';
     }
-    if (auto _ = std::get_if<daxa::PipelineReloadSuccess>(&reloaded_result))
+    if (auto _ = daxa::get_if<daxa::PipelineReloadSuccess>(&reloaded_result))
     {
         std::cout << "Successfully reloaded!\n";
     }
     u32 const flight_frame_index = context->swapchain.get_cpu_timeline_value() % (context->swapchain.info().max_allowed_frames_in_flight + 1);
-    daxa::u32vec2 render_target_size = {static_cast<u32>(this->window->size.x), static_cast<u32>(this->window->size.y)};
+    daxa_u32vec2 render_target_size = {static_cast<daxa_u32>(this->window->size.x), static_cast<daxa_u32>(this->window->size.y)};
     this->update_settings();
     this->context->shader_globals.globals.settings = context->settings;
     bool const settings_changed = context->settings != context->prev_settings;
@@ -431,23 +431,23 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->context->shader_globals.globals.settings = this->context->settings;
     this->context->shader_globals.globals.frame_index = static_cast<u32>(context->swapchain.get_cpu_timeline_value());
     this->context->shader_globals.globals.delta_time = delta_time;
-    this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<f32vec3 const *>(&observer_camera_info.up);
-    this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<f32vec3 const *>(&observer_camera_info.pos);
-    this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.view);
-    this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.proj);
-    this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&observer_camera_info.vp);
-    this->context->shader_globals.globals.camera_up = *reinterpret_cast<f32vec3 const *>(&camera_info.up);
-    this->context->shader_globals.globals.camera_pos = *reinterpret_cast<f32vec3 const *>(&camera_info.pos);
-    this->context->shader_globals.globals.camera_view = *reinterpret_cast<f32mat4x4 const *>(&camera_info.view);
-    this->context->shader_globals.globals.camera_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.proj);
-    this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<f32mat4x4 const *>(&camera_info.vp);
-    this->context->shader_globals.globals.camera_near_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_near_plane_normal);
-    this->context->shader_globals.globals.camera_right_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_right_plane_normal);
-    this->context->shader_globals.globals.camera_left_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_left_plane_normal);
-    this->context->shader_globals.globals.camera_top_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_top_plane_normal);
-    this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
+    this->context->shader_globals.globals.observer_camera_up = *reinterpret_cast<daxa_f32vec3 const *>(&observer_camera_info.up);
+    this->context->shader_globals.globals.observer_camera_pos = *reinterpret_cast<daxa_f32vec3 const *>(&observer_camera_info.pos);
+    this->context->shader_globals.globals.observer_camera_view = *reinterpret_cast<daxa_f32mat4x4 const *>(&observer_camera_info.view);
+    this->context->shader_globals.globals.observer_camera_projection = *reinterpret_cast<daxa_f32mat4x4 const *>(&observer_camera_info.proj);
+    this->context->shader_globals.globals.observer_camera_view_projection = *reinterpret_cast<daxa_f32mat4x4 const *>(&observer_camera_info.vp);
+    this->context->shader_globals.globals.camera_up = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.up);
+    this->context->shader_globals.globals.camera_pos = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.pos);
+    this->context->shader_globals.globals.camera_view = *reinterpret_cast<daxa_f32mat4x4 const *>(&camera_info.view);
+    this->context->shader_globals.globals.camera_projection = *reinterpret_cast<daxa_f32mat4x4 const *>(&camera_info.proj);
+    this->context->shader_globals.globals.camera_view_projection = *reinterpret_cast<daxa_f32mat4x4 const *>(&camera_info.vp);
+    this->context->shader_globals.globals.camera_near_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_near_plane_normal);
+    this->context->shader_globals.globals.camera_right_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_right_plane_normal);
+    this->context->shader_globals.globals.camera_left_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_left_plane_normal);
+    this->context->shader_globals.globals.camera_top_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_top_plane_normal);
+    this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
     // Upload Shader Globals.
-    context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer)[flight_frame_index] = context->shader_globals;
+    context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer).value()[flight_frame_index] = context->shader_globals;
     context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobalsBlock) * flight_frame_index;
     context->shader_globals_set_info = {
         .slot = SHADER_GLOBALS_SLOT,
@@ -464,7 +464,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->swapchain_image.set_images({.images = std::array{swapchain_image}});
     meshlet_instances.swap_buffers(meshlet_instances_last_frame);
 
-    if (static_cast<u32>(context->swapchain.get_cpu_timeline_value()) == 0)
+    if (static_cast<daxa_u32>(context->swapchain.get_cpu_timeline_value()) == 0)
     {
         clear_select_buffers();
     }

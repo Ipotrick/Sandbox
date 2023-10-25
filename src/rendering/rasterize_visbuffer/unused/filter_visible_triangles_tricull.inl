@@ -8,7 +8,7 @@
 
 #if __cplusplus || defined(FilterVisibleTrianglesWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(FilterVisibleTrianglesWriteCommand, 1)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_command, daxa_RWBufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -16,7 +16,7 @@ DAXA_DECL_TASK_USES_END()
 #if __cplusplus || !defined(FilterVisibleTrianglesWriteCommand_COMMAND)
 DAXA_DECL_TASK_USES_BEGIN(FilterVisibleTriangles, 1)
 DAXA_TASK_USE_BUFFER(u_command, daxa_BufferPtr(DispatchIndirectStruct), COMPUTE_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfields, daxa_BufferPtr(daxa_u32vec4), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_visible_triangles, daxa_RWBufferPtr(TriangleList), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
@@ -44,7 +44,7 @@ struct FilterVisibleTrianglesTask
     GPUContext * context = {};
     void callback(daxa::TaskInterface ti)
     {
-        auto cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(FilterVisibleTriangles::NAME));

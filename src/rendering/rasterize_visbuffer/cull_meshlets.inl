@@ -19,7 +19,7 @@ DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshletVisibilityBitfieldOffsetsView, COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_arena, daxa_BufferPtr(daxa_u32), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_hiz, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(InstantiatedMeshlets), COMPUTE_SHADER_READ_WRITE)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(MeshletInstances), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_draw_command, daxa_RWBufferPtr(DrawIndirectStruct), COMPUTE_SHADER_READ_WRITE)
 DAXA_DECL_TASK_USES_END()
 #endif
@@ -51,7 +51,7 @@ struct CullMeshletsTask
     GPUContext *context = {};
     void callback(daxa::TaskInterface ti)
     {
-        daxa::CommandList cmd = ti.get_command_list();
+        auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(context->shader_globals_set_info);
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(CullMeshlets::NAME));
