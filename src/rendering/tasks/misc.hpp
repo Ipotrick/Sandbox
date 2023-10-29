@@ -87,7 +87,7 @@ void task_multi_clear_buffer(daxa::TaskGraph & tg, daxa::TaskBufferView buffer, 
         .uses = {daxa::task_resource_uses::BufferTransferWrite{buffer}},
         .task = [=](daxa::TaskInterface ti){
             auto & cmd = ti.get_recorder();
-            auto buffer_size = ti.get_device().info_buffer(ti.uses[buffer].buffer()).size;
+            auto buffer_size = ti.get_device().info_buffer(ti.uses[buffer].buffer()).value().size;
             for (auto range : clear_ranges)
             {
                 auto copy_size = (range.size == CLEAR_REST) ? (buffer_size - range.offset) : static_cast<u32>(range.size);

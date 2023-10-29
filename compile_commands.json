@@ -1,0 +1,164 @@
+[
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\main.cpp.obj -c D:\\repos\\Sandbox\\src\\main.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\main.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\main.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\sandbox.cpp.obj -c D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\sandbox.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\application.cpp.obj -c D:\\repos\\Sandbox\\src\\application.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\application.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\application.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\window.cpp.obj -c D:\\repos\\Sandbox\\src\\window.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\window.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\window.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\rendering\\renderer.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\rendering\\renderer.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\rendering\\gpu_context.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\rendering\\gpu_context.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\scene\\asset_manager.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\scene\\asset_manager.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\scene\\scene.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\scene\\scene.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Debug\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O0 -g -Xclang -gcodeview -std=gnu++20 -D_DEBUG -D_DLL -D_MT -Xclang --dependent-lib=msvcrtd -o CMakeFiles\\Sandbox.dir\\Debug\\src\\ui.cpp.obj -c D:\\repos\\Sandbox\\src\\ui.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\ui.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Debug\\src\\ui.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\main.cpp.obj -c D:\\repos\\Sandbox\\src\\main.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\main.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\main.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\sandbox.cpp.obj -c D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\sandbox.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\application.cpp.obj -c D:\\repos\\Sandbox\\src\\application.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\application.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\application.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\window.cpp.obj -c D:\\repos\\Sandbox\\src\\window.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\window.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\window.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\rendering\\renderer.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\rendering\\renderer.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\rendering\\gpu_context.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\rendering\\gpu_context.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\scene\\asset_manager.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\scene\\asset_manager.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\scene\\scene.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\scene\\scene.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"Release\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O3 -DNDEBUG -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\Release\\src\\ui.cpp.obj -c D:\\repos\\Sandbox\\src\\ui.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\ui.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\Release\\src\\ui.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\main.cpp.obj -c D:\\repos\\Sandbox\\src\\main.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\main.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\main.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\sandbox.cpp.obj -c D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\sandbox.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\sandbox.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\application.cpp.obj -c D:\\repos\\Sandbox\\src\\application.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\application.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\application.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\window.cpp.obj -c D:\\repos\\Sandbox\\src\\window.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\window.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\window.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\rendering\\renderer.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\renderer.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\rendering\\renderer.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\rendering\\gpu_context.cpp.obj -c D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\rendering\\gpu_context.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\rendering\\gpu_context.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\scene\\asset_manager.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\asset_manager.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\scene\\asset_manager.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\scene\\scene.cpp.obj -c D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\scene\\scene.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\scene\\scene.cpp.obj"
+},
+{
+  "directory": "D:/repos/Sandbox/build/clang-x86_64-windows-msvc",
+  "command": "C:\\PROGRA~1\\LLVM\\bin\\CLANG_~1.EXE -DDAXA_BUILT_WITH_UTILS_IMGUI=true -DDAXA_BUILT_WITH_UTILS_MEM=true -DDAXA_BUILT_WITH_UTILS_PIPELINE_MANAGER_GLSLANG=true -DDAXA_BUILT_WITH_UTILS_TASK_GRAPH=true -DDAXA_SHADER_INCLUDE_DIR=\\\"D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include\\\" -DFMT_SHARED -DGLFW_DLL -DMESHOPTIMIZER_API=__declspec(dllimport) -DCMAKE_INTDIR=\\\"RelWithDebInfo\\\" -isystem D:/repos/Sandbox/build/clang-x86_64-windows-msvc/vcpkg_installed/x64-windows/include -O2 -DNDEBUG -g -Xclang -gcodeview -std=gnu++20 -D_DLL -D_MT -Xclang --dependent-lib=msvcrt -o CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\ui.cpp.obj -c D:\\repos\\Sandbox\\src\\ui.cpp",
+  "file": "D:\\repos\\Sandbox\\src\\ui.cpp",
+  "output": "CMakeFiles\\Sandbox.dir\\RelWithDebInfo\\src\\ui.cpp.obj"
+}
+]

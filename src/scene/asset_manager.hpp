@@ -1,11 +1,11 @@
 #pragma once
 
-#include <assimp/Importer.hpp>
-#include <assimp/mesh.h>
-#include <assimp/scene.h>
-#include <assimp/postprocess.h>
-#include <assimp/IOStream.hpp>
-#include <assimp/IOSystem.hpp>
+// #include <assimp/Importer.hpp>
+// #include <assimp/mesh.h>
+// #include <assimp/scene.h>
+// #include <assimp/postprocess.h>
+// #include <assimp/IOStream.hpp>
+// #include <assimp/IOSystem.hpp>
 
 #include <meshoptimizer.h>
 
@@ -18,16 +18,16 @@ using ImageIndex = size_t;
 
 #define MAX_MESHES 10000
 
-inline std::string generate_mesh_name(aiMesh* mesh)
-{
-    return
-        std::string(mesh->mName.C_Str()) + std::string(" m:") + std::to_string(mesh->mMaterialIndex);
-}
-
-inline std::string generate_texture_name(aiMaterial * material, aiTextureType type)
-{
-    return std::string(material->GetName().C_Str()) + aiTextureTypeToString(type);
-}
+// inline std::string generate_mesh_name(aiMesh* mesh)
+// {
+//     return
+//         std::string(mesh->mName.C_Str()) + std::string(" m:") + std::to_string(mesh->mMaterialIndex);
+// }
+// 
+// inline std::string generate_texture_name(aiMaterial * material, aiTextureType type)
+// {
+//     return std::string(material->GetName().C_Str()) + aiTextureTypeToString(type);
+// }
 
 struct AssetManager
 {
@@ -47,19 +47,20 @@ struct AssetManager
     usize total_meshlet_count = {};
 
     AssetManager(daxa::Device device);
+    AssetManager(AssetManager&&) = default;
     ~AssetManager();
 
-    auto get_texture_if_present(std::string_view unique_name) -> std::optional<std::pair<u32, daxa::ImageId>>;
+    // auto get_texture_if_present(std::string_view unique_name) -> std::optional<std::pair<u32, daxa::ImageId>>;
 
-    auto create_texture(std::string_view unique_name, aiScene const*scene, aiMaterial *aimaterial, aiTextureType type) -> std::pair<u32, daxa::ImageId>;
+    // auto create_texture(std::string_view unique_name, aiScene const*scene, aiMaterial *aimaterial, aiTextureType type) -> std::pair<u32, daxa::ImageId>;
 
-    auto get_or_create_texture(aiScene const*scene, aiMaterial *aimaterial, aiTextureType type) -> std::pair<u32, daxa::ImageId>;
+    // auto get_or_create_texture(aiScene const*scene, aiMaterial *aimaterial, aiTextureType type) -> std::pair<u32, daxa::ImageId>;
 
-    auto create_mesh(std::string_view unique_name, aiScene const*scene, aiMesh *aimesh) -> std::pair<u32, GPUMesh const *>;
+    // auto create_mesh(std::string_view unique_name, aiScene const*scene, aiMesh *aimesh) -> std::pair<u32, GPUMesh const *>;
 
-    auto get_mesh_if_present(std::string_view const &mesh_name) -> std::optional<std::pair<u32, GPUMesh const *>>;
+    // auto get_mesh_if_present(std::string_view const &mesh_name) -> std::optional<std::pair<u32, GPUMesh const *>>;
 
-    auto get_or_create_mesh(aiScene const*scene, aiMesh * aimesh) -> std::pair<u32, GPUMesh const *>;
+    // auto get_or_create_mesh(aiScene const*scene, aiMesh * aimesh) -> std::pair<u32, GPUMesh const *>;
 
-    auto get_update_commands() -> std::optional<daxa::ExecutableCommandList>;
+    // auto get_update_commands() -> std::optional<daxa::ExecutableCommandList>;
 };

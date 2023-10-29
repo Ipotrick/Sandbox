@@ -6,6 +6,7 @@
 struct GPUContext
 {
     GPUContext(Window const& window);
+    GPUContext(GPUContext&&) = default;
     ~GPUContext();
 
     // common unique:

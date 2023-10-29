@@ -5,10 +5,10 @@
 
 #define INVALID_MESHLET_INDEX (~(0u))
 
-// Can never be greater then 124!
+// MUST never be greater then 124!
 #define MAX_TRIANGLES_PER_MESHLET (64)
 
-// Can never be greater then 372!
+// MUST never be greater then MAX_TRIANGLES_PER_MESHLET * 3!
 #define MAX_VERTICES_PER_MESHLET (64)
 
 #define ENTITY_MESHLET_VISIBILITY_ARENA_SIZE (1<<20)

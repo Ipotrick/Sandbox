@@ -33,6 +33,7 @@ using Button = i32;
 struct Window
 {
     Window(i32 width, i32 height, std::string_view name);
+    Window(Window&&) = default;
     ~Window();
 
     bool update(f32 deltaTime);

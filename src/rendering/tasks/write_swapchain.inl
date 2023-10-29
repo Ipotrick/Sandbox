@@ -42,11 +42,11 @@ struct WriteSwapchainTask
         auto & cmd = ti.get_recorder();
         cmd.set_uniform_buffer(ti.uses.get_uniform_buffer_info());
         cmd.set_pipeline(*context->compute_pipelines.at(WriteSwapchain::NAME));
-        u32 const dispatch_x = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.x, WRITE_SWAPCHAIN_WG_X);
-        u32 const dispatch_y = round_up_div(ti.get_device().info_image(uses.swapchain.image()).size.y, WRITE_SWAPCHAIN_WG_Y);
+        u32 const dispatch_x = round_up_div(ti.get_device().info_image(uses.swapchain.image()).value().size.x, WRITE_SWAPCHAIN_WG_X);
+        u32 const dispatch_y = round_up_div(ti.get_device().info_image(uses.swapchain.image()).value().size.y, WRITE_SWAPCHAIN_WG_Y);
         cmd.push_constant(WriteSwapchainPush{
-            .width = ti.get_device().info_image(uses.swapchain.image()).size.x,
-            .height = ti.get_device().info_image(uses.swapchain.image()).size.y,
+            .width = ti.get_device().info_image(uses.swapchain.image()).value().size.x,
+            .height = ti.get_device().info_image(uses.swapchain.image()).value().size.y,
         });
         cmd.dispatch(dispatch_x, dispatch_y, 1);
     }

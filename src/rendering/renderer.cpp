@@ -448,7 +448,7 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->context->shader_globals.globals.camera_bottom_plane_normal = *reinterpret_cast<daxa_f32vec3 const *>(&camera_info.camera_bottom_plane_normal);
     // Upload Shader Globals.
     context->device.get_host_address_as<ShaderGlobalsBlock>(context->shader_globals_buffer).value()[flight_frame_index] = context->shader_globals;
-    context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer) + sizeof(ShaderGlobalsBlock) * flight_frame_index;
+    context->shader_globals_ptr = context->device.get_device_address(context->shader_globals_buffer).value() + sizeof(ShaderGlobalsBlock) * flight_frame_index;
     context->shader_globals_set_info = {
         .slot = SHADER_GLOBALS_SLOT,
         .buffer = context->shader_globals_buffer,
@@ -470,9 +470,8 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     }
 
     this->submit_info = {};
-    this->submit_info.signal_timeline_semaphores = {
-        {this->context->transient_mem.get_timeline_semaphore(), this->context->transient_mem.timeline_value()},
-    };
+    auto const t_semas = std::array{std::pair{this->context->transient_mem.timeline_semaphore(), this->context->transient_mem.timeline_value()}};
+    this->submit_info.signal_timeline_semaphores = t_semas;
     main_task_graph.execute({});
     context->prev_settings = context->settings;
 }

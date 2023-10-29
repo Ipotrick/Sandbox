@@ -38,3 +38,7 @@ using namespace std::chrono_literals;
 #else
 #define ASSERT_M(x, m)
 #endif
+
+#define s_cast static_cast
+#define d_cast dynamic_cast
+#define r_cast reinterpret_cast
