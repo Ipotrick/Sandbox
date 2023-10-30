@@ -38,9 +38,9 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManag
     entity_meta = create_task_buffer(context, sizeof(EntityMetaData), "entity_meta", "entity_meta");
     entity_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_transforms", "entity_transforms");
     entity_combined_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
-    entity_first_children = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_first_children", "entity_first_children");
-    entity_next_silbings = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
-    entity_parents = create_task_buffer(context, sizeof(EntityId) * MAX_ENTITY_COUNT, "entity_parents", "entity_parents");
+    entity_first_children = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_first_children", "entity_first_children");
+    entity_next_silbings = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
+    entity_parents = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_parents", "entity_parents");
     entity_meshlists = create_task_buffer(context, sizeof(GPUMeshGroup) * MAX_ENTITY_COUNT, "entity_meshlists", "entity_meshlists");
     meshlet_instances = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances", "meshlet_instances_a");
     meshlet_instances_last_frame = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances_last_frame", "meshlet_instances_b");

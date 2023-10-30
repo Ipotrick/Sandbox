@@ -1,3 +1,5 @@
+#pragma once
+
 #include "sandbox.hpp"
 
 template <typename T>
@@ -25,7 +27,7 @@ public:
         {
             u32 const index = _free_list.back();
             _free_list.pop_back();
-            _slots[index] = std::move(v)
+            _slots[index] = std::move(v);
             return Id{index, _versions[index]};
         }
         else
@@ -69,6 +71,6 @@ public:
     auto is_id_valid(Id id) const -> bool
     {
         auto const uz_index = s_cast<size_t>(id.index);
-        return _slots.size() < uz_index && _versions[uz_index] == id.version;
+        return uz_index < _slots.size() && _versions[uz_index] == id.version;
     }
 };

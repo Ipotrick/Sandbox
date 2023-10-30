@@ -218,8 +218,9 @@ Scene::~Scene()
 // }
 
 // TODO: Loading god function.
-auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std::filesystem::path const &glb_name) -> LoadManifestResult
+auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std::filesystem::path const &glb_name) -> std::variant<RenderEntityId, LoadManifestErrorCode>
 {
+#pragma region SETUP
     auto file_path = root_path / glb_name;
 
     fastgltf::Parser parser{};
@@ -235,7 +236,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     bool const worked = data.loadFromFile(file_path);
     if (!worked)
     {
-        return LoadManifestResult::ERROR_FILE_NOT_FOUND;
+        return LoadManifestErrorCode::FILE_NOT_FOUND;
     }
     auto type = fastgltf::determineGltfFileType(&data);
     std::unique_ptr<fastgltf::glTF> gltf_file;
@@ -248,18 +249,18 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
         gltf_file = parser.loadBinaryGLTF(&data, file_path.parent_path(), gltf_options);
         break;
     default:
-        return LoadManifestResult::ERROR_INVALID_GLTF_FILE_TYPE;
+        return LoadManifestErrorCode::INVALID_GLTF_FILE_TYPE;
     }
 
     if (!gltf_file)
     {
-        return LoadManifestResult::ERROR_COULD_NOT_LOAD_ASSET;
+        return LoadManifestErrorCode::COULD_NOT_LOAD_ASSET;
     }
 
     auto parse_result = gltf_file->parse(fastgltf::Category::All);
     if (!(parse_result == fastgltf::Error::None))
     {
-        return LoadManifestResult::ERROR_PARSING_ASSET_NODES;
+        return LoadManifestErrorCode::COULD_NOT_PARSE_ASSET_NODES;
     }
     auto asset = gltf_file->getParsedAsset();
 
@@ -269,7 +270,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     u32 const mesh_group_manifest_offset = s_cast<u32>(_mesh_group_manifest.size());
     u32 const mesh_manifest_offset = s_cast<u32>(_mesh_manifest.size());
 
-    /// NOTE: Texture = image + sampler since we don't care about the samplers we only load the images
+    /// NOTE: Texture = image + sampler - since we don't care about the samplers we only load the images.
     //        Later when we load in the materials which reference the textures rather than images we just
     //        translate the textures image index and store that in the material
     for (u32 i = 0; i < s_cast<u32>(asset->images.size()); ++i)
@@ -286,20 +287,51 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
                      i,
                      texture_manifest_index);
     }
+#pragma endregion
 
+#pragma region POPULATE_MATERIAL_MANIFEST
     for (u32 material_index = 0; material_index < s_cast<u32>(asset->materials.size()); material_index++)
     {
+        /// NOTE: Because we previously only loaded the images and not textures we now need to translate
+        //        the texture indices into image indeces and store that
+        auto gltf_texture_to_manifest_texture_index = [&](u32 const texture_index) -> std::optional<u32>
+        {
+            const bool gltf_texture_has_image_index = asset->textures.at(texture_index).imageIndex.has_value();
+            if (!gltf_texture_has_image_index)
+            {
+                return std::nullopt;
+            }
+            else
+            {
+                return s_cast<u32>(asset->textures.at(texture_index).imageIndex.value()) + texture_manifest_offset;
+            }
+        };
+
         auto const &material = asset->materials.at(material_index);
         const bool has_pbr_info = material.pbrData.has_value();
         const bool has_normal_texture = material.normalTexture.has_value();
         const bool has_diffuse_texture = has_pbr_info ? material.pbrData.value().baseColorTexture.has_value() : false;
-        _material_manifest.push_back({.diffuse_tex_index = has_diffuse_texture ? material.pbrData.value().baseColorTexture.value().textureIndex : std::optional<u32>{},
-                                      .normal_tex_index = has_normal_texture ? material.normalTexture.value().textureIndex : std::optional<u32>{},
+        std::optional<u32> diffuse_texture_index = {};
+        std::optional<u32> normal_texture_index = {};
+        if (has_diffuse_texture)
+        {
+            const u32 texture_index = s_cast<u32>(material.pbrData.value().baseColorTexture.value().textureIndex);
+            diffuse_texture_index = gltf_texture_to_manifest_texture_index(texture_index);
+        }
+        if (has_normal_texture)
+        {
+            const u32 texture_index = s_cast<u32>(material.pbrData.value().baseColorTexture.value().textureIndex);
+            normal_texture_index = gltf_texture_to_manifest_texture_index(texture_index);
+        }
+        _material_manifest.push_back({.diffuse_tex_index = diffuse_texture_index,
+                                      .normal_tex_index = normal_texture_index,
                                       .name = material.name,
                                       .scene_file_manifest_index = scene_file_manifest_index,
                                       .in_scene_file_index = material_index});
     }
+#pragma endregion
 
+#pragma region POPULATE_MESHGROUP_AND_MESH_MANIFEST
     /// NOTE: fastgltf::Mesh is a MeshGroup
     std::array<u32, MAX_MESHES_PER_MESHGROUP> mesh_manifest_indices;
     for (u32 mesh_group_index = 0; mesh_group_index < s_cast<u32>(asset->meshes.size()); mesh_group_index++)
@@ -325,15 +357,17 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             .in_scene_file_index = mesh_group_index});
         mesh_manifest_indices.fill(0u);
     }
+#pragma endregion
 
+#pragma region POPULATE_RENDER_ENTITIES
     /// NOTE: fastgltf::Node is Entity
     ASSERT_M(asset->nodes.size() != 0, "[ERROR][load_manifest_from_gltf()] Empty node array - what to do now?");
     std::vector<RenderEntityId> node_index_to_entity_id = {};
+    /// NOTE: Here we allocate space for each entity and create a translation table between node index and entity id
     for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
     {
         node_index_to_entity_id.push_back(_render_entities.create_slot());
     }
-    // In the first pass find all root nodes (aka nodes that have no parent)
     for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
     {
         // TODO: For now store transform as a matrix - later should be changed to something else (TRS: translation, rotor, scale).
@@ -342,52 +376,77 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             glm::mat4x3 ret_trans;
             if (auto const *trs = std::get_if<fastgltf::Node::TRS>(&trans))
             {
-                auto const scaled = glm::scale(glm::identity<glm::mat4x4>(), glm::vec3(trs->scale.at[0], trs->scale.at[1], trs->scale[2]));
-                auto const rotated_scaled = glm::toMat4(glm::qua<float>(trs->rotation.at[0], trs->rotation.at[1], trs->rotation.at[2], trs->rotation.at[3])) * scaled;
+                auto const scaled = glm::scale(glm::identity<glm::mat4x4>(), glm::vec3(trs->scale[0], trs->scale[1], trs->scale[2]));
+                auto const quat_rotation_mat = glm::toMat4(glm::quat(trs->rotation[3], trs->rotation[0], trs->rotation[1], trs->rotation[2])) * scaled;
+                auto const rotated_scaled = quat_rotation_mat * scaled;
                 auto const translated_rotated_scaled = glm::translate(
                     rotated_scaled,
-                    glm::vec3(trs->scale[0], trs->scale[1], trs->scale[2]));
-                ret_trans[0] = translated_rotated_scaled[0];
-                ret_trans[1] = translated_rotated_scaled[1];
-                ret_trans[2] = translated_rotated_scaled[2];
+                    glm::vec3(trs->translation[0], trs->translation[1], trs->translation[2]));
+                /// NOTE: As the last row is always (0,0,0,1) we dont store it.
+                ret_trans = glm::mat4x3(translated_rotated_scaled);
             }
             else if (auto const *trs = std::get_if<fastgltf::Node::TransformMatrix>(&trans))
             {
-                for (u32 col = 0; col < 4; col++)
-                {
-                    for (u32 row = 0; row < 3; row++)
-                    {
-                        ret_trans[col][row] = trs[col * 4 + row];
-                    }
-                }
+                // Gltf and glm matrices are column major.
+                ret_trans = glm::mat4x3(std::bit_cast<glm::mat4x4>(*trs));
             }
             return ret_trans;
         };
+
         fastgltf::Node const &node = asset->nodes[node_index];
-        auto const parent_r_ent_idx = node_index_to_entity_id[node_index];
-        RenderEntity &r_ent = *_render_entities.slot(parent_r_ent_idx);
-
-        r_ent.mesh_group_manifest_index = node.meshIndex.has_value() ?
-            std::optional<u32>(s_cast<u32>(node.meshIndex.value()) + mesh_group_manifest_offset) :
-            std::optional<u32>(std::nullopt);
-
+        RenderEntityId const parent_r_ent_id = node_index_to_entity_id[node_index];
+        RenderEntity &r_ent = *_render_entities.slot(parent_r_ent_id);
+        r_ent.mesh_group_manifest_index = node.meshIndex.has_value() ? std::optional<u32>(s_cast<u32>(node.meshIndex.value()) + mesh_group_manifest_offset) : std::optional<u32>(std::nullopt);
         r_ent.transform = fastgltf_to_glm_mat4x3_transform(node.transform);
-        if (node.children.size() > 0)
+        if (!node.children.empty())
         {
-            auto const first_child_r_ent_index = node_index_to_entity_id[node.children[0]];
-            auto * prev_r_ent_child = *_render_entities.slot(first_child_r_ent_index);
-            for (u32 curr_child_vec_idx = 0; curr_child_vec_idx < node.children.size(); curr_child_vec_idx++)
+            r_ent.first_child = node_index_to_entity_id[node.children[0]];
+        }
+        for (u32 curr_child_vec_idx = 0; curr_child_vec_idx < node.children.size(); curr_child_vec_idx++)
+        {
+            u32 const curr_child_node_idx = node.children[curr_child_vec_idx];
+            RenderEntityId const curr_child_r_ent_id = node_index_to_entity_id[curr_child_node_idx];
+            RenderEntity &curr_child_r_ent = *_render_entities.slot(curr_child_r_ent_id);
+            curr_child_r_ent.parent = parent_r_ent_id;
+            bool const has_next_sibling = curr_child_vec_idx < (node.children.size() - 1ull);
+            if (has_next_sibling)
             {
-                u32 const curr_child_node_idx = node.children[curr_child_vec_idx];
-                auto const curr_child_r_ent_idx = node_index_to_entity_id[curr_child_node_idx];
-                auto &curr_child_r_ent = *_render_entities.slot(node_index_to_entity_id[curr_child_r_ent_idx]);
-                curr_child_r_ent.first_child = first_child_r_ent_index;
-                curr_child_r_ent.parent = parent_r_ent_idx;
-                prev_r_ent_child->next_sibling = curr_child_r_ent_idx;
-                prev_r_ent_child = &curr_child_r_ent;
+                RenderEntityId const next_r_ent_child_id = node_index_to_entity_id[node.children[curr_child_vec_idx + 1]];
+                curr_child_r_ent.next_sibling = next_r_ent_child_id;
             }
         }
     }
+
+    /// NOTE: Find all root render entities (aka render entities that have no parent) and store them as
+    //        Child root entites under scene root node
+    RenderEntityId root_r_ent_id = _render_entities.create_slot({.transform = glm::mat4x3(glm::identity<glm::mat4x3>()),
+                                                                 .first_child = std::nullopt,
+                                                                 .next_sibling = std::nullopt,
+                                                                 .parent = std::nullopt,
+                                                                 .mesh_group_manifest_index = std::nullopt,
+                                                                 .name = glb_name.string() + " scene root node"});
+    RenderEntity &root_r_ent = *_render_entities.slot(root_r_ent_id);
+    std::optional<RenderEntityId> root_r_ent_prev_child = {};
+    for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
+    {
+        RenderEntityId const r_ent_id = node_index_to_entity_id[node_index];
+        RenderEntity &r_ent = *_render_entities.slot(r_ent_id);
+        if (!r_ent.parent.has_value())
+        {
+            r_ent.parent = root_r_ent_id;
+            if (!root_r_ent_prev_child.has_value()) // First child
+            {
+                root_r_ent.first_child = r_ent_id;
+            }
+            else // We have other root children already
+            {
+                _render_entities.slot(root_r_ent_prev_child.value())->next_sibling = r_ent_id;
+            }
+            root_r_ent_prev_child = r_ent_id;
+        }
+    }
+
+#pragma endregion
 
     _scene_file_manifest.push_back(SceneFileManifestEntry{
         .path = file_path,
@@ -397,9 +456,10 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
         .mesh_group_manifest_offset = mesh_group_manifest_offset,
         .mesh_manifest_offset = mesh_manifest_offset,
     });
-    return LoadManifestResult::SUCCESS;
+    return root_r_ent_id;
 }
 
 auto record_gpu_manifest_update() -> daxa::ExecutableCommandList
 {
+    return {};
 }

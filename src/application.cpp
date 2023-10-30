@@ -132,11 +132,11 @@ Application::Application()
     std::filesystem::path const DEFAULT_HARDCODED_PATH = ".\\assets";
     std::filesystem::path const DEFAULT_HARDCODED_FILE = "bistro_gltf\\bistro.gltf";
     auto const result = _scene->load_manifest_from_gltf(DEFAULT_HARDCODED_PATH, DEFAULT_HARDCODED_FILE);
-    if (result != Scene::LoadManifestResult::SUCCESS)
+    if (Scene::LoadManifestErrorCode const *err = std::get_if<Scene::LoadManifestErrorCode>(&result))
     {
         fmt::println("[WARN][Application::Application()] Loading \"{}\" Error: {}",
                      (DEFAULT_HARDCODED_PATH / DEFAULT_HARDCODED_FILE).string(),
-                     Scene::to_string(result));
+                     Scene::to_string(*err));
     }
     else
     {

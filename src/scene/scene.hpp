@@ -123,28 +123,26 @@ struct Scene
     Scene();
     ~Scene();
 
-    enum struct LoadManifestResult
+    enum struct LoadManifestErrorCode
     {
-        SUCCESS,
-        ERROR_FILE_NOT_FOUND,
-        ERROR_COULD_NOT_LOAD_ASSET,
-        ERROR_INVALID_GLTF_FILE_TYPE,
-        ERROR_PARSING_ASSET_NODES,
+        FILE_NOT_FOUND,
+        COULD_NOT_LOAD_ASSET,
+        INVALID_GLTF_FILE_TYPE,
+        COULD_NOT_PARSE_ASSET_NODES,
     };
-    static auto to_string(LoadManifestResult result) -> std::string_view
+    static auto to_string(LoadManifestErrorCode result) -> std::string_view
     {
         switch(result)
         {
-            case LoadManifestResult::SUCCESS: return "SUCCESS";
-            case LoadManifestResult::ERROR_FILE_NOT_FOUND: return "ERROR_FILE_NOT_FOUND";
-            case LoadManifestResult::ERROR_COULD_NOT_LOAD_ASSET: return "ERROR_COULD_NOT_LOAD_ASSET";
-            case LoadManifestResult::ERROR_INVALID_GLTF_FILE_TYPE: return "ERROR_INVALID_GLTF_FILE_TYPE";
-            case LoadManifestResult::ERROR_PARSING_ASSET_NODES: return "ERROR_PARSING_ASSET_NODES";
+            case LoadManifestErrorCode::FILE_NOT_FOUND: return "FILE_NOT_FOUND";
+            case LoadManifestErrorCode::COULD_NOT_LOAD_ASSET: return "COULD_NOT_LOAD_ASSET";
+            case LoadManifestErrorCode::INVALID_GLTF_FILE_TYPE: return "INVALID_GLTF_FILE_TYPE";
+            case LoadManifestErrorCode::COULD_NOT_PARSE_ASSET_NODES: return "COULD_NOT_PARSE_ASSET_NODES";
             default: return "UNKNOWN";
         }
         return "UNKNOWN";
     }
-    auto load_manifest_from_gltf(std::filesystem::path const& root_path, std::filesystem::path const& glb_name) -> LoadManifestResult;
+    auto load_manifest_from_gltf(std::filesystem::path const& root_path, std::filesystem::path const& glb_name) -> std::variant<RenderEntityId, LoadManifestErrorCode>;
 
     auto record_gpu_manifest_update() -> daxa::ExecutableCommandList;
 };
