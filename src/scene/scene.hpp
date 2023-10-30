@@ -8,9 +8,8 @@
 #include "../../shader_shared/asset.inl"
 #include "../../shader_shared/scene.inl"
 #include "asset_manager.hpp"
+#include "../slot_map.hpp"
 
-#define MAX_MESHES_PER_MESHGROUP 7
-#define MAX_SURFACE_PARAMETERS 3
 
 // Scenes are described by entities and their resources.
 // These resources can have complex dependencies between each other.
@@ -80,15 +79,20 @@ struct MeshGroupManifestEntry
     u32 in_scene_file_index = {};
 };
 
-struct Entity
+struct RenderEntity;
+using RenderEntityId = SlotMap<RenderEntity>::Id;
+
+struct RenderEntity
 {
-    daxa_f32mat4x4 transform = {};
-    EntityId first_child = {};
-    EntityId next_sibling = {};
-    EntityId parent = {};
-    u32 model_index = {};
+    glm::mat4x3 transform = {};
+    std::optional<RenderEntityId> first_child = {};
+    std::optional<RenderEntityId> next_sibling = {};
+    std::optional<RenderEntityId> parent = {};
+    std::optional<u32> mesh_group_manifest_index = {};
     std::string name = {};
 };
+
+using RenderEntitySlotMap = SlotMap<RenderEntity>;
 
 struct Scene
 {
@@ -102,19 +106,22 @@ struct Scene
     daxa::TaskBuffer _t_materials = {};
     daxa::TaskBuffer _t_meshes = {};
 
+    daxa::TaskBuffer _gpu_texture_manifest = {};
+    daxa::TaskBuffer _gpu_material_manifest = {};
+    daxa::TaskBuffer _gpu_mesh_manifest = {};
+    daxa::TaskBuffer _gpu_mesh_group_manifest = {};
+
     std::vector<SceneFileManifestEntry> _scene_file_manifest = {};
     std::vector<TextureManifestEntry> _texture_manifest = {};
     std::vector<MaterialManifestEntry> _material_manifest = {};
     std::vector<MeshManifestEntry> _mesh_manifest = {};
     std::vector<MeshGroupManifestEntry> _mesh_group_manifest = {};
 
-    std::vector<std::optional<Entity>> _entities = {};
-    std::vector<u32> _entity_index_free_list = {};
+    RenderEntitySlotMap _render_entities = {};
+    std::vector<RenderEntityId> _dirty_render_entities = {}; 
 
     Scene();
     ~Scene();
-
-    auto get_entity_ref(EntityId ent_id) -> EntityRef;
 
     enum struct LoadManifestResult
     {
@@ -138,4 +145,6 @@ struct Scene
         return "UNKNOWN";
     }
     auto load_manifest_from_gltf(std::filesystem::path const& root_path, std::filesystem::path const& glb_name) -> LoadManifestResult;
+
+    auto record_gpu_manifest_update() -> daxa::ExecutableCommandList;
 };

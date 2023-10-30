@@ -34,7 +34,7 @@ DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullInd
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(MeshletInstances), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(EntityMetaData), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(MeshList), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(GPUMeshGroup), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshletVisibilityBitfieldOffsetsView, GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_arena, daxa_BufferPtr(daxa_u32), GRAPHICS_SHADER_READ)

@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include <fmt/format.h>
+#include <glm/gtx/quaternion.hpp>
 
 Scene::Scene()
 {
@@ -63,7 +64,7 @@ Scene::~Scene()
 //     upload(this->entity_first_children, b_entity_first_children, EntityId{}, MAX_ENTITY_COUNT);
 //     upload(this->entity_next_siblings, b_entity_next_siblings, EntityId{}, MAX_ENTITY_COUNT);
 //     upload(this->entity_parents, b_entity_parents, EntityId{}, MAX_ENTITY_COUNT);
-//     upload(this->entity_meshlists, b_entity_meshlists, MeshList{}, MAX_ENTITY_COUNT);
+//     upload(this->entity_meshlists, b_entity_meshlists, GPUMeshGroup{}, MAX_ENTITY_COUNT);
 // }
 
 // template<typename T, size_t N, size_t M>
@@ -278,7 +279,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             .name = asset->images[i].name,
             .scene_file_manifest_index = scene_file_manifest_index,
             .in_scene_file_index = i,
-            .runtime = {},                                  // Loaded later.
+            .runtime = {}, // Loaded later.
         });
         fmt::println("[INFO] Loading texture meta data into manifest:\n  name: {}\n  in scene file index: {}\n  manifest index:  {}",
                      asset->images[i].name,
@@ -286,23 +287,34 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
                      texture_manifest_index);
     }
 
-    /// NOTE: fastgltf Mesh is a MeshGroup
+    for (u32 material_index = 0; material_index < s_cast<u32>(asset->materials.size()); material_index++)
+    {
+        auto const &material = asset->materials.at(material_index);
+        const bool has_pbr_info = material.pbrData.has_value();
+        const bool has_normal_texture = material.normalTexture.has_value();
+        const bool has_diffuse_texture = has_pbr_info ? material.pbrData.value().baseColorTexture.has_value() : false;
+        _material_manifest.push_back({.diffuse_tex_index = has_diffuse_texture ? material.pbrData.value().baseColorTexture.value().textureIndex : std::optional<u32>{},
+                                      .normal_tex_index = has_normal_texture ? material.normalTexture.value().textureIndex : std::optional<u32>{},
+                                      .name = material.name,
+                                      .scene_file_manifest_index = scene_file_manifest_index,
+                                      .in_scene_file_index = material_index});
+    }
+
+    /// NOTE: fastgltf::Mesh is a MeshGroup
+    std::array<u32, MAX_MESHES_PER_MESHGROUP> mesh_manifest_indices;
     for (u32 mesh_group_index = 0; mesh_group_index < s_cast<u32>(asset->meshes.size()); mesh_group_index++)
     {
-        std::array<u32, MAX_MESHES_PER_MESHGROUP> mesh_manifest_indices;
-        auto const& mesh_group = asset->meshes.at(mesh_group_index);
+        auto const &mesh_group = asset->meshes.at(mesh_group_index);
         u32 const mesh_group_manifest_index = s_cast<u32>(_mesh_group_manifest.size());
-        /// NOTE: fastgltf Primitive is Mesh
-        for(u32 mesh_index = 0; mesh_index < s_cast<u32>(mesh_group.primitives.size()); mesh_index++)
+        /// NOTE: fastgltf::Primitive is Mesh
+        for (u32 mesh_index = 0; mesh_index < s_cast<u32>(mesh_group.primitives.size()); mesh_index++)
         {
             u32 const mesh_manifest_entry = _mesh_manifest.size();
-            auto const& mesh = mesh_group.primitives.at(mesh_index);
+            auto const &mesh = mesh_group.primitives.at(mesh_index);
             mesh_manifest_indices.at(mesh_index) = mesh_manifest_entry;
             std::optional<u32> material_manifest_index = mesh.materialIndex.has_value() ? std::optional{s_cast<u32>(mesh.materialIndex.value()) + material_manifest_offset} : std::nullopt;
-            _mesh_manifest.push_back({
-                .material_manifest_index = std::move(material_manifest_index),
-                .scene_file_manifest_index = scene_file_manifest_index
-            });
+            _mesh_manifest.push_back({.material_manifest_index = std::move(material_manifest_index),
+                                      .scene_file_manifest_index = scene_file_manifest_index});
         }
 
         _mesh_group_manifest.push_back(MeshGroupManifestEntry{
@@ -310,9 +322,73 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             .mesh_count = s_cast<u32>(mesh_group.primitives.size()),
             .name = mesh_group.name,
             .scene_file_manifest_index = scene_file_manifest_index,
-            .in_scene_file_index = mesh_group_index
-        });
+            .in_scene_file_index = mesh_group_index});
+        mesh_manifest_indices.fill(0u);
     }
+
+    /// NOTE: fastgltf::Node is Entity
+    ASSERT_M(asset->nodes.size() != 0, "[ERROR][load_manifest_from_gltf()] Empty node array - what to do now?");
+    std::vector<RenderEntityId> node_index_to_entity_id = {};
+    for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
+    {
+        node_index_to_entity_id.push_back(_render_entities.create_slot());
+    }
+    // In the first pass find all root nodes (aka nodes that have no parent)
+    for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
+    {
+        // TODO: For now store transform as a matrix - later should be changed to something else (TRS: translation, rotor, scale).
+        auto fastgltf_to_glm_mat4x3_transform = [](std::variant<fastgltf::Node::TRS, fastgltf::Node::TransformMatrix> const &trans) -> glm::mat4x3
+        {
+            glm::mat4x3 ret_trans;
+            if (auto const *trs = std::get_if<fastgltf::Node::TRS>(&trans))
+            {
+                auto const scaled = glm::scale(glm::identity<glm::mat4x4>(), glm::vec3(trs->scale.at[0], trs->scale.at[1], trs->scale[2]));
+                auto const rotated_scaled = glm::toMat4(glm::qua<float>(trs->rotation.at[0], trs->rotation.at[1], trs->rotation.at[2], trs->rotation.at[3])) * scaled;
+                auto const translated_rotated_scaled = glm::translate(
+                    rotated_scaled,
+                    glm::vec3(trs->scale[0], trs->scale[1], trs->scale[2]));
+                ret_trans[0] = translated_rotated_scaled[0];
+                ret_trans[1] = translated_rotated_scaled[1];
+                ret_trans[2] = translated_rotated_scaled[2];
+            }
+            else if (auto const *trs = std::get_if<fastgltf::Node::TransformMatrix>(&trans))
+            {
+                for (u32 col = 0; col < 4; col++)
+                {
+                    for (u32 row = 0; row < 3; row++)
+                    {
+                        ret_trans[col][row] = trs[col * 4 + row];
+                    }
+                }
+            }
+            return ret_trans;
+        };
+        fastgltf::Node const &node = asset->nodes[node_index];
+        auto const parent_r_ent_idx = node_index_to_entity_id[node_index];
+        RenderEntity &r_ent = *_render_entities.slot(parent_r_ent_idx);
+
+        r_ent.mesh_group_manifest_index = node.meshIndex.has_value() ?
+            std::optional<u32>(s_cast<u32>(node.meshIndex.value()) + mesh_group_manifest_offset) :
+            std::optional<u32>(std::nullopt);
+
+        r_ent.transform = fastgltf_to_glm_mat4x3_transform(node.transform);
+        if (node.children.size() > 0)
+        {
+            auto const first_child_r_ent_index = node_index_to_entity_id[node.children[0]];
+            auto * prev_r_ent_child = *_render_entities.slot(first_child_r_ent_index);
+            for (u32 curr_child_vec_idx = 0; curr_child_vec_idx < node.children.size(); curr_child_vec_idx++)
+            {
+                u32 const curr_child_node_idx = node.children[curr_child_vec_idx];
+                auto const curr_child_r_ent_idx = node_index_to_entity_id[curr_child_node_idx];
+                auto &curr_child_r_ent = *_render_entities.slot(node_index_to_entity_id[curr_child_r_ent_idx]);
+                curr_child_r_ent.first_child = first_child_r_ent_index;
+                curr_child_r_ent.parent = parent_r_ent_idx;
+                prev_r_ent_child->next_sibling = curr_child_r_ent_idx;
+                prev_r_ent_child = &curr_child_r_ent;
+            }
+        }
+    }
+
     _scene_file_manifest.push_back(SceneFileManifestEntry{
         .path = file_path,
         .gltf_info = std::move(gltf_file),
@@ -320,6 +396,10 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
         .material_manifest_offset = material_manifest_offset,
         .mesh_group_manifest_offset = mesh_group_manifest_offset,
         .mesh_manifest_offset = mesh_manifest_offset,
-    });    
+    });
     return LoadManifestResult::SUCCESS;
+}
+
+auto record_gpu_manifest_update() -> daxa::ExecutableCommandList
+{
 }

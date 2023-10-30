@@ -15,6 +15,8 @@
 #define ENTITY_MESHLET_VISIBILITY_ARENA_BIT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE * 8)
 #define ENTITY_MESHLET_VISIBILITY_ARENA_UINT_SIZE (ENTITY_MESHLET_VISIBILITY_ARENA_SIZE / 4)
 
+#define MAX_MESHES_PER_MESHGROUP 7
+
 #if defined(DAXA_SHADER) && DAXA_SHADER
 uint triangle_mask_bit_from_triangle_index(uint triangle_index)
 {
@@ -125,12 +127,12 @@ uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offs
 }
 #endif // #if defined(DAXA_SHADER)
 
-struct MeshList
+struct GPUMeshGroup
 {
-    daxa_u32 mesh_indices[7];
+    daxa_u32 mesh_manifest_indices[MAX_MESHES_PER_MESHGROUP];
     daxa_u32 count;
 };
-DAXA_DECL_BUFFER_PTR(MeshList)
+DAXA_DECL_BUFFER_PTR(GPUMeshGroup)
 
 struct MeshletInstances
 {
@@ -149,7 +151,7 @@ DAXA_DECL_BUFFER_PTR(VisibleMeshletList)
 
 struct EntityMeshletVisibilityBitfieldOffsets
 {
-    daxa_u32 mesh_bitfield_offset[7];
+    daxa_u32 mesh_bitfield_offset[MAX_MESHES_PER_MESHGROUP];
     daxa_u32 padd;
 };
 DAXA_DECL_BUFFER_PTR(EntityMeshletVisibilityBitfieldOffsets)
