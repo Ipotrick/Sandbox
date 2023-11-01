@@ -265,7 +265,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     auto asset = gltf_file->getParsedAsset();
 
     u32 const scene_file_manifest_index = s_cast<u32>(_scene_file_manifest.size());
-    u32 const texture_manifest_offset = s_cast<u32>(_texture_manifest.size());
+    u32 const texture_manifest_offset = s_cast<u32>(_material_texture_manifest.size());
     u32 const material_manifest_offset = s_cast<u32>(_material_manifest.size());
     u32 const mesh_group_manifest_offset = s_cast<u32>(_mesh_group_manifest.size());
     u32 const mesh_manifest_offset = s_cast<u32>(_mesh_manifest.size());
@@ -277,8 +277,8 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     //        translate the textures image index and store that in the material
     for (u32 i = 0; i < s_cast<u32>(asset->images.size()); ++i)
     {
-        u32 const texture_manifest_index = s_cast<u32>(_texture_manifest.size());
-        _texture_manifest.push_back(TextureManifestEntry{
+        u32 const texture_manifest_index = s_cast<u32>(_material_texture_manifest.size());
+        _material_texture_manifest.push_back(TextureManifestEntry{
             .name = asset->images[i].name,
             .scene_file_manifest_index = scene_file_manifest_index,
             .in_scene_file_index = i,

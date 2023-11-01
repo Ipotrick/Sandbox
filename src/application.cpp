@@ -159,6 +159,16 @@ Application::Application()
         {
             fmt::println("[INFO][load_mesh] Success");
         }
+        result = _asset_manager->load_texture(*_scene, 0);
+        if (result != AssetProcessor::AssetLoadResultCode::SUCCESS)
+        {
+            fmt::println("[ERROR][load_mesh] {}", AssetProcessor::to_string(result));
+        }
+        else
+        {
+            fmt::println("[INFO][load_mesh] Success");
+        }
+
     }
     // this->scene_loader = SceneLoader{"./assets/"};
     // this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"

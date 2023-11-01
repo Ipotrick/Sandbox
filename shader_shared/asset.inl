@@ -101,12 +101,14 @@ void decode_vertex_id(daxa_u32 vertex_id, out daxa_u32 instantiated_meshlet_inde
 }
 #endif // #if defined(DAXA_SHADER)
 
+// TODO:
+// REMOVE GPUMesh In favor of GPUMeshDescriptor
 struct GPUMesh
 {
+    daxa_BufferId mesh_buffer;
     daxa_u32 material_index;
     daxa_u32 meshlet_count;
     daxa_u32 vertex_count;
-    daxa_BufferId mesh_buffer;
     daxa_BufferPtr(Meshlet) meshlets;
     daxa_BufferPtr(BoundingSphere) meshlet_bounds;
     daxa_BufferPtr(daxa_u32) micro_indices;
@@ -115,6 +117,20 @@ struct GPUMesh
     daxa_BufferPtr(daxa_f32vec2) vertex_uvs;
 };
 DAXA_DECL_BUFFER_PTR_ALIGN(GPUMesh, 8)
+
+struct GPUMeshDescriptor
+{
+    daxa_BufferId mesh_buffer;
+    daxa_u32 material_index;
+    daxa_u32 meshlet_count;
+    daxa_u32 vertex_count;
+    daxa_u32 offset_meshlets;          // daxa_BufferPtr(Meshlet)
+    daxa_u32 offset_meshlet_bounds;    // daxa_BufferPtr(BoundingSphere)
+    daxa_u32 offset_micro_indices;     // daxa_BufferPtr(daxa_u32)
+    daxa_u32 offset_indirect_vertices; // daxa_BufferPtr(daxa_u32)
+    daxa_u32 offset_vertex_positions;  // daxa_BufferPtr(daxa_f32vec3)
+};
+DAXA_DECL_BUFFER_PTR_ALIGN(GPUMeshDescriptor, 8)
 
 #if DAXA_SHADER
 uint get_micro_index(daxa_BufferPtr(daxa_u32) micro_indices, daxa_u32 index_offset)

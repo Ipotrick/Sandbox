@@ -57,19 +57,7 @@ struct MeshManifestEntry
     u32 scene_file_manifest_index = {};
     u32 scene_file_mesh_index = {};
     u32 scene_file_primitive_index = {};
-    struct Runtime
-    {
-        daxa::BufferId buffer_id = {};
-        u32 vertex_count = {};
-        u32 meshlet_count = {};
-        u32 buffer_offset_meshlets = {};            // Meshlet
-        u32 buffer_offset_meshlet_bounds = {};      // BoundingSphere
-        u32 buffer_offset_micro_indices = {};       // daxa_u32
-        u32 buffer_offset_indirect_vertices = {};   // daxa_u32
-        u32 buffer_offset_vertex_positions = {};    // daxa_f32vec3
-        u32 buffer_offset_vertex_uvs = {};          // daxa_f32vec2
-    };
-    std::optional<Runtime> runtime = {};
+    std::optional<GPUMeshDescriptor> runtime = {};
 };
 
 struct MeshGroupManifestEntry
@@ -108,13 +96,13 @@ struct Scene
     daxa::TaskBuffer _t_materials = {};
     daxa::TaskBuffer _t_meshes = {};
 
-    daxa::TaskBuffer _gpu_texture_manifest = {};
+    daxa::TaskBuffer _gpu_material_texture_manifest = {};
     daxa::TaskBuffer _gpu_material_manifest = {};
     daxa::TaskBuffer _gpu_mesh_manifest = {};
     daxa::TaskBuffer _gpu_mesh_group_manifest = {};
 
     std::vector<SceneFileManifestEntry> _scene_file_manifest = {};
-    std::vector<TextureManifestEntry> _texture_manifest = {};
+    std::vector<TextureManifestEntry> _material_texture_manifest = {};
     std::vector<MaterialManifestEntry> _material_manifest = {};
     std::vector<MeshManifestEntry> _mesh_manifest = {};
     std::vector<MeshGroupManifestEntry> _mesh_group_manifest = {};
