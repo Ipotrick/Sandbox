@@ -27,7 +27,7 @@ inline auto create_task_buffer(GPUContext *context, auto size, auto task_buf_nam
     }};
 }
 
-Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager)
+Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetProcessor *asset_manager)
     : window{window},
       context{context},
       scene{scene},
@@ -265,7 +265,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
     {
         task_list.use_persistent_buffer(tbuffer);
     } 
-    task_list.use_persistent_buffer(asset_manager->tmeshes);
+    task_list.use_persistent_buffer(scene->_t_meshes);
     for (auto const &timage : images)
     {
         task_list.use_persistent_image(timage);
@@ -278,7 +278,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         context,
         task_list,
         PrepopInfo{
-            .meshes = asset_manager->tmeshes,
+            .meshes = scene->_t_meshes,
             .visible_meshlets_prev = visible_meshlet_instances,
             .meshlet_instances_last_frame = meshlet_instances_last_frame,
             .meshlet_instances = meshlet_instances,
@@ -291,7 +291,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
         .pass = DRAW_VISBUFFER_PASS_ONE,
         .meshlet_instances = meshlet_instances,
-        .meshes = asset_manager->tmeshes,
+        .meshes = scene->_t_meshes,
         .combined_transforms = entity_combined_transforms,
         .vis_image = visbuffer,
         .debug_image = debug_image,
@@ -310,7 +310,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         context,
         task_list,
         {
-            .u_meshes = asset_manager->tmeshes,
+            .u_meshes = scene->_t_meshes,
             .u_entity_meta = entity_meta,
             .u_entity_meshlists = entity_meshlists,
             .u_entity_transforms = entity_transforms,
@@ -328,7 +328,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         .entity_meta_data = entity_meta,
         .entity_meshlists = entity_meshlists,
         .entity_combined_transforms = entity_combined_transforms,
-        .meshes = asset_manager->tmeshes,
+        .meshes = scene->_t_meshes,
         .entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
         .entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
         .hiz = hiz,
@@ -358,7 +358,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
             .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
             .pass = DRAW_VISBUFFER_PASS_OBSERVER,
             .meshlet_instances = meshlet_instances,
-            .meshes = asset_manager->tmeshes,
+            .meshes = scene->_t_meshes,
             .combined_transforms = entity_combined_transforms,
             .vis_image = visbuffer,
             .debug_image = debug_image,

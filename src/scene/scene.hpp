@@ -7,7 +7,6 @@
 #include "../sandbox.hpp"
 #include "../../shader_shared/asset.inl"
 #include "../../shader_shared/scene.inl"
-#include "asset_manager.hpp"
 #include "../slot_map.hpp"
 
 
@@ -22,6 +21,7 @@ struct SceneFileManifestEntry
 {
     std::filesystem::path path = {};
     std::unique_ptr<fastgltf::glTF> gltf_info = {};
+    std::unique_ptr<fastgltf::Asset> gltf_asset = {};
     /// @brief  Offsets of the gltf indices to the loaded manifest indices.
     ///         Subtracting the scene offset from the manifest index gives you the gltf index.
     u32 texture_manifest_offset = {};
@@ -55,6 +55,8 @@ struct MeshManifestEntry
 {
     std::optional<u32> material_manifest_index = {};
     u32 scene_file_manifest_index = {};
+    u32 scene_file_mesh_index = {};
+    u32 scene_file_primitive_index = {};
     struct Runtime
     {
         daxa::BufferId buffer_id = {};

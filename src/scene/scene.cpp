@@ -129,15 +129,15 @@ Scene::~Scene()
 //     }
 // }
 //
-// void process_meshes(aiScene const *aiscene, AssetManager &asset_manager)
+// void process_meshes(aiScene const *aiscene, AssetProcessor &asset_manager)
 // {
 // }
 //
-// void process_textures(aiScene const *aiscene, AssetManager &asset_manager)
+// void process_textures(aiScene const *aiscene, AssetProcessor &asset_manager)
 // {
 // }
 
-// void SceneLoader::load_entities_from_fbx(Scene &scene, AssetManager &asset_manager, std::filesystem::path const &asset_name)
+// void SceneLoader::load_entities_from_fbx(Scene &scene, AssetProcessor &asset_manager, std::filesystem::path const &asset_name)
 // {
 //     std::filesystem::path file_path{asset_root_folder / asset_name};
 //
@@ -269,7 +269,9 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     u32 const material_manifest_offset = s_cast<u32>(_material_manifest.size());
     u32 const mesh_group_manifest_offset = s_cast<u32>(_mesh_group_manifest.size());
     u32 const mesh_manifest_offset = s_cast<u32>(_mesh_manifest.size());
+#pragma endregion
 
+#pragma region POPULATE_TEXTURE_MANIFEST
     /// NOTE: Texture = image + sampler - since we don't care about the samplers we only load the images.
     //        Later when we load in the materials which reference the textures rather than images we just
     //        translate the textures image index and store that in the material
@@ -345,8 +347,12 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             auto const &mesh = mesh_group.primitives.at(mesh_index);
             mesh_manifest_indices.at(mesh_index) = mesh_manifest_entry;
             std::optional<u32> material_manifest_index = mesh.materialIndex.has_value() ? std::optional{s_cast<u32>(mesh.materialIndex.value()) + material_manifest_offset} : std::nullopt;
-            _mesh_manifest.push_back({.material_manifest_index = std::move(material_manifest_index),
-                                      .scene_file_manifest_index = scene_file_manifest_index});
+            _mesh_manifest.push_back(MeshManifestEntry{
+                .material_manifest_index = std::move(material_manifest_index),
+                .scene_file_manifest_index = scene_file_manifest_index,
+                .scene_file_mesh_index = mesh_group_index,
+                .scene_file_primitive_index = mesh_index,
+            });
         }
 
         _mesh_group_manifest.push_back(MeshGroupManifestEntry{
@@ -451,6 +457,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     _scene_file_manifest.push_back(SceneFileManifestEntry{
         .path = file_path,
         .gltf_info = std::move(gltf_file),
+        .gltf_asset = std::move(asset),
         .texture_manifest_offset = texture_manifest_offset,
         .material_manifest_offset = material_manifest_offset,
         .mesh_group_manifest_offset = mesh_group_manifest_offset,

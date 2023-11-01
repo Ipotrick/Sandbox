@@ -5,6 +5,7 @@
 #include "../window.hpp"
 #include "../../shader_shared/asset.inl"
 #include "../scene/scene.hpp"
+#include "../scene/asset_processor.hpp"
 
 #include "gpu_context.hpp"
 
@@ -26,7 +27,7 @@ struct CameraInfo
 // This should idealy handle all rendering related information and functionality.
 struct Renderer
 {
-    Renderer(Window *window, GPUContext *context, Scene *scene, AssetManager *asset_manager);
+    Renderer(Window *window, GPUContext *context, Scene *scene, AssetProcessor *asset_manager);
     ~Renderer();
 
     void compile_pipelines();
@@ -65,7 +66,7 @@ struct Renderer
     Window *window = {};
     GPUContext *context = {};
     Scene *scene = {};
-    AssetManager *asset_manager = {};
+    AssetProcessor *asset_manager = {};
     daxa::TaskGraph main_task_graph;
     daxa::CommandSubmitInfo submit_info = {};
     daxa::ImGuiRenderer imgui_renderer;

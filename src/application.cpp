@@ -126,6 +126,8 @@ void CameraController::update_matrices(Window &window)
 
 Application::Application()
 {
+    // _gpu_context = std::make_unique<GPUContext>();
+
     _scene = std::make_unique<Scene>();
     // TODO(ui): DO NOT ALWAYS JUST LOAD THIS UNCONDITIONALLY!
     // TODO(ui): ADD UI FOR LOADING IN THE EDITOR!
@@ -142,6 +144,21 @@ Application::Application()
     {
         fmt::println("[INFO][Application::Application()] Loading \"{}\" Success",
                      (DEFAULT_HARDCODED_PATH / DEFAULT_HARDCODED_FILE).string());
+    }
+
+    daxa::Instance DUMMY_REMOVE_ME_INSTANCE = daxa::create_instance({});
+    daxa::Device DUMMY_REMOVE_ME_DEVICE = DUMMY_REMOVE_ME_INSTANCE.create_device({});
+    _asset_manager = std::make_unique<AssetProcessor>(DUMMY_REMOVE_ME_DEVICE);
+    {
+        auto result = _asset_manager->load_mesh(*_scene, 0);
+        if (result != AssetProcessor::AssetLoadResultCode::SUCCESS)
+        {
+            fmt::println("[ERROR][load_mesh] {}", AssetProcessor::to_string(result));
+        }
+        else
+        {
+            fmt::println("[INFO][load_mesh] Success");
+        }
     }
     // this->scene_loader = SceneLoader{"./assets/"};
     // this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"
