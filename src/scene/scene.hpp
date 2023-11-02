@@ -86,31 +86,48 @@ using RenderEntitySlotMap = SlotMap<RenderEntity>;
 
 struct Scene
 {
-    daxa::TaskBuffer _t_entity_meta = {};
-    daxa::TaskBuffer _t_entity_transforms = {};
-    daxa::TaskBuffer _t_entity_combined_transforms = {};
-    daxa::TaskBuffer _t_entity_first_children = {};
-    daxa::TaskBuffer _t_entity_next_siblings = {};
-    daxa::TaskBuffer _t_entity_parents = {};
-    daxa::TaskBuffer _t_entity_meshlists = {};
-    daxa::TaskBuffer _t_materials = {};
-    daxa::TaskBuffer _t_meshes = {};
+    /**
+     * NOTES:
+     * - >on the gpu< the render entities are stores in an structure of arrays fassion
+     * - >on the cpu< render entities are stored in an array of structures
+     * - arrays and buffers only grow
+     * - arrays are NOT nessecarily densly populated with valid entities
+     * - growing the entities buffers is done by scene
+     * - recording updates to entities is done by scene
+     * - WARNING: FOR NOW THE RENDERER ASSUMES TIGHTLY PACKED ENTITIES!
+     * - TODO: Upload sparse set to gpu so gpu can tightly iterate!
+    */
+    daxa::TaskBuffer _gpu_entity_meta = {};
+    daxa::TaskBuffer _gpu_entity_transforms = {};
+    daxa::TaskBuffer _gpu_entity_combined_transforms = {};
+    // UNUSED, but later we wanna do 
+    // the compined transform calculation on the gpu!
+    daxa::TaskBuffer _gpu_entity_parents = {};                
+    daxa::TaskBuffer _gpu_entity_mesh_groups = {};            
+    RenderEntitySlotMap _render_entities = {};
+    std::vector<RenderEntityId> _dirty_render_entities = {}; 
 
-    daxa::TaskBuffer _gpu_material_texture_manifest = {};
-    daxa::TaskBuffer _gpu_material_manifest = {};
+    /**
+     * NOTES:
+     * - manifest is mirrored with different types on the gpu (TODO: potential unifications?)
+     * - manifest can ONLY GROW, the manifest CAN NOT shrink
+     * - baking data for textures and meshes are dynamically loaded and unloaded
+     * - unloadable data is marked by a 'runtime' field within the manifest
+     * - material-textures and meshes are live load and unloadable
+     * - growing the manifest buffers and copying in the constant data is done by scene
+     * - recording updates to the runtime manifest data is done by the asset processor
+     * */     
+    daxa::TaskBuffer _gpu_material_texture_manifest = {};  
     daxa::TaskBuffer _gpu_mesh_manifest = {};
+    daxa::TaskBuffer _gpu_material_manifest = {};         
     daxa::TaskBuffer _gpu_mesh_group_manifest = {};
-
     std::vector<SceneFileManifestEntry> _scene_file_manifest = {};
     std::vector<TextureManifestEntry> _material_texture_manifest = {};
     std::vector<MaterialManifestEntry> _material_manifest = {};
     std::vector<MeshManifestEntry> _mesh_manifest = {};
     std::vector<MeshGroupManifestEntry> _mesh_group_manifest = {};
 
-    RenderEntitySlotMap _render_entities = {};
-    std::vector<RenderEntityId> _dirty_render_entities = {}; 
-
-    Scene();
+    Scene(daxa::Device device);
     ~Scene();
 
     enum struct LoadManifestErrorCode
@@ -135,4 +152,6 @@ struct Scene
     auto load_manifest_from_gltf(std::filesystem::path const& root_path, std::filesystem::path const& glb_name) -> std::variant<RenderEntityId, LoadManifestErrorCode>;
 
     auto record_gpu_manifest_update() -> daxa::ExecutableCommandList;
+
+    daxa::Device _device = {};
 };

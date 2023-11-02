@@ -5,7 +5,8 @@
 #include <fmt/format.h>
 #include <glm/gtx/quaternion.hpp>
 
-Scene::Scene()
+Scene::Scene(daxa::Device device)
+    : _device{std::move(device)}
 {
 }
 
@@ -58,7 +59,7 @@ Scene::~Scene()
 //             .size = size,
 //         });
 //     };
-//     upload(this->entity_meta, b_entity_meta, EntityMetaData{}, 1);
+//     upload(this->entity_meta, b_entity_meta, GPUEntityMetaData{}, 1);
 //     upload(this->entity_transforms, b_entity_transforms, daxa_f32mat4x4{}, MAX_ENTITY_COUNT);
 //     upload(this->entity_combined_transforms, b_entity_combined_transforms, daxa_f32mat4x4{}, MAX_ENTITY_COUNT);
 //     upload(this->entity_first_children, b_entity_first_children, EntityId{}, MAX_ENTITY_COUNT);
@@ -373,6 +374,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
     {
         node_index_to_entity_id.push_back(_render_entities.create_slot());
+        _dirty_render_entities.push_back(node_index_to_entity_id.back());
     }
     for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
     {
@@ -431,6 +433,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
                                                                  .parent = std::nullopt,
                                                                  .mesh_group_manifest_index = std::nullopt,
                                                                  .name = glb_name.string() + " scene root node"});
+    _dirty_render_entities.push_back(root_r_ent_id);
     RenderEntity &root_r_ent = *_render_entities.slot(root_r_ent_id);
     std::optional<RenderEntityId> root_r_ent_prev_child = {};
     for (u32 node_index = 0; node_index < s_cast<u32>(asset->nodes.size()); node_index++)
@@ -466,7 +469,35 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
     return root_r_ent_id;
 }
 
-auto record_gpu_manifest_update() -> daxa::ExecutableCommandList
+auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
 {
-    return {};
+    auto recorder = _device.create_command_recorder({});
+    // Calculate required staging buffer size:
+    usize required_staging_size = 0;
+    required_staging_size += sizeof(GPUEntityMetaData);                              // _gpu_entity_meta
+    required_staging_size += sizeof(daxa_f32mat4x3) * _dirty_render_entities.size(); // _gpu_entity_transforms
+    required_staging_size += sizeof(daxa_f32mat4x3) * _dirty_render_entities.size(); // _gpu_entity_combined_transforms
+    required_staging_size += sizeof(GPUMeshGroup) * _dirty_render_entities.size();   // _gpu_entity_mesh_groups
+    daxa::BufferId staging_buffer = _device.create_buffer({
+        .size = required_staging_size,
+        .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+        .name = "entities update staging",
+    });
+    recorder.destroy_buffer_deferred(staging_buffer);
+    usize staging_offset = 0;
+    std::byte* host_ptr = _device.get_host_address(staging_buffer).value();
+    *r_cast<GPUEntityMetaData*>(host_ptr) = {
+        .entity_count = s_cast<u32>(_render_entities.size()),
+    };
+    staging_offset += sizeof(GPUEntityMetaData);
+
+    /**
+     * TODO:
+     * - replace with compute shader
+     * - write two arrays, one containing entity ids other containing update data
+     * - write compute shader that reads both arrays, they then write the updates from staging to entity arrays
+    */
+
+
+    return recorder.complete_current_commands();
 }

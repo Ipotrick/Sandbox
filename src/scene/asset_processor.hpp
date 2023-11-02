@@ -43,6 +43,7 @@ struct AssetProcessor
         ERROR_COULD_NOT_OPEN_TEXTURE_FILE,
         ERROR_COULD_NOT_READ_TEXTURE_FILE,
         ERROR_COULD_NOT_READ_TEXTURE_FILE_FROM_MEMSTREAM,
+        ERROR_UNSUPPORTED_TEXTURE_PIXEL_FORMAT,
         ERROR_UNKNOWN_FILETYPE_FORMAT,
         ERROR_UNSUPPORTED_READ_FOR_FILEFORMAT,
         ERROR_URI_FILE_OFFSET_NOT_SUPPORTED,
@@ -63,6 +64,7 @@ struct AssetProcessor
             case AssetLoadResultCode::ERROR_COULD_NOT_OPEN_TEXTURE_FILE:                return "ERROR_COULD_NOT_OPEN_TEXTURE_FILE";
             case AssetLoadResultCode::ERROR_COULD_NOT_READ_TEXTURE_FILE:                return "ERROR_COULD_NOT_READ_TEXTURE_FILE";
             case AssetLoadResultCode::ERROR_COULD_NOT_READ_TEXTURE_FILE_FROM_MEMSTREAM: return "ERROR_COULD_NOT_READ_TEXTURE_FILE_FROM_MEMSTREAM";
+            case AssetLoadResultCode::ERROR_UNSUPPORTED_TEXTURE_PIXEL_FORMAT:           return "ERROR_UNSUPPORTED_TEXTURE_PIXEL_FORMAT";
             case AssetLoadResultCode::ERROR_UNKNOWN_FILETYPE_FORMAT:                    return "ERROR_UNKNOWN_FILETYPE_FORMAT";
             case AssetLoadResultCode::ERROR_UNSUPPORTED_READ_FOR_FILEFORMAT:            return "ERROR_UNSUPPORTED_READ_FOR_FILEFORMAT";
             case AssetLoadResultCode::ERROR_URI_FILE_OFFSET_NOT_SUPPORTED:              return "ERROR_URI_FILE_OFFSET_NOT_SUPPORTED";
@@ -89,6 +91,13 @@ struct AssetProcessor
     auto load_mesh(Scene &scene, u32 mesh_manifest_index) -> AssetLoadResultCode;
 
     /**
+     * Loads all unloded meshes and material textures for the given scene.
+     * THREADSAFETY:
+     * * internally synchronized, can be called on multiple threads in parallel.
+     */
+    auto load_all(Scene& scene) -> AssetLoadResultCode;
+
+    /**
      * NOTE:
      * After loading meshes and textures they are NOT on the gpu yet!
      * They also lack some processing that will be done on the gpu!
@@ -110,15 +119,23 @@ private:
     static inline const std::string VERT_ATTRIB_NORMAL_NAME = "NORMAL";
     static inline const std::string VERT_ATTRIB_TEXCOORD0_NAME = "TEXCOORD_0";
 
+    struct TextureUpload
+    {
+        Scene *scene = {};
+        daxa::BufferId staging_buffer = {};
+        daxa::ImageId dst_image = {};
+        u32 texture_manifest_index = {};
+    };
     struct MeshUpload
     {
         // TODO: replace with buffer offset into staging memory.
-        Scene* scene = {};
+        Scene *scene = {};
         daxa::BufferId staging_buffer = {};
         u32 mesh_manifest_index = {};
     };
     daxa::Device _device = {};
     // TODO: Replace with lockless queue.
     std::vector<MeshUpload> _upload_mesh_queue = {};
-    std::mutex _mtx = {};
+    std::vector<TextureUpload> _upload_texture_queue = {};
+    std::unique_ptr<std::mutex> _mtx = std::make_unique<std::mutex>();
 };

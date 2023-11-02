@@ -73,4 +73,12 @@ public:
         auto const uz_index = s_cast<size_t>(id.index);
         return uz_index < _slots.size() && _versions[uz_index] == id.version;
     }
+    auto size() const -> usize
+    {
+        return _slots.size() - _free_list.size();
+    }
+    auto capacity() const -> usize
+    {
+        return _slots.size();
+    }
 };
