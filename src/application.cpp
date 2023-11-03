@@ -147,33 +147,13 @@ Application::Application()
         fmt::println("[INFO][Application::Application()] Loading \"{}\" Success",
                      (DEFAULT_HARDCODED_PATH / DEFAULT_HARDCODED_FILE).string());
     }
+    auto scene_commands = _scene->record_gpu_manifest_update();
 
     _asset_manager = std::make_unique<AssetProcessor>(_gpu_context->device);
-#if 1
-    {
-        auto result = _asset_manager->load_mesh(*_scene, 0);
-        if (result != AssetProcessor::AssetLoadResultCode::SUCCESS)
-        {
-            fmt::println("[ERROR][load_mesh] {}", AssetProcessor::to_string(result));
-        }
-        else
-        {
-            fmt::println("[INFO][load_mesh] Success");
-        }
-        // result = _asset_manager->load_texture(*_scene, 0);
-        // if (result != AssetProcessor::AssetLoadResultCode::SUCCESS)
-        // {
-        //     fmt::println("[ERROR][load_mesh] {}", AssetProcessor::to_string(result));
-        // }
-        // else
-        // {
-        //     fmt::println("[INFO][load_mesh] Success");
-        // }
-    }
-#endif
     _asset_manager->load_all(*_scene);
     auto exc_cmd_list = _asset_manager->record_gpu_load_processing_commands();
-    // _gpu_context->device.submit_commands({.command_lists = std::array{std::move(exc_cmd_list)}});
+    _gpu_context->device.submit_commands({.command_lists = std::array{std::move(scene_commands), std::move(exc_cmd_list)}});
+    _gpu_context->device.wait_idle();
     // this->scene_loader = SceneLoader{"./assets/"};
     // this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"
     // this->scene.process_transforms();

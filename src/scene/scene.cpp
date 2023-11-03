@@ -8,10 +8,53 @@
 Scene::Scene(daxa::Device device)
     : _device{std::move(device)}
 {
+    /// TODO: THIS IS TEMPORARY! Make manifest and entity buffers growable!
+    _gpu_entity_meta.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                          _device.create_buffer({
+                                                              .size = sizeof(GPUEntityMetaData),
+                                                              .name = "_gpu_entity_meta",
+                                                          }),
+                                                      }});
+    _gpu_entity_transforms.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                                _device.create_buffer({
+                                                                    .size = sizeof(daxa_f32mat4x3) * MAX_ENTITY_COUNT,
+                                                                    .name = "_gpu_entity_transforms",
+                                                                }),
+                                                            }});
+    _gpu_entity_combined_transforms.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                                         _device.create_buffer({
+                                                                             .size = sizeof(daxa_f32mat4x3) * MAX_ENTITY_COUNT,
+                                                                             .name = "_gpu_entity_combined_transforms",
+                                                                         }),
+                                                                     }});
+    _gpu_entity_mesh_groups.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                                 _device.create_buffer({
+                                                                     .size = sizeof(u32) * MAX_ENTITY_COUNT,
+                                                                     .name = "_gpu_entity_mesh_groups",
+                                                                 }),
+                                                             }});
+    _gpu_mesh_manifest.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                            _device.create_buffer({
+                                                                .size = sizeof(GPUMesh) * MAX_ENTITY_COUNT,
+                                                                .name = "_gpu_mesh_manifest",
+                                                            }),
+                                                        }});
+    _gpu_mesh_group_manifest.set_buffers(daxa::TrackedBuffers{.buffers = std::array{
+                                                                  _device.create_buffer({
+                                                                      .size = sizeof(GPUMeshGroup) * MAX_ENTITY_COUNT,
+                                                                      .name = "_gpu_mesh_group_manifest",
+                                                                  }),
+                                                              }});
 }
 
 Scene::~Scene()
 {
+    _device.destroy_buffer(_gpu_entity_meta.get_state().buffers[0]);
+    _device.destroy_buffer(_gpu_entity_transforms.get_state().buffers[0]);
+    _device.destroy_buffer(_gpu_entity_combined_transforms.get_state().buffers[0]);
+    _device.destroy_buffer(_gpu_entity_mesh_groups.get_state().buffers[0]);
+    _device.destroy_buffer(_gpu_mesh_manifest.get_state().buffers[0]);
+    _device.destroy_buffer(_gpu_mesh_group_manifest.get_state().buffers[0]);
 }
 
 // EntityId Scene::create_entity()
@@ -311,6 +354,9 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
         };
 
         auto const &material = asset->materials.at(material_index);
+        /// NOTE: This will not work once we add multiple threads since some other thread might push to the vector
+        //        while we are marking the textures as being used by this material
+        const u32 material_manifest_index = _material_manifest.size();
         const bool has_pbr_info = material.pbrData.has_value();
         const bool has_normal_texture = material.normalTexture.has_value();
         const bool has_diffuse_texture = has_pbr_info ? material.pbrData.value().baseColorTexture.has_value() : false;
@@ -320,11 +366,13 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
         {
             const u32 texture_index = s_cast<u32>(material.pbrData.value().baseColorTexture.value().textureIndex);
             diffuse_texture_index = gltf_texture_to_manifest_texture_index(texture_index);
+            _material_texture_manifest.at(diffuse_texture_index.value()).material_manifest_indices.push_back(material_manifest_index);
         }
         if (has_normal_texture)
         {
             const u32 texture_index = s_cast<u32>(material.pbrData.value().baseColorTexture.value().textureIndex);
             normal_texture_index = gltf_texture_to_manifest_texture_index(texture_index);
+            _material_texture_manifest.at(normal_texture_index.value()).material_manifest_indices.push_back(material_manifest_index);
         }
         _material_manifest.push_back({.diffuse_tex_index = diffuse_texture_index,
                                       .normal_tex_index = normal_texture_index,
@@ -354,6 +402,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
                 .scene_file_mesh_index = mesh_group_index,
                 .scene_file_primitive_index = mesh_index,
             });
+            _new_mesh_manifest_entries += 1;
         }
 
         _mesh_group_manifest.push_back(MeshGroupManifestEntry{
@@ -362,6 +411,7 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             .name = mesh_group.name,
             .scene_file_manifest_index = scene_file_manifest_index,
             .in_scene_file_index = mesh_group_index});
+        _new_mesh_group_manifest_entries += 1;
         mesh_manifest_indices.fill(0u);
     }
 #pragma endregion
@@ -472,6 +522,8 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
 auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
 {
     auto recorder = _device.create_command_recorder({});
+    /// TODO: Make buffers resize.
+
     // Calculate required staging buffer size:
     usize required_staging_size = 0;
     required_staging_size += sizeof(GPUEntityMetaData);                              // _gpu_entity_meta
@@ -485,8 +537,8 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
     });
     recorder.destroy_buffer_deferred(staging_buffer);
     usize staging_offset = 0;
-    std::byte* host_ptr = _device.get_host_address(staging_buffer).value();
-    *r_cast<GPUEntityMetaData*>(host_ptr) = {
+    std::byte *host_ptr = _device.get_host_address(staging_buffer).value();
+    *r_cast<GPUEntityMetaData *>(host_ptr) = {
         .entity_count = s_cast<u32>(_render_entities.size()),
     };
     staging_offset += sizeof(GPUEntityMetaData);
@@ -496,8 +548,108 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
      * - replace with compute shader
      * - write two arrays, one containing entity ids other containing update data
      * - write compute shader that reads both arrays, they then write the updates from staging to entity arrays
-    */
+     */
+    /// NOTE: Update dirty entities.
+    for (u32 i = 0; i < _dirty_render_entities.size(); ++i)
+    {
+        usize offset = (staging_offset * sizeof(glm::mat4x3) * 2 + sizeof(u32));
+        u32 entity_index = _dirty_render_entities[i].index;
+        glm::mat4 transform4 = _render_entities.slot(_dirty_render_entities[i])->transform;
+        glm::mat4 combined_transform4 = transform4;
+        std::optional<RenderEntityId> parent = _render_entities.slot(_dirty_render_entities[i])->parent;
+        while (parent.has_value())
+        {
+            combined_transform4 = glm::mat4(_render_entities.slot(parent.value())->transform) * combined_transform4;
+            parent = _render_entities.slot(parent.value())->parent;
+        }
+        u32 mesh_group_manifest_index = _render_entities.slot(_dirty_render_entities[i])->mesh_group_manifest_index.value_or(std::numeric_limits<u32>::max());
+        struct RenderEntityUpdateStagingMemoryView
+        {
+            glm::mat4x3 transform;
+            glm::mat4x3 combined_transform;
+            u32 mesh_group_manifest_index;
+        };
+        *r_cast<RenderEntityUpdateStagingMemoryView *>(host_ptr + offset) = {
+            .transform = transform4,
+            .combined_transform = combined_transform4,
+            .mesh_group_manifest_index = mesh_group_manifest_index,
+        };
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = staging_buffer,
+            .dst_buffer = _gpu_entity_transforms.get_state().buffers[0],
+            .src_offset = offset + offsetof(RenderEntityUpdateStagingMemoryView, transform),
+            .dst_offset = sizeof(glm::mat4x3) * entity_index,
+            .size = sizeof(glm::mat4x3),
+        });
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = staging_buffer,
+            .dst_buffer = _gpu_entity_combined_transforms.get_state().buffers[0],
+            .src_offset = offset + offsetof(RenderEntityUpdateStagingMemoryView, combined_transform),
+            .dst_offset = sizeof(glm::mat4x3) * entity_index,
+            .size = sizeof(glm::mat4x3),
+        });
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = staging_buffer,
+            .dst_buffer = _gpu_entity_combined_transforms.get_state().buffers[0],
+            .src_offset = offset + offsetof(RenderEntityUpdateStagingMemoryView, mesh_group_manifest_index),
+            .dst_offset = sizeof(u32) * entity_index,
+            .size = sizeof(u32),
+        });
+    }
 
+    if (_new_mesh_group_manifest_entries > 0)
+    {
+        u32 const mesh_group_staging_buffer_size = sizeof(GPUMeshGroup) * _new_mesh_group_manifest_entries;
+        daxa::BufferId mesh_group_staging_buffer = _device.create_buffer({.size = mesh_group_staging_buffer_size,
+                                                                          .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+                                                                          .name = "mesh group update staging buffer"});
+        recorder.destroy_buffer_deferred(mesh_group_staging_buffer);
+        GPUMeshGroup *staging_ptr = _device.get_host_address_as<GPUMeshGroup>(mesh_group_staging_buffer).value();
+        u32 const mesh_group_manifest_offset = _mesh_group_manifest.size() - _new_mesh_group_manifest_entries;
+        for (u32 new_mesh_group_idx = 0; new_mesh_group_idx < _new_mesh_group_manifest_entries; new_mesh_group_idx++)
+        {
+            u32 const mesh_group_manifest_idx = mesh_group_manifest_offset + new_mesh_group_idx;
+            staging_ptr[new_mesh_group_idx].count = _mesh_group_manifest.at(mesh_group_manifest_idx).mesh_count;
+            std::memcpy(
+                &staging_ptr[new_mesh_group_idx].mesh_manifest_indices,
+                _mesh_group_manifest.at(mesh_group_manifest_idx).mesh_manifest_indices.data(),
+                sizeof(_mesh_group_manifest.at(mesh_group_manifest_idx).mesh_manifest_indices));
+        }
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = mesh_group_staging_buffer,
+            .dst_buffer = _gpu_mesh_group_manifest.get_state().buffers[0],
+            .src_offset = 0,
+            .dst_offset = mesh_group_manifest_offset * sizeof(GPUMeshGroup),
+            .size = sizeof(GPUMeshGroup) * _new_mesh_group_manifest_entries,
+        });
+    }
+    if (_new_mesh_manifest_entries > 0)
+    {
+        u32 const mesh_update_staging_buffer_size = sizeof(GPUMesh) * _new_mesh_manifest_entries;
+        u32 const mesh_manifest_offset = _mesh_manifest.size() - _new_mesh_manifest_entries;
+        daxa::BufferId mesh_staging_buffer = _device.create_buffer({.size = mesh_update_staging_buffer_size,
+                                                                    .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
+                                                                    .name = "mesh update staging buffer"});
+        recorder.destroy_buffer_deferred(mesh_staging_buffer);
+        GPUMesh *staging_ptr = _device.get_host_address_as<GPUMesh>(mesh_staging_buffer).value();
+        std::vector<GPUMesh> tmp_meshes(_new_mesh_manifest_entries);
+        std::memcpy(staging_ptr, tmp_meshes.data(), _new_mesh_manifest_entries);
 
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = mesh_staging_buffer,
+            .dst_buffer = _gpu_mesh_manifest.get_state().buffers[0],
+            .src_offset = 0,
+            .dst_offset = mesh_manifest_offset * sizeof(GPUMesh),
+            .size = sizeof(GPUMesh) * _new_mesh_manifest_entries,
+        });
+    }
+    /// TODO: Taskgraph this shit.
+    recorder.pipeline_barrier({
+        .src_access = daxa::AccessConsts::TRANSFER_WRITE,
+        .dst_access = daxa::AccessConsts::READ_WRITE,
+    });
+
+    _new_mesh_manifest_entries = 0;
+    _new_mesh_group_manifest_entries = 0;
     return recorder.complete_current_commands();
 }

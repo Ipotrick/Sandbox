@@ -689,9 +689,9 @@ auto AssetProcessor::record_gpu_load_processing_commands() -> daxa::ExecutableCo
 #pragma region RECORD_MESH_UPLOAD_COMMANDS
     for (MeshUpload &mesh_upload : _upload_mesh_queue)
     {
-        MeshManifestEntry &mesh_mentry = mesh_upload.scene->_mesh_manifest.at(mesh_upload.mesh_manifest_index);
+        MeshManifestEntry &mesh_entry = mesh_upload.scene->_mesh_manifest.at(mesh_upload.mesh_manifest_index);
         daxa::BufferId staging_buffer = mesh_upload.staging_buffer;
-        daxa::BufferId mesh_buffer = std::bit_cast<daxa::BufferId>(mesh_mentry.runtime.value().mesh_buffer);
+        daxa::BufferId mesh_buffer = std::bit_cast<daxa::BufferId>(mesh_entry.runtime.value().mesh_buffer);
         /// NOTE: copy from staging buffer to buffer and delete staging memory.
         recorder.copy_buffer_to_buffer({
             .src_buffer = staging_buffer,
@@ -707,7 +707,7 @@ auto AssetProcessor::record_gpu_load_processing_commands() -> daxa::ExecutableCo
             .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
             .name = "gpumeshes update",
         });
-        auto const &mesh_descriptor = mesh_mentry.runtime.value();
+        auto const &mesh_descriptor = mesh_entry.runtime.value();
         auto const mesh_buffer_bda = _device.get_device_address(mesh_buffer).value();
         *_device.get_host_address_as<GPUMesh>(meshes_buffer_update_staging_buffer).value() = {
             .mesh_buffer = mesh_descriptor.mesh_buffer,
@@ -720,13 +720,22 @@ auto AssetProcessor::record_gpu_load_processing_commands() -> daxa::ExecutableCo
             .indirect_vertices = mesh_buffer_bda + mesh_descriptor.offset_indirect_vertices,
             .vertex_positions = mesh_buffer_bda + mesh_descriptor.offset_vertex_positions,
         };
+        daxa::BufferId gpu_mesh_manifest = mesh_upload.scene->_gpu_mesh_manifest.get_state().buffers[0];
+        /// NOTE: Write the mesh manifest on the gpu.
         recorder.copy_buffer_to_buffer({
             .src_buffer = meshes_buffer_update_staging_buffer,
-            .dst_buffer = mesh_buffer,
+            .dst_buffer = gpu_mesh_manifest,
             .dst_offset = sizeof(GPUMesh) * mesh_upload.mesh_manifest_index,
             .size = sizeof(GPUMesh),
         });
         recorder.destroy_buffer_deferred(staging_buffer);
+        /// NOTE: Copy the actual mesh data from the staging buffer to the actual buffer.
+        recorder.copy_buffer_to_buffer({
+            .src_buffer = mesh_upload.staging_buffer,
+            .dst_buffer = mesh_buffer,
+            .size = _device.info_buffer(mesh_upload.staging_buffer).value().size,
+        });
+        recorder.destroy_buffer_deferred(mesh_upload.staging_buffer);
     }
     recorder.pipeline_barrier({
         .src_access = daxa::AccessConsts::TRANSFER_WRITE,
@@ -736,28 +745,42 @@ auto AssetProcessor::record_gpu_load_processing_commands() -> daxa::ExecutableCo
 #pragma endregion
 
 #pragma region RECORD_TEXTURE_UPLOAD_COMMANDS
-    for (TextureUpload const &texture_upload : _upload_texture_queue)
-    {
-        recorder.pipeline_barrier_image_transition({/// TODO: If we are generating mips this will need to change
-                                                    .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
-                                                    .dst_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                                                    .image_id = texture_upload.dst_image});
-    }
-    for (TextureUpload const &texture_upload : _upload_texture_queue)
-    {
-        recorder.copy_buffer_to_image({.buffer = texture_upload.staging_buffer,
-                                       .image = texture_upload.dst_image,
-                                       .image_offset = {0, 0, 0},
-                                       .image_extent = _device.info_image(texture_upload.dst_image).value().size});
-    }
-    for (TextureUpload const &texture_upload : _upload_texture_queue)
-    {
-        recorder.pipeline_barrier_image_transition({.src_access = daxa::AccessConsts::TRANSFER_WRITE,
-                                                    .dst_access = daxa::AccessConsts::TOP_OF_PIPE_READ_WRITE,
-                                                    .src_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
-                                                    .dst_layout = daxa::ImageLayout::GENERAL,
-                                                    .image_id = texture_upload.dst_image});
-    }
+    // for (TextureUpload const &texture_upload : _upload_texture_queue)
+    // {
+        
+    //     recorder.pipeline_barrier_image_transition({/// TODO: If we are generating mips this will need to change
+    //                                                 .dst_access = daxa::AccessConsts::TRANSFER_WRITE,
+    //                                                 .dst_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
+    //                                                 .image_id = texture_upload.dst_image});
+    // }
+    // for (TextureUpload const &texture_upload : _upload_texture_queue)
+    // {
+    //     recorder.copy_buffer_to_image({.buffer = texture_upload.staging_buffer,
+    //                                    .image = texture_upload.dst_image,
+    //                                    .image_offset = {0, 0, 0},
+    //                                    .image_extent = _device.info_image(texture_upload.dst_image).value().size});
+    //     recorder.destroy_buffer_deferred(texture_upload.staging_buffer);
+    // }
+    // for (TextureUpload const &texture_upload : _upload_texture_queue)
+    // {
+    //     recorder.pipeline_barrier_image_transition({.src_access = daxa::AccessConsts::TRANSFER_WRITE,
+    //                                                 .dst_access = daxa::AccessConsts::TOP_OF_PIPE_READ_WRITE,
+    //                                                 .src_layout = daxa::ImageLayout::TRANSFER_DST_OPTIMAL,
+    //                                                 .dst_layout = daxa::ImageLayout::GENERAL,
+    //                                                 .image_id = texture_upload.dst_image});
+    // }
+#pragma endregion
+#pragma region RECORD_MATERIAL_MANIFEST_UPLOAD_COMMANDS
+    /// TODO: TIDO FINISH MATERIALS
+    // u32 const manifest_staging_buffer_size = sizeof();
+    // daxa::BufferID manifest_update_staging_buffer = _device.create_buffer({
+    //     .size = 
+    //     .
+    // });
+    // for(TextureUpload const & texture_upload : _upload_texture_queue)
+    // {
+        
+    // }
     _upload_texture_queue.clear();
 #pragma endregion
     return recorder.complete_current_commands();
