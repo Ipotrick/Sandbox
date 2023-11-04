@@ -214,3 +214,5 @@ DAXA_DECL_BUFFER_REFERENCE EntityMeshletVisibilityBitfieldOffsetsView
     queuefamilycoherent EntityMeshletVisibilityBitfieldOffsets entity_offsets[];
 };
 #endif
+
+#define INVALID_MANIFEST_INDEX (~0u)

@@ -23,7 +23,7 @@ void main()
         decode_triangle_id(triangle_id, instantiated_meshlet_index, triangle_index);
         MeshletInstance inst_meshlet = unpack_meshlet_instance(deref(u_instantiated_meshlets).meshlets[instantiated_meshlet_index]);
         
-        float f = float(inst_meshlet.entity_index * 10 + inst_meshlet.mesh_index) * 0.93213213232;
+        float f = float(inst_meshlet.entity_index * 10 + inst_meshlet.meshlet_index) * 0.93213213232;
         vec3 debug_color = vec3(cos(f), cos(f+2), cos(f+4));
         debug_color = debug_color * 0.5 + 0.5;
         //debug_color *= fract(inst_meshlet.entity_index * 0.0111);
@@ -36,7 +36,8 @@ void main()
     {
         output_value = vec4(vec3(1,1,1) * checker,1);
     }
-    vec4 debug_value = imageLoad(daxa_image2D(u_debug_image), index);
+    // vec4 debug_value = imageLoad(daxa_image2D(u_debug_image), index);
+    vec4 debug_value = vec4(0,0,0,0);
     output_value = vec4(mix(output_value.xyz, debug_value.xyz, debug_value.a), output_value.a);
     imageStore(daxa_image2D(swapchain), index, output_value);
 }

@@ -144,6 +144,14 @@ Application::Application()
     }
     else
     {
+        auto const r_id = std::get<RenderEntityId>(result);
+        RenderEntity& r_ent = *_scene->_render_entities.slot(r_id);
+        r_ent.transform = glm::mat4x3(
+            glm::vec3(1.0f, 0.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 1.0f),
+            glm::vec3(0.0f, 1.0f, 0.0f),
+            glm::vec3(0.0f, 0.0f, 0.0f)
+        ) * 100.0f;
         fmt::println("[INFO][Application::Application()] Loading \"{}\" Success",
                      (DEFAULT_HARDCODED_PATH / DEFAULT_HARDCODED_FILE).string());
     }

@@ -442,12 +442,16 @@ auto Scene::load_manifest_from_gltf(std::filesystem::path const &root_path, std:
             glm::mat4x3 ret_trans;
             if (auto const *trs = std::get_if<fastgltf::Node::TRS>(&trans))
             {
+                if (trs->translation[0] != 0.0f)
+                {
+                //     printf("penis\n");
+                }
                 auto const scaled = glm::scale(glm::identity<glm::mat4x4>(), glm::vec3(trs->scale[0], trs->scale[1], trs->scale[2]));
                 auto const quat_rotation_mat = glm::toMat4(glm::quat(trs->rotation[3], trs->rotation[0], trs->rotation[1], trs->rotation[2])) * scaled;
                 auto const rotated_scaled = quat_rotation_mat * scaled;
                 auto const translated_rotated_scaled = glm::translate(
-                    rotated_scaled,
-                    glm::vec3(trs->translation[0], trs->translation[1], trs->translation[2]));
+                    glm::identity<glm::mat4x4>(),
+                    glm::vec3(trs->translation[0], trs->translation[1], trs->translation[2])) * rotated_scaled;
                 /// NOTE: As the last row is always (0,0,0,1) we dont store it.
                 ret_trans = glm::mat4x3(translated_rotated_scaled);
             }
@@ -568,15 +572,24 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
     {
         usize offset = (staging_offset + (sizeof(glm::mat4x3) * 2 + sizeof(u32)) * i);
         u32 entity_index = _dirty_render_entities[i].index;
-        glm::mat4 transform4 = _render_entities.slot(_dirty_render_entities[i])->transform;
+        glm::mat4 transform4 = glm::mat4(
+                glm::vec4(_render_entities.slot(_dirty_render_entities[i])->transform[0], 0.0f),
+                glm::vec4(_render_entities.slot(_dirty_render_entities[i])->transform[1], 0.0f),
+                glm::vec4(_render_entities.slot(_dirty_render_entities[i])->transform[2], 0.0f),
+                glm::vec4(_render_entities.slot(_dirty_render_entities[i])->transform[3], 1.0f));
         glm::mat4 combined_transform4 = transform4;
         std::optional<RenderEntityId> parent = _render_entities.slot(_dirty_render_entities[i])->parent;
         while (parent.has_value())
         {
-            combined_transform4 = glm::mat4(_render_entities.slot(parent.value())->transform) * combined_transform4;
+            glm::mat4x3 parent_transform4 = glm::mat4(
+                glm::vec4(_render_entities.slot(parent.value())->transform[0], 0.0f),
+                glm::vec4(_render_entities.slot(parent.value())->transform[1], 0.0f),
+                glm::vec4(_render_entities.slot(parent.value())->transform[2], 0.0f),
+                glm::vec4(_render_entities.slot(parent.value())->transform[3], 1.0f));
+            combined_transform4 = parent_transform4 * combined_transform4;
             parent = _render_entities.slot(parent.value())->parent;
         }
-        u32 mesh_group_manifest_index = _render_entities.slot(_dirty_render_entities[i])->mesh_group_manifest_index.value_or(std::numeric_limits<u32>::max());
+        u32 mesh_group_manifest_index = _render_entities.slot(_dirty_render_entities[i])->mesh_group_manifest_index.value_or(INVALID_MANIFEST_INDEX);
         struct RenderEntityUpdateStagingMemoryView
         {
             glm::mat4x3 transform;

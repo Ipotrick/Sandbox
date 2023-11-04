@@ -45,41 +45,47 @@ void main()
     {
         return;
     }
-
     const uint meshgroup_index = deref(u_entity_meshgroup_indices[entity_index]);
-    const GPUMeshGroup mesh_group = deref(u_meshgroups + meshgroup_index);
-    const uint mesh_index = mesh_group.mesh_manifest_indices[in_meshgroup_index];
-    const uint meshlet_count = deref(u_meshes[mesh_index]).meshlet_count;
-    if (in_meshgroup_index >= mesh_group.count || (meshlet_count == 0))
+    if (meshgroup_index == INVALID_MANIFEST_INDEX)
     {
         return;
     }
-    // TODO: Cull mesh.
+    const GPUMeshGroup mesh_group = deref(u_meshgroups + meshgroup_index);
+    if (in_meshgroup_index >= mesh_group.count)
+    {
+        return;
+    }
+    const uint mesh_index = mesh_group.mesh_manifest_indices[in_meshgroup_index];
+    const uint meshlet_count = deref(u_meshes[mesh_index]).meshlet_count;
     if (meshlet_count == 0)
     {
         return;
     }
-    //if (entity_index > 20)
-    //{
-    //    return;
-    //}
-    
+    // if (entity_index != (globals.frame_index / 10) % 2480)
+    // {
+    //     return;
+    // }
+    if (entity_index == 0)
+    {
+        return;
+    }
+
     // How does this work?
     // - this is an asymertric work distribution problem
     // - each mesh cull thread needs x followup threads where x is the number of meshlets for the mesh
     // - writing x times to some argument buffer to dispatch over later is extreamly divergent and inefficient
     //   - solution is to combine writeouts in powers of two:
     //   - instead of x writeouts, only do log2(x), one writeout per set bit in the meshletcount.
-    //   - when you want to write out 17 meshlet work units, instead of writing 7 args into a buffer, 
+    //   - when you want to write out 17 meshlet work units, instead of writing 7 args into a buffer,
     //     you write one 1x arg, no 2x arg, no 4x arg, no 8x arg and one 16x arg. the 1x and the 16x args together contain 17 work units.
     // - still not good enough, in large cases like 2^16 - 1 meshlets it would need 15 writeouts, that is too much!
     //   - solution is to limit the writeouts to some smaller number (i chose 5, as it has a max thread waste of < 5%)
     //   - A strong compromise is to round up invocation count from meshletcount in such a way that the round up value only has 4 bits set at most.
     //   - as we do one writeout per bit set in meshlet count, this limits the writeout to 5.
-    // - in worst case this can go down from thousands of divergent writeouts down to 5 while only wasting < 5% of invocations. 
+    // - in worst case this can go down from thousands of divergent writeouts down to 5 while only wasting < 5% of invocations.
     const uint MAX_BITS = 5;
     uint meshlet_count_msb = findMSB(meshlet_count);
-    const uint shift = uint(max(0,int(meshlet_count_msb) + 1 - int(MAX_BITS)));
+    const uint shift = uint(max(0, int(meshlet_count_msb) + 1 - int(MAX_BITS)));
     // clip off all bits below the 5 most significant ones.
     uint clipped_bits_meshlet_count = (meshlet_count >> shift) << shift;
     // Need to round up if there were bits clipped.
@@ -89,23 +95,23 @@ void main()
     }
     // Now bit by bit, do one writeout of an indirect command:
     uint bucket_bit_mask = clipped_bits_meshlet_count;
-    #if DEBUG_MESH_CULL
-        if (bitCount(meshlet_count) >= MAX_BITS || clipped_bits_meshlet_count != meshlet_count)
-        {
-            const float wasted = (1.0f - float(meshlet_count) / float(clipped_bits_meshlet_count)) * 100.0f;
-            debugPrintfEXT("cull mesh index %u for entity %u:\n in mesh group index: %u\n  meshletcount: (%u)->(%u)\n  bitCount: (%u)->(%u)\n  new bitCount <= old bitCount? %u\n  new meshletcount >= old meshletcount?: %u\n  wasted: %f%%\n\n",
-                        mesh_index, 
-                        entity_index, 
-                        in_meshgroup_index,
-                        meshlet_count, 
-                        clipped_bits_meshlet_count, 
-                        bitCount(meshlet_count), 
-                        bitCount(clipped_bits_meshlet_count), 
-                        ((bitCount(clipped_bits_meshlet_count) <= bitCount(meshlet_count)) ? 1 : 0),
-                        ((clipped_bits_meshlet_count >= meshlet_count) ? 1 : 0),
-                        wasted);
-        }
-    #endif
+#if DEBUG_MESH_CULL
+    if (bitCount(meshlet_count) >= MAX_BITS || clipped_bits_meshlet_count != meshlet_count)
+    {
+        const float wasted = (1.0f - float(meshlet_count) / float(clipped_bits_meshlet_count)) * 100.0f;
+        debugPrintfEXT("cull mesh index %u for entity %u:\n in mesh group index: %u\n  meshletcount: (%u)->(%u)\n  bitCount: (%u)->(%u)\n  new bitCount <= old bitCount? %u\n  new meshletcount >= old meshletcount?: %u\n  wasted: %f%%\n\n",
+                       mesh_index,
+                       entity_index,
+                       in_meshgroup_index,
+                       meshlet_count,
+                       clipped_bits_meshlet_count,
+                       bitCount(meshlet_count),
+                       bitCount(clipped_bits_meshlet_count),
+                       ((bitCount(clipped_bits_meshlet_count) <= bitCount(meshlet_count)) ? 1 : 0),
+                       ((clipped_bits_meshlet_count >= meshlet_count) ? 1 : 0),
+                       wasted);
+    }
+#endif
     // Each time we write out a command we add on the number of meshlets processed by that arg.
     uint meshlet_offset = 0;
     while (bucket_bit_mask != 0)
@@ -118,7 +124,7 @@ void main()
         // Update indirect args for meshlet cull
         {
             const uint threads_per_indirect_arg = 1 << bucket_index;
-            
+
             const uint work_group_size = (globals.settings.enable_mesh_shader == 1) ? TASK_SHADER_WORKGROUP_X : CULL_MESHLETS_WORKGROUP_X;
             const uint prev_indirect_arg_count = arg_array_offset;
             const uint prev_needed_threads = threads_per_indirect_arg * prev_indirect_arg_count;
@@ -140,16 +146,16 @@ void main()
         arg.in_meshgroup_index = in_meshgroup_index;
         arg.meshlet_indices_offset = meshlet_offset;
         deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[bucket_index][arg_array_offset]) = arg;
-        //debugPrintfEXT("test\n");
+        // debugPrintfEXT("test\n");
         meshlet_offset += indirect_arg_meshlet_count;
     }
-    #if DEBUG_MESH_CULL1
+#if DEBUG_MESH_CULL1
     if (meshlet_count > 33)
     {
         uint meshlet_offset = 0;
         uint bucket_bit_mask = clipped_bits_meshlet_count;
-        uint powers[5] = {33,33,33,33,33};
-        uint counts[5] = {0,0,0,0,0};
+        uint powers[5] = {33, 33, 33, 33, 33};
+        uint counts[5] = {0, 0, 0, 0, 0};
         uint index = 0;
         while (bucket_bit_mask != 0)
         {
@@ -161,11 +167,11 @@ void main()
             counts[index] = indirect_arg_meshlet_count;
             ++index;
         }
-        debugPrintfEXT("wrote out %u work units for %u meshlets,\n  meshlet count rounded up to fit 4 consequtive bits in uint (%u)->(%u),\n  power[0]: %u, meshlets: %u\n  power[1]: %u, meshlets: %u\n  power[2]: %u, meshlets: %u\n  power[3]: %u, meshlets: %u\n  power[4]: %u, meshlets: %u\n", 
+        debugPrintfEXT("wrote out %u work units for %u meshlets,\n  meshlet count rounded up to fit 4 consequtive bits in uint (%u)->(%u),\n  power[0]: %u, meshlets: %u\n  power[1]: %u, meshlets: %u\n  power[2]: %u, meshlets: %u\n  power[3]: %u, meshlets: %u\n  power[4]: %u, meshlets: %u\n",
                        meshlet_offset, meshlet_count,
-                       meshlet_count, clipped_bits_meshlet_count, 
-                       powers[0], counts[0], powers[1], counts[1],powers[2], counts[2],powers[3], counts[3],powers[4], counts[4]);
+                       meshlet_count, clipped_bits_meshlet_count,
+                       powers[0], counts[0], powers[1], counts[1], powers[2], counts[2], powers[3], counts[3], powers[4], counts[4]);
     }
-    #endif
+#endif
 }
 #endif

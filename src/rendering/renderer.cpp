@@ -469,4 +469,5 @@ void Renderer::render_frame(CameraInfo const &camera_info, CameraInfo const &obs
     this->submit_info.signal_timeline_semaphores = t_semas;
     main_task_graph.execute({});
     context->prev_settings = context->settings;
+    this->context->device.collect_garbage();
 }

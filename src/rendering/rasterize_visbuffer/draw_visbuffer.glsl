@@ -283,7 +283,7 @@ void main()
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[meshlet_inst.mesh_index]).micro_indices;
 
     // Transform vertices:
-    const mat4 model_matrix = mat_4x3_to_4x4deref(u_entity_combined_transforms[meshlet_inst.entity_index]));
+    const mat4 model_matrix = mat_4x3_to_4x4deref(u_entity_combined_transforms[meshlet_inst.entity_index]);
 #if MESH_SHADER_CULL_AND_DRAW
     const mat4 view_proj_matrix = globals.camera_view_projection;
 #else

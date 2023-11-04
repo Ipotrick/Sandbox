@@ -1,6 +1,7 @@
 #pragma once
 
 // Standart headers:
+#include <string>
 #include <thread>
 #include <iostream>
 #include <chrono>
