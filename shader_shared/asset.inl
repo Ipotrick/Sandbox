@@ -33,10 +33,11 @@ uint triangle_mask_bit_from_triangle_index(uint triangle_index)
 // Used to tell threads in the meshlet cull dispatch what to work on.
 struct MeshletCullIndirectArg
 {
-    daxa_u32 entity_id;
-    daxa_u32 mesh_id;
-    daxa_u32 entity_meshlist_index;
-    daxa_u32 meshlet_index_start_offset;
+    daxa_u32 entity_index;
+    daxa_u32 material_index;
+    daxa_u32 meshlet_indices_offset;
+    daxa_u32 mesh_index;
+    daxa_u32 in_meshgroup_index; 
 };
 DAXA_DECL_BUFFER_PTR(MeshletCullIndirectArg)
 
@@ -64,11 +65,38 @@ DAXA_DECL_BUFFER_PTR(Meshlet)
 struct MeshletInstance
 {
     daxa_u32 entity_index;
-    daxa_u32 entity_meshlist_index;
-    daxa_u32 mesh_index; 
-    daxa_u32 meshlet_index;
+    daxa_u32 material_index;        // Can pack more data into this
+    daxa_u32 meshlet_index;         // Can pack more data into this
+    daxa_u32 mesh_index;
+    daxa_u32 in_meshgroup_index; 
 };
-DAXA_DECL_BUFFER_PTR(MeshletInstance)
+
+struct PackedMeshletInstance
+{
+    daxa_u32vec4 value;
+};
+DAXA_DECL_BUFFER_PTR_ALIGN(PackedMeshletInstance, 16) // Aligned for faster loads and stores.
+
+SHARED_FUNCTION PackedMeshletInstance pack_meshlet_instance(MeshletInstance meshlet_instance)
+{
+    PackedMeshletInstance ret;
+    ret.value.x = meshlet_instance.entity_index;
+    ret.value.y = meshlet_instance.material_index;
+    ret.value.z = meshlet_instance.meshlet_index; 
+    ret.value.w = (meshlet_instance.mesh_index << 3) | (meshlet_instance.in_meshgroup_index & 0x7);
+    return ret;
+}
+
+SHARED_FUNCTION MeshletInstance unpack_meshlet_instance(PackedMeshletInstance packed_meshlet_instance)
+{
+    MeshletInstance ret;
+    ret.entity_index = packed_meshlet_instance.value.x;
+    ret.material_index = packed_meshlet_instance.value.y;
+    ret.meshlet_index = packed_meshlet_instance.value.z;
+    ret.mesh_index = packed_meshlet_instance.value.w >> 3;
+    ret.in_meshgroup_index = packed_meshlet_instance.value.w & 0x7;
+    return ret;
+}
 
 struct BoundingSphere
 {
@@ -154,7 +182,7 @@ struct MeshletInstances
 {
     daxa_u32 first_count;
     daxa_u32 second_count;
-    MeshletInstance meshlets[MAX_MESHLET_INSTANCES];
+    PackedMeshletInstance meshlets[MAX_MESHLET_INSTANCES];
 };
 DAXA_DECL_BUFFER_PTR(MeshletInstances)
 
@@ -185,12 +213,4 @@ DAXA_DECL_BUFFER_REFERENCE EntityMeshletVisibilityBitfieldOffsetsView
     queuefamilycoherent daxa_u32 back_offset;
     queuefamilycoherent EntityMeshletVisibilityBitfieldOffsets entity_offsets[];
 };
-
-{
-    RWByteAddressBuffer b = ..;
-    b.Store<uint>(0, 2);
-    EntityMeshletVisibilityBitfieldOffsets o = b.Load<EntityMeshletVisibilityBitfieldOffsets>(sizeof(uint) + index);
-    o.mesh_bitfield_offset[0] += 1;
-    b.Store(sizeof(uint) + index, o);
-}
 #endif

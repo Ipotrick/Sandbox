@@ -21,9 +21,9 @@ void main()
         uint instantiated_meshlet_index;
         uint triangle_index;
         decode_triangle_id(triangle_id, instantiated_meshlet_index, triangle_index);
-        MeshletInstance inst_meshlet = deref(u_instantiated_meshlets).meshlets[instantiated_meshlet_index];
+        MeshletInstance inst_meshlet = unpack_meshlet_instance(deref(u_instantiated_meshlets).meshlets[instantiated_meshlet_index]);
         
-        float f = float(inst_meshlet.entity_index * 10 + inst_meshlet.entity_meshlist_index) * 0.93213213232;
+        float f = float(inst_meshlet.entity_index * 10 + inst_meshlet.mesh_index) * 0.93213213232;
         vec3 debug_color = vec3(cos(f), cos(f+2), cos(f+4));
         debug_color = debug_color * 0.5 + 0.5;
         //debug_color *= fract(inst_meshlet.entity_index * 0.0111);

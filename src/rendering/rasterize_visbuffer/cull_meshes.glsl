@@ -40,15 +40,15 @@ layout(local_size_x = CULL_MESHES_WORKGROUP_X, local_size_y = CULL_MESHES_WORKGR
 void main()
 {
     const uint entity_index = gl_GlobalInvocationID.x;
-    const uint mesh_index = gl_LocalInvocationID.y;
+    const uint in_meshgroup_index = gl_LocalInvocationID.y;
     if (entity_index >= deref(u_entity_meta).entity_count)
     {
         return;
     }
 
-    const uint mesh_id = deref(u_entity_meshlists[entity_index]).mesh_ids[mesh_index];
-    const uint meshlet_count = deref(u_meshes[mesh_id]).meshlet_count;
-    if (mesh_index >= deref(u_entity_meshlists[entity_index]).count || (meshlet_count == 0))
+    const uint mesh_index = deref(u_entity_meshlists[entity_index]).mesh_manifest_indices[in_meshgroup_index];
+    const uint meshlet_count = deref(u_meshes[mesh_index]).meshlet_count;
+    if (in_meshgroup_index >= deref(u_entity_meshlists[entity_index]).count || (meshlet_count == 0))
     {
         return;
     }
@@ -91,10 +91,10 @@ void main()
         if (bitCount(meshlet_count) >= MAX_BITS || clipped_bits_meshlet_count != meshlet_count)
         {
             const float wasted = (1.0f - float(meshlet_count) / float(clipped_bits_meshlet_count)) * 100.0f;
-            debugPrintfEXT("cull mesh %u for entity %u:\n  mesh id: %u\n  meshletcount: (%u)->(%u)\n  bitCount: (%u)->(%u)\n  new bitCount <= old bitCount? %u\n  new meshletcount >= old meshletcount?: %u\n  wasted: %f%%\n\n",
+            debugPrintfEXT("cull mesh index %u for entity %u:\n in mesh group index: %u\n  meshletcount: (%u)->(%u)\n  bitCount: (%u)->(%u)\n  new bitCount <= old bitCount? %u\n  new meshletcount >= old meshletcount?: %u\n  wasted: %f%%\n\n",
                         mesh_index, 
                         entity_index, 
-                        mesh_id,
+                        in_meshgroup_index,
                         meshlet_count, 
                         clipped_bits_meshlet_count, 
                         bitCount(meshlet_count), 
@@ -132,10 +132,11 @@ void main()
             }
         }
         MeshletCullIndirectArg arg;
-        arg.entity_id = entity_index;
-        arg.mesh_id = mesh_id;
-        arg.entity_meshlist_index = mesh_index;
-        arg.meshlet_index_start_offset = meshlet_offset;
+        arg.entity_index = entity_index;
+        arg.mesh_index = mesh_index;
+        arg.material_index = 0; // TODO: hook up materials.
+        arg.in_meshgroup_index = in_meshgroup_index;
+        arg.meshlet_indices_offset = meshlet_offset;
         deref(deref(u_meshlet_cull_indirect_args).indirect_arg_ptrs[bucket_index][arg_array_offset]) = arg;
         //debugPrintfEXT("test\n");
         meshlet_offset += indirect_arg_meshlet_count;

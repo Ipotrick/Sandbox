@@ -95,8 +95,10 @@ DAXA_DECL_UNIFORM_BUFFER(SHADER_GLOBALS_SLOT) ShaderGlobalsBlock
 
 #if defined(__cplusplus)
 #define SHARED_FUNCTION inline
+#define SHARED_FUNCTION_INOUT(X) X&
 #else
 #define SHARED_FUNCTION
+#define SHARED_FUNCTION_INOUT(X) inout X
 #endif
 
 SHARED_FUNCTION daxa_u32 round_up_to_multiple(daxa_u32 value, daxa_u32 multiple_of)

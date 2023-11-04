@@ -11,7 +11,7 @@
 
 DAXA_DECL_TASK_USES_BEGIN(AnalyzeVisbuffer2, 1)
 DAXA_TASK_USE_IMAGE(u_visbuffer, REGULAR_2D, COMPUTE_SHADER_SAMPLED)
-DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstance), COMPUTE_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), COMPUTE_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshlet_visibility_bitfield, daxa_RWBufferPtr(daxa_u32), COMPUTE_SHADER_READ_WRITE)
 DAXA_TASK_USE_BUFFER(u_visible_meshlets, daxa_RWBufferPtr(VisibleMeshletList), COMPUTE_SHADER_READ_WRITE)
 // DxDy Image

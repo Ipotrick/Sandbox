@@ -30,12 +30,12 @@ void main()
     // TODO: check if entity, its mesh id and meshlets are valid
     if (thread_active)
     {
-        MeshletInstance inst_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
-        const uint mask_bit = 1u << (inst_meshlet.entity_meshlist_index % 32);
-        const uint local_mask_offset = inst_meshlet.entity_meshlist_index / 32;
+        MeshletInstance inst_meshlet = unpack_meshlet_instance(deref(u_instantiated_meshlets).meshlets[inst_meshlet_index]);
+        const uint mask_bit = 1u << (inst_meshlet.meshlet_index % 32);
+        const uint local_mask_offset = inst_meshlet.meshlet_index / 32;
         const uint global_mask_offset = u_entity_meshlet_visibility_bitfield_offsets
                                             .entity_offsets[inst_meshlet.entity_index]
-                                            .mesh_bitfield_offset[inst_meshlet.mesh_index];
+                                            .mesh_bitfield_offset[inst_meshlet.in_meshgroup_index];
         const uint offset = global_mask_offset + local_mask_offset;
 
         atomicOr(deref(u_entity_meshlet_visibility_bitfield_arena[offset]), mask_bit);
@@ -55,21 +55,21 @@ void main()
     if (thread_active)
     {
         inst_meshlet_index_prev = deref(u_visible_meshlets_prev).meshlet_ids[gl_GlobalInvocationID.x];
-        inst_meshlet = deref(u_instantiated_meshlets_prev).meshlets[inst_meshlet_index_prev];
-        const uint counters_index = inst_meshlet.entity_index * 8 + inst_meshlet.mesh_index;
+        inst_meshlet = unpack_meshlet_instance(deref(u_instantiated_meshlets_prev).meshlets[inst_meshlet_index_prev]);
+        const uint counters_index = inst_meshlet.entity_index * 8 + inst_meshlet.in_meshgroup_index;
         const uint prev_value = atomicCompSwap(
-            u_entity_meshlet_visibility_bitfield_offsets.entity_offsets[inst_meshlet.entity_index].mesh_bitfield_offset[inst_meshlet.mesh_index],
+            u_entity_meshlet_visibility_bitfield_offsets.entity_offsets[inst_meshlet.entity_index].mesh_bitfield_offset[inst_meshlet.in_meshgroup_index],
             ENT_MESHLET_VIS_OFFSET_UNALLOCATED,
             ENT_MESHLET_VIS_OFFSET_EMPTY);
         // Saw entity (and entity mesh index) the first time -> allocate bitfield offset
         if (prev_value == ENT_MESHLET_VIS_OFFSET_UNALLOCATED)
         {
-            const uint meshlets_in_mesh = deref(u_meshes[inst_meshlet.mesh_id]).meshlet_count;
+            const uint meshlets_in_mesh = deref(u_meshes[inst_meshlet.mesh_index]).meshlet_count;
             if (meshlets_in_mesh > 0)
             {
                 const uint needed_uints_in_bitfield = (meshlets_in_mesh + 32 - 1) / 32;
                 const uint bitfield_arena_offset = atomicAdd(u_entity_meshlet_visibility_bitfield_offsets.back_offset, needed_uints_in_bitfield);
-                atomicExchange(u_entity_meshlet_visibility_bitfield_offsets.entity_offsets[inst_meshlet.entity_index].mesh_bitfield_offset[inst_meshlet.mesh_index], bitfield_arena_offset);
+                atomicExchange(u_entity_meshlet_visibility_bitfield_offsets.entity_offsets[inst_meshlet.entity_index].mesh_bitfield_offset[inst_meshlet.in_meshgroup_index], bitfield_arena_offset);
             }
         }
     }
@@ -97,7 +97,7 @@ void main()
     {
         const uint meshlet_instance_index = s_out_offset + local_offset;
         // Write out meshlet instance to the meshlet instance list of the first pass:
-        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = inst_meshlet;
+        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = pack_meshlet_instance(inst_meshlet);
     }
 }
 #endif

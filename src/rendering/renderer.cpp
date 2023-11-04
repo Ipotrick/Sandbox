@@ -272,8 +272,8 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
     }
     task_list.use_persistent_image(swapchain_image);
 
-    auto entity_meshlet_visibility_bitfield_offsets = task_list.create_transient_buffer({sizeof(EntityMeshletVisibilityBitfieldOffsets) * MAX_ENTITY_COUNT + sizeof(u32), "entity_meshlet_visibility_bitfield_offsets"});
-    auto entity_meshlet_visibility_bitfield_arena = task_list.create_transient_buffer({ENTITY_MESHLET_VISIBILITY_ARENA_SIZE, "entity_meshlet_visibility_bitfield_arena"});
+    auto entity_meshlet_visibility_bitfield_offsets = task_list.create_transient_buffer({sizeof(EntityMeshletVisibilityBitfieldOffsets) * MAX_ENTITY_COUNT + sizeof(u32), "meshlet_visibility_bitfield_offsets"});
+    auto entity_meshlet_visibility_bitfield_arena = task_list.create_transient_buffer({ENTITY_MESHLET_VISIBILITY_ARENA_SIZE, "meshlet_visibility_bitfield_arena"});
     task_prepopulate_instantiated_meshlets(
         context,
         task_list,

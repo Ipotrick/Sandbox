@@ -9,13 +9,17 @@
 #include "../../shader_shared/scene.inl"
 #include "../slot_map.hpp"
 
-
-// Scenes are described by entities and their resources.
-// These resources can have complex dependencies between each other.
-// We want to be able to load AND UNLOAD the resources asynchronously.
-// BUT we want to remember unloaded resources. We never delete metadata.
-// We have a manifest of all ever loaded resources that can only grow.
-// Resource data may be deleted or loaded later, but their metadata must be present in the manifests.
+/**
+ * DESCRIPTION:
+ * Scenes are described by entities and their resources.
+ * These resources can have complex dependencies between each other.
+ * We want to be able to load AND UNLOAD the resources asynchronously.
+ * BUT we want to remember unloaded resources. We never delete metadata.
+ * The metadata tracks all the complex dependencies. Never deleting them makes the lifetimes for dependencies trivial.
+ * It also allows us to have a better tracking of when a resource was unloaded how it was used etc. .
+ * We store the metadata in manifest arrays.
+ * The only data that can change in the manifests are in leaf nodes of the dependencies, eg texture data, mesh data.
+*/
 
 struct SceneFileManifestEntry
 {
@@ -84,16 +88,16 @@ struct RenderEntity
 
 using RenderEntitySlotMap = SlotMap<RenderEntity>;
 
+
+
 struct Scene
 {
     /**
      * NOTES:
-     * - >on the gpu< the render entities are stores in an structure of arrays fassion
-     * - >on the cpu< render entities are stored in an array of structures
-     * - arrays and buffers only grow
-     * - arrays are NOT nessecarily densly populated with valid entities
-     * - growing the entities buffers is done by scene
-     * - recording updates to entities is done by scene
+     * - On the cpu, the entities are stored in a slotmap
+     * - On the gpu, render entities are stored in an 'soa' slotmap
+     * - the slotmaps capacity (and its underlying arrays) will only grow with time, it never shrinks
+     * - all entity buffer updates are recorded within the scenes record commands function
      * - WARNING: FOR NOW THE RENDERER ASSUMES TIGHTLY PACKED ENTITIES!
      * - TODO: Upload sparse set to gpu so gpu can tightly iterate!
      * - TODO: Make the task buffers real buffers grow with time, unfix their size!
@@ -111,15 +115,13 @@ struct Scene
 
     /**
      * NOTES:
-     * - on loading new manifest entries from a file the first time, the scene writes these.
-     * - runtime updates to the manifest are performed by the asset processor.
-     * - manifest is mirrored with different types on the gpu
-     * - manifest can ONLY GROW, the manifest CAN NOT shrink
-     * - baking data for textures and meshes are dynamically loaded and unloaded
-     * - unloadable data is marked by a 'runtime' field within the manifest
-     * - material-textures and meshes are live load and unloadable
-     * - growing the manifest buffers and copying in the constant data is done by scene
-     * - recording updates to the runtime manifest data is done by the asset processor
+     * -    growing and initializing the manifest on the gpu is recorded in the scene,
+     *      following UPDATES to the manifests are recorded from the asset processor
+     * - growing and initializing the manifest on the cpu is done when recording scene commands
+     * - the manifests only grow and are largely immutable on the cpu
+     * - specific cpu manifests will have 'runtime' data that is not immutable
+     * - the asset processor may update the immutable runtime data within the manifests
+     * - the cpu and gpu versions of the manifest will be different to reduce indirections on the gpu
      * - TODO: Make the task buffers real buffers grow with time, unfix their size!
      * */
     daxa::TaskBuffer _gpu_mesh_manifest = daxa::TaskBufferInfo{.name = "_gpu_mesh_manifest"};  

@@ -98,27 +98,31 @@ void main()
 
     // MeshletInstance:
     // daxa_u32 entity_index;
-    // daxa_u32 mesh_id;
+    // daxa_u32 material_index;
+    // daxa_u32 meshlet_index;
     // daxa_u32 mesh_index;
-    // daxa_u32 entity_meshlist_index;
-    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[inst_meshlet_index];
+    // daxa_u32 in_meshgroup_index; 
+    MeshletInstance meshlet_inst = unpack_meshlet_instance(deref(u_instantiated_meshlets).meshlets[inst_meshlet_index]);
 
     // GPUMesh:
     // daxa_BufferId mesh_buffer;
+    // daxa_u32 material_index;
     // daxa_u32 meshlet_count;
+    // daxa_u32 vertex_count;
     // daxa_BufferPtr(Meshlet) meshlets;
     // daxa_BufferPtr(BoundingSphere) meshlet_bounds;
     // daxa_BufferPtr(daxa_u32) micro_indices;
     // daxa_BufferPtr(daxa_u32) indirect_vertices;
     // daxa_BufferPtr(daxa_f32vec3) vertex_positions;
-    GPUMesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
+    // daxa_BufferPtr(daxa_f32vec2) vertex_uvs;
+    GPUMesh mesh = deref((u_meshes + meshlet_inst.mesh_index));
 
     // Meshlet:
     // daxa_u32 indirect_vertex_offset;
     // daxa_u32 micro_indices_offset;
     // daxa_u32 vertex_count;
     // daxa_u32 triangle_count;
-    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.entity_meshlist_index].value;
+    Meshlet meshlet = mesh.meshlets[meshlet_inst.meshlet_index].value;
 
     // Discard triangle indices that are out of bounds of the meshlets triangle list.
     if (triangle_index >= meshlet.triangle_count)
@@ -127,13 +131,13 @@ void main()
         return;
     }
 
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[meshlet_inst.mesh_index]).micro_indices;
     const uint micro_index = get_micro_index(micro_index_buffer, meshlet.micro_indices_offset + triangle_index * 3 + triangle_corner_index);
     uint vertex_index = mesh.indirect_vertices[meshlet.indirect_vertex_offset + micro_index].value;
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
-    const vec4 pos = view_proj * deref(u_entity_combined_transforms[instantiated_meshlet.entity_index]) * vertex_position;
+    const vec4 pos = view_proj * deref(u_entity_combined_transforms[meshlet_inst.entity_index]) * vertex_position;
     vec2 uv = vec2(0,0);
     if (daxa_u64(mesh.vertex_uvs) != 0)
     {
@@ -207,7 +211,7 @@ void main()
     if (active_thread)
     {
         const uint meshlet_instance_index = global_meshlet_instances_offset + local_meshlet_instances_offset;
-        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = meshlet_instance;
+        deref(u_instantiated_meshlets).meshlets[meshlet_instance_index] = pack_meshlet_instance(meshlet_instance);
     }
     EmitMeshTasksEXT(local_surviving_meshlet_count, 1, 1);
 }
@@ -251,12 +255,12 @@ void main()
     barrier();
     const uint arg_index = tps.global_meshlet_args_offset + s_local_meshlet_arg_offset;
     const uint meshlet_instance_index = tps.global_meshlet_instances_offset + local_meshlet_instances_offset;
-    MeshletInstance instantiated_meshlet;
-    bool active_thread = get_meshlet_instance_from_arg(arg_index, push.bucket_index, u_meshlet_cull_indirect_args, instantiated_meshlet);
+    MeshletInstance meshlet_inst;
+    bool active_thread = get_meshlet_instance_from_arg(arg_index, push.bucket_index, u_meshlet_cull_indirect_args, meshlet_inst);
 #else
     const uint meshlet_offset = get_meshlet_draw_offset_from_pass(u_instantiated_meshlets, push.pass);
     const uint meshlet_instance_index = gl_WorkGroupID.x + meshlet_offset;
-    MeshletInstance instantiated_meshlet = deref(u_instantiated_meshlets).meshlets[meshlet_instance_index];
+    MeshletInstance meshlet_inst = unpack_meshlet_instance(deref(u_instantiated_meshlets).meshlets[meshlet_instance_index]);
 #endif
 
     // GPUMesh:
@@ -267,19 +271,19 @@ void main()
     // daxa_BufferPtr(daxa_u32) micro_indices;
     // daxa_BufferPtr(daxa_u32) indirect_vertices;
     // daxa_BufferPtr(daxa_f32vec3) vertex_positions;
-    GPUMesh mesh = deref((u_meshes + instantiated_meshlet.mesh_id));
+    GPUMesh mesh = deref((u_meshes + meshlet_inst.mesh_index));
 
     // Meshlet:
     // daxa_u32 indirect_vertex_offset;
     // daxa_u32 micro_indices_offset;
     // daxa_u32 vertex_count;
     // daxa_u32 triangle_count;
-    Meshlet meshlet = mesh.meshlets[instantiated_meshlet.entity_meshlist_index].value;
+    Meshlet meshlet = deref(mesh.meshlets + meshlet_inst.meshlet_index);
 
-    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[instantiated_meshlet.mesh_id]).micro_indices;
+    daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[meshlet_inst.mesh_index]).micro_indices;
 
     // Transform vertices:
-    const mat4 model_matrix = deref(u_entity_combined_transforms[instantiated_meshlet.entity_index]);
+    const mat4 model_matrix = deref(u_entity_combined_transforms[meshlet_inst.entity_index]);
 #if MESH_SHADER_CULL_AND_DRAW
     const mat4 view_proj_matrix = globals.camera_view_projection;
 #else

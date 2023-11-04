@@ -82,7 +82,7 @@ bool is_tri_out_of_frustum(vec3 tri[3])
 }
 
 bool is_meshlet_occluded(
-    MeshletInstance instanced_meshlet,
+    MeshletInstance meshlet_inst,
     EntityMeshletVisibilityBitfieldOffsetsView entity_meshlet_visibility_bitfield_offsets,
     daxa_BufferPtr(daxa_u32) entity_meshlet_visibility_bitfield_arena,
     daxa_BufferPtr(daxa_f32mat4x4) entity_combined_transforms,
@@ -90,14 +90,14 @@ bool is_meshlet_occluded(
     daxa_ImageViewId hiz
 )
 {
-    GPUMesh mesh_data = deref(meshes[instanced_meshlet.mesh_id]);
-    if (instanced_meshlet.entity_meshlist_index >= mesh_data.meshlet_count)
+    GPUMesh mesh_data = deref(meshes[meshlet_inst.mesh_index]);
+    if (meshlet_inst.meshlet_index >= mesh_data.meshlet_count)
     {
         return true;
     }
-    const uint bitfield_uint_offset = instanced_meshlet.entity_meshlist_index / 32;
-    const uint bitfield_uint_bit = 1u << (instanced_meshlet.entity_meshlist_index % 32);
-    const uint entity_arena_offset = entity_meshlet_visibility_bitfield_offsets.entity_offsets[instanced_meshlet.entity_index].mesh_bitfield_offset[instanced_meshlet.mesh_index];
+    const uint bitfield_uint_offset = meshlet_inst.meshlet_index / 32;
+    const uint bitfield_uint_bit = 1u << (meshlet_inst.meshlet_index % 32);
+    const uint entity_arena_offset = entity_meshlet_visibility_bitfield_offsets.entity_offsets[meshlet_inst.entity_index].mesh_bitfield_offset[meshlet_inst.in_meshgroup_index];
     if (entity_arena_offset != ENT_MESHLET_VIS_OFFSET_UNALLOCATED && entity_arena_offset != ENT_MESHLET_VIS_OFFSET_EMPTY)
     {
         const uint mask = deref(entity_meshlet_visibility_bitfield_arena[entity_arena_offset + bitfield_uint_offset]);
@@ -109,12 +109,12 @@ bool is_meshlet_occluded(
     }
     // daxa_f32vec3 center;
     // daxa_f32 radius;
-    mat4x4 model_matrix = deref(entity_combined_transforms[instanced_meshlet.entity_index]);
+    mat4x4 model_matrix = deref(entity_combined_transforms[meshlet_inst.entity_index]);
     const float model_scaling_x_squared = dot(model_matrix[0],model_matrix[0]);
     const float model_scaling_y_squared = dot(model_matrix[1],model_matrix[1]);
     const float model_scaling_z_squared = dot(model_matrix[2],model_matrix[2]);
     const float radius_scaling = sqrt(max(max(model_scaling_x_squared,model_scaling_y_squared), model_scaling_z_squared));
-    BoundingSphere bounds = deref(mesh_data.meshlet_bounds[instanced_meshlet.entity_meshlist_index]);
+    BoundingSphere bounds = deref(mesh_data.meshlet_bounds[meshlet_inst.meshlet_index]);
     const float scaled_radius = radius_scaling * bounds.radius;
     const vec3 ws_center = (model_matrix * vec4(bounds.center, 1)).xyz;
     const vec3 center_to_camera = normalize(globals.camera_pos - ws_center);
@@ -172,7 +172,7 @@ bool is_meshlet_occluded(
     return false;
 }
 
-bool get_meshlet_instance_from_arg(uint thread_id, uint arg_bucket_index, daxa_BufferPtr(MeshletCullIndirectArgTable) meshlet_cull_indirect_args, out MeshletInstance instanced_meshlet)
+bool get_meshlet_instance_from_arg(uint thread_id, uint arg_bucket_index, daxa_BufferPtr(MeshletCullIndirectArgTable) meshlet_cull_indirect_args, out MeshletInstance meshlet_inst)
 {
     const uint indirect_arg_index = thread_id >> arg_bucket_index;
     const uint valid_arg_count = deref(meshlet_cull_indirect_args).indirect_arg_counts[arg_bucket_index];
@@ -182,9 +182,10 @@ bool get_meshlet_instance_from_arg(uint thread_id, uint arg_bucket_index, daxa_B
     }
     const uint arg_work_offset = thread_id - (indirect_arg_index << arg_bucket_index);
     const MeshletCullIndirectArg arg = deref(deref(meshlet_cull_indirect_args).indirect_arg_ptrs[arg_bucket_index][indirect_arg_index]);
-    instanced_meshlet.entity_index = arg.entity_id;
-    instanced_meshlet.mesh_id = arg.mesh_id;
-    instanced_meshlet.mesh_index = arg.entity_meshlist_index;
-    instanced_meshlet.entity_meshlist_index = arg.meshlet_index_start_offset + arg_work_offset;
+    meshlet_inst.entity_index = arg.entity_index;
+    meshlet_inst.material_index = arg.material_index;
+    meshlet_inst.mesh_index = arg.mesh_index;
+    meshlet_inst.meshlet_index = arg.meshlet_indices_offset + arg_work_offset;
+    meshlet_inst.in_meshgroup_index = arg.in_meshgroup_index;
     return true;
 }

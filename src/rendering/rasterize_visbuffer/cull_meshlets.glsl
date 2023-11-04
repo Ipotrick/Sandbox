@@ -34,6 +34,6 @@ void main()
 #endif
     const uint out_index = atomicAdd(deref(u_instantiated_meshlets).second_count, 1);
     const uint offset = deref(u_instantiated_meshlets).first_count;
-    deref(u_instantiated_meshlets).meshlets[out_index + offset] = instanced_meshlet;
+    deref(u_instantiated_meshlets).meshlets[out_index + offset] = pack_meshlet_instance(instanced_meshlet);
     atomicAdd(deref(u_draw_command).instance_count, 1);
 }

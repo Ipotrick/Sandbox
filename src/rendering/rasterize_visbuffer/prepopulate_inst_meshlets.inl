@@ -107,7 +107,7 @@ inline void task_prepopulate_instantiated_meshlets(GPUContext *context, daxa::Ta
     task_multi_clear_buffer(tg, info.entity_meshlet_visibility_bitfield_offsets, clear_ranges);
     task_clear_buffer(tg, info.meshlet_instances, 0, sizeof(daxa_u32vec2));
     task_clear_buffer(tg, info.entity_meshlet_visibility_bitfield_arena, 0);
-    auto command_buffer = tg.create_transient_buffer({sizeof(DispatchIndirectStruct), "command buffer task_prepopulate_instantiated_meshlets"});
+    auto command_buffer = tg.create_transient_buffer({sizeof(DispatchIndirectStruct), "cb prepopulate_instantiated_meshlets"});
     tg.add_task(PrepopulateInstantiatedMeshletsCommandWriteTask{
         .uses = {
             .u_visible_meshlets_prev = info.visible_meshlets_prev,

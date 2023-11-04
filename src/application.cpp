@@ -154,102 +154,83 @@ Application::Application()
     auto exc_cmd_list = _asset_manager->record_gpu_load_processing_commands();
     _gpu_context->device.submit_commands({.command_lists = std::array{std::move(scene_commands), std::move(exc_cmd_list)}});
     _gpu_context->device.wait_idle();
-    // this->scene_loader = SceneLoader{"./assets/"};
-    // this->scene_loader.load_entities_from_fbx(this->scene, this->asset_manager, "Bistro_v5_2/BistroExterior.fbx"); // "Bistro_v5_2/BistroExterior.fbx" "small_city.glb"
-    // this->scene.process_transforms();
-    // daxa::ExecutableCommandList exec_commands0 = this->asset_manager.get_update_commands().value();
-    // auto cmd2 = this->gpu_context.device.create_command_recorder({});
-    // this->scene.record_full_entity_update(
-    //     this->gpu_context.device,
-    //     cmd2,
-    //     this->scene,
-    //     this->renderer.entity_meta.get_state().buffers[0],
-    //     this->renderer.entity_transforms.get_state().buffers[0],
-    //     this->renderer.entity_combined_transforms.get_state().buffers[0],
-    //     this->renderer.entity_first_children.get_state().buffers[0],
-    //     this->renderer.entity_next_silbings.get_state().buffers[0],
-    //     this->renderer.entity_parents.get_state().buffers[0],
-    //     this->renderer.entity_meshlists.get_state().buffers[0]);
-    // cmd2.pipeline_barrier({
-    //     .src_access = daxa::AccessConsts::TRANSFER_WRITE,
-    //     .dst_access = daxa::AccessConsts::READ,
-    // });
-    // this->gpu_context.device.submit_commands({
-    //     .command_lists = std::array{ exec_commands0, cmd2.complete_current_commands() },
-    // });
-    // last_time_point = std::chrono::steady_clock::now();
-    exit(-1);
+
+    _ui_engine = std::make_unique<UIEngine>(*_window);
+
+    _renderer = std::make_unique<Renderer>(_window.get(), _gpu_context.get(), _scene.get(), _asset_manager.get());
+
+    last_time_point = std::chrono::steady_clock::now();
 }
 using FpMilliseconds = std::chrono::duration<float, std::chrono::milliseconds::period>;
 
 auto Application::run() -> i32
 {
-    // while (keep_running)
-    // {
-    // auto new_time_point = std::chrono::steady_clock::now();
-    // this->delta_time = std::chrono::duration_cast<FpMilliseconds>(new_time_point - this->last_time_point).count() * 0.001f;
-    // this->last_time_point = new_time_point;
-    // window.update(delta_time);
-    // keep_running &= !static_cast<bool>(glfwWindowShouldClose(this->window.glfw_handle));
-    // daxa_i32vec2 new_window_size;
-    // glfwGetWindowSize(this->window.glfw_handle, &new_window_size.x, &new_window_size.y);
-    // if (this->window.size.x != new_window_size.x || this->window.size.y != new_window_size.y)
-    // {
-    // this->window.size = new_window_size;
-    // renderer.window_resized();
-    // }
-    // this->update();
-    // this->renderer.render_frame(this->camera_controller.cam_info, this->observer_camera_controller.cam_info, delta_time);
-    // }
+    while (keep_running)
+    {
+        auto new_time_point = std::chrono::steady_clock::now();
+        this->delta_time = std::chrono::duration_cast<FpMilliseconds>(new_time_point - this->last_time_point).count() * 0.001f;
+        this->last_time_point = new_time_point;
+        _window->update(delta_time);
+        keep_running &= !static_cast<bool>(glfwWindowShouldClose(_window->glfw_handle));
+        daxa_i32vec2 new_window_size;
+        glfwGetWindowSize(this->_window->glfw_handle, &new_window_size.x, &new_window_size.y);
+        if (this->_window->size.x != new_window_size.x || _window->size.y != new_window_size.y)
+        {
+            this->_window->size = new_window_size;
+            _renderer->window_resized();
+        }
+        update();
+        _renderer->render_frame(this->camera_controller.cam_info, this->observer_camera_controller.cam_info, delta_time);
+    }
     return 0;
 }
 
 void Application::update()
 {
-    // if (this->window.size.x == 0 || this->window.size.y == 0)
-    // {
-    // return;
-    // }
-    // ui_engine.main_update(gpu_context.settings);
-    // if (control_observer)
-    // {
-    // observer_camera_controller.process_input(this->window, this->delta_time);
-    // observer_camera_controller.update_matrices(this->window);
-    // }
-    // else
-    // {
-    // camera_controller.process_input(this->window, this->delta_time);
-    // camera_controller.update_matrices(this->window);
-    // }
-    // if (window.key_just_pressed(GLFW_KEY_H))
-    // {
-    // std::cout << "switched enable_observer from " << renderer.context->settings.enable_observer << " to " << !(renderer.context->settings.enable_observer) << std::endl;
-    // renderer.context->settings.enable_observer = !renderer.context->settings.enable_observer;
-    // }
-    // if (window.key_just_pressed(GLFW_KEY_J))
-    // {
-    // std::cout << "switched control_observer from " << control_observer << " to " << !(control_observer) << std::endl;
-    // control_observer = !control_observer;
-    // }
-    // if (window.key_just_pressed(GLFW_KEY_K))
-    // {
-    // std::cout << "reset observer" << std::endl;
-    // control_observer = false;
-    // renderer.context->settings.enable_observer = false;
-    // observer_camera_controller = camera_controller;
-    // }
-    // #if COMPILE_IN_MESH_SHADER
-    //     if (window.key_just_pressed(GLFW_KEY_M))
-    //     {
-    //         std::cout << "switched enable_mesh_shader from " << renderer.context->settings.enable_mesh_shader << " to " << !(renderer.context->settings.enable_mesh_shader) << std::endl;
-    //         renderer.context->settings.enable_mesh_shader = !renderer.context->settings.enable_mesh_shader;
-    //     }
-    // #endif
-    //     if (window.key_just_pressed(GLFW_KEY_O))
-    //     {
-    //         std::cout << "switched observer_show_pass from " << renderer.context->settings.observer_show_pass << " to " << ((renderer.context->settings.observer_show_pass + 1) % 3) << std::endl;
-    //         renderer.context->settings.observer_show_pass = (renderer.context->settings.observer_show_pass + 1) % 3;
-    //     }
+    if (_window->size.x == 0 || _window->size.y == 0)
+    {
+        return;
+    }
+    // _ui_engine.main_update(_gpu_context->settings);
+    if (control_observer)
+    {
+        observer_camera_controller.process_input(*_window, this->delta_time);
+        observer_camera_controller.update_matrices(*_window);
+    }
+    else
+    {
+        camera_controller.process_input(*_window, this->delta_time);
+        camera_controller.update_matrices(*_window);
+    }
+    if (_window->key_just_pressed(GLFW_KEY_H))
+    {
+        std::cout << "switched enable_observer from " << _renderer->context->settings.enable_observer << " to " << !(_renderer->context->settings.enable_observer) << std::endl;
+        _renderer->context->settings.enable_observer = !_renderer->context->settings.enable_observer;
+    }
+    if (_window->key_just_pressed(GLFW_KEY_J))
+    {
+        std::cout << "switched control_observer from " << control_observer << " to " << !(control_observer) << std::endl;
+        control_observer = !control_observer;
+    }
+    if (_window->key_just_pressed(GLFW_KEY_K))
+    {
+        std::cout << "reset observer" << std::endl;
+        control_observer = false;
+        _renderer->context->settings.enable_observer = false;
+        observer_camera_controller = camera_controller;
+    }
+#if COMPILE_IN_MESH_SHADER
+    if (_window->key_just_pressed(GLFW_KEY_M))
+    {
+        std::cout << "switched enable_mesh_shader from " << _renderer->context->settings.enable_mesh_shader << " to " << !(_renderer->context->settings.enable_mesh_shader) << std::endl;
+        _renderer->context->settings.enable_mesh_shader = !_renderer->context->settings.enable_mesh_shader;
+    }
+#endif
+    if (_window->key_just_pressed(GLFW_KEY_O))
+    {
+        std::cout << "switched observer_show_pass from " << _renderer->context->settings.observer_show_pass << " to " << ((_renderer->context->settings.observer_show_pass + 1) % 3) << std::endl;
+        _renderer->context->settings.observer_show_pass = (_renderer->context->settings.observer_show_pass + 1) % 3;
+    }
 }
 
 Application::~Application()
