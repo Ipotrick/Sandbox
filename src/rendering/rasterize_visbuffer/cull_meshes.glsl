@@ -46,9 +46,11 @@ void main()
         return;
     }
 
-    const uint mesh_index = deref(u_entity_meshlists[entity_index]).mesh_manifest_indices[in_meshgroup_index];
+    const uint meshgroup_index = deref(u_entity_meshgroup_indices[entity_index]);
+    const GPUMeshGroup mesh_group = deref(u_meshgroups + meshgroup_index);
+    const uint mesh_index = mesh_group.mesh_manifest_indices[in_meshgroup_index];
     const uint meshlet_count = deref(u_meshes[mesh_index]).meshlet_count;
-    if (in_meshgroup_index >= deref(u_entity_meshlists[entity_index]).count || (meshlet_count == 0))
+    if (in_meshgroup_index >= mesh_group.count || (meshlet_count == 0))
     {
         return;
     }

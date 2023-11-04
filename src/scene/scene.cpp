@@ -55,6 +55,14 @@ Scene::~Scene()
     _device.destroy_buffer(_gpu_entity_mesh_groups.get_state().buffers[0]);
     _device.destroy_buffer(_gpu_mesh_manifest.get_state().buffers[0]);
     _device.destroy_buffer(_gpu_mesh_group_manifest.get_state().buffers[0]);
+
+    for (auto &mesh : _mesh_manifest)
+    {
+        if (mesh.runtime.has_value())
+        {
+            _device.destroy_buffer(std::bit_cast<daxa::BufferId>(mesh.runtime.value().mesh_buffer));
+        }
+    }
 }
 
 // EntityId Scene::create_entity()
@@ -541,6 +549,12 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
     *r_cast<GPUEntityMetaData *>(host_ptr) = {
         .entity_count = s_cast<u32>(_render_entities.size()),
     };
+    recorder.copy_buffer_to_buffer({
+        .src_buffer = staging_buffer,
+        .dst_buffer = _gpu_entity_meta.get_state().buffers[0],
+        .src_offset = staging_offset,
+        .size = sizeof(GPUEntityMetaData),
+    });
     staging_offset += sizeof(GPUEntityMetaData);
 
     /**
@@ -552,7 +566,7 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
     /// NOTE: Update dirty entities.
     for (u32 i = 0; i < _dirty_render_entities.size(); ++i)
     {
-        usize offset = (staging_offset * sizeof(glm::mat4x3) * 2 + sizeof(u32));
+        usize offset = (staging_offset + (sizeof(glm::mat4x3) * 2 + sizeof(u32)) * i);
         u32 entity_index = _dirty_render_entities[i].index;
         glm::mat4 transform4 = _render_entities.slot(_dirty_render_entities[i])->transform;
         glm::mat4 combined_transform4 = transform4;
@@ -590,7 +604,7 @@ auto Scene::record_gpu_manifest_update() -> daxa::ExecutableCommandList
         });
         recorder.copy_buffer_to_buffer({
             .src_buffer = staging_buffer,
-            .dst_buffer = _gpu_entity_combined_transforms.get_state().buffers[0],
+            .dst_buffer = _gpu_entity_mesh_groups.get_state().buffers[0],
             .src_offset = offset + offsetof(RenderEntityUpdateStagingMemoryView, mesh_group_manifest_index),
             .dst_offset = sizeof(u32) * entity_index,
             .size = sizeof(u32),

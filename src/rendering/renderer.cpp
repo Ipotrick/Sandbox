@@ -35,26 +35,12 @@ Renderer::Renderer(Window *window, GPUContext *context, Scene *scene, AssetProce
       imgui_renderer{{context->device, context->swapchain.get_format()}}
 {
     zero_buffer = create_task_buffer(context, sizeof(u32), "zero_buffer", "zero_buffer");
-    entity_meta = create_task_buffer(context, sizeof(GPUEntityMetaData), "entity_meta", "entity_meta");
-    entity_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_transforms", "entity_transforms");
-    entity_combined_transforms = create_task_buffer(context, sizeof(daxa_f32mat4x4) * MAX_ENTITY_COUNT, "entity_combined_transforms", "entity_combined_transforms");
-    entity_first_children = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_first_children", "entity_first_children");
-    entity_next_silbings = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_next_silbings", "entity_next_silbings");
-    entity_parents = create_task_buffer(context, sizeof(RenderEntityId) * MAX_ENTITY_COUNT, "entity_parents", "entity_parents");
-    entity_meshlists = create_task_buffer(context, sizeof(GPUMeshGroup) * MAX_ENTITY_COUNT, "entity_meshlists", "entity_meshlists");
     meshlet_instances = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances", "meshlet_instances_a");
     meshlet_instances_last_frame = create_task_buffer(context, sizeof(MeshletInstances), "meshlet_instances_last_frame", "meshlet_instances_b");
     visible_meshlet_instances = create_task_buffer(context, sizeof(VisibleMeshletList), "visible_meshlet_instances", "visible_meshlet_instances");
 
     buffers = {
         zero_buffer,
-        entity_meta,
-        entity_transforms,
-        entity_combined_transforms,
-        entity_first_children,
-        entity_next_silbings,
-        entity_parents,
-        entity_meshlists,
         meshlet_instances,
         meshlet_instances_last_frame,
         visible_meshlet_instances};
@@ -265,7 +251,14 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
     {
         task_list.use_persistent_buffer(tbuffer);
     } 
+    task_list.use_persistent_buffer(scene->_gpu_entity_meta);
+    task_list.use_persistent_buffer(scene->_gpu_entity_transforms);
+    task_list.use_persistent_buffer(scene->_gpu_entity_combined_transforms);
+    task_list.use_persistent_buffer(scene->_gpu_entity_parents);
+    task_list.use_persistent_buffer(scene->_gpu_entity_mesh_groups);
     task_list.use_persistent_buffer(scene->_gpu_mesh_manifest);
+    task_list.use_persistent_buffer(scene->_gpu_mesh_group_manifest);
+    task_list.use_persistent_buffer(scene->_gpu_material_manifest);
     for (auto const &timage : images)
     {
         task_list.use_persistent_image(timage);
@@ -292,7 +285,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         .pass = DRAW_VISBUFFER_PASS_ONE,
         .meshlet_instances = meshlet_instances,
         .meshes = scene->_gpu_mesh_manifest,
-        .combined_transforms = entity_combined_transforms,
+        .combined_transforms = scene->_gpu_entity_combined_transforms,
         .vis_image = visbuffer,
         .debug_image = debug_image,
         .depth_image = depth,
@@ -311,10 +304,11 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         task_list,
         {
             .u_meshes = scene->_gpu_mesh_manifest,
-            .u_entity_meta = entity_meta,
-            .u_entity_meshlists = entity_meshlists,
-            .u_entity_transforms = entity_transforms,
-            .u_entity_combined_transforms = entity_combined_transforms,
+            .u_entity_meta = scene->_gpu_entity_meta,
+            .u_entity_meshgroup_indices = scene->_gpu_entity_mesh_groups,
+            .u_meshgroups = scene->_gpu_mesh_group_manifest,
+            .u_entity_transforms = scene->_gpu_entity_transforms,
+            .u_entity_combined_transforms = scene->_gpu_entity_combined_transforms,
             .u_hiz = hiz,
             .u_meshlet_cull_indirect_args = meshlet_cull_indirect_args,
             .u_cull_meshlets_commands = cull_meshlets_commands,
@@ -325,9 +319,10 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
         .enable_mesh_shader = context->settings.enable_mesh_shader != 0,
         .cull_meshlets_commands = cull_meshlets_commands,
         .meshlet_cull_indirect_args = meshlet_cull_indirect_args,
-        .entity_meta_data = entity_meta,
-        .entity_meshlists = entity_meshlists,
-        .entity_combined_transforms = entity_combined_transforms,
+        .entity_meta_data = scene->_gpu_entity_meta,
+        .entity_meshgroups = scene->_gpu_entity_mesh_groups,
+        .entity_combined_transforms = scene->_gpu_entity_combined_transforms,
+        .mesh_groups = scene->_gpu_mesh_group_manifest,
         .meshes = scene->_gpu_mesh_manifest,
         .entity_meshlet_visibility_bitfield_offsets = entity_meshlet_visibility_bitfield_offsets,
         .entity_meshlet_visibility_bitfield_arena = entity_meshlet_visibility_bitfield_arena,
@@ -359,7 +354,7 @@ auto Renderer::create_main_task_graph() -> daxa::TaskGraph
             .pass = DRAW_VISBUFFER_PASS_OBSERVER,
             .meshlet_instances = meshlet_instances,
             .meshes = scene->_gpu_mesh_manifest,
-            .combined_transforms = entity_combined_transforms,
+            .combined_transforms = scene->_gpu_entity_combined_transforms,
             .vis_image = visbuffer,
             .debug_image = debug_image,
             .depth_image = depth,

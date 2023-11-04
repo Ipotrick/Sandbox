@@ -42,6 +42,16 @@ void add_vertex_to_ndc_bounds(inout NdcBounds ndc_bounds, vec3 ndc_pos)
     ndc_bounds.valid_vertices += 1;
 }
 
+mat4 mat_4x3_to_4x4(mat4x3 in_mat)
+{
+    return mat4(
+        vec4(in_mat[0], 0.0),
+        vec4(in_mat[1], 0.0),
+        vec4(in_mat[2], 0.0),
+        vec4(in_mat[3], 1.0)
+    );
+}
+
 bool is_out_of_frustum(vec3 ws_center, float ws_radius)
 {
     const vec3 frustum_planes[5] = {
@@ -85,7 +95,7 @@ bool is_meshlet_occluded(
     MeshletInstance meshlet_inst,
     EntityMeshletVisibilityBitfieldOffsetsView entity_meshlet_visibility_bitfield_offsets,
     daxa_BufferPtr(daxa_u32) entity_meshlet_visibility_bitfield_arena,
-    daxa_BufferPtr(daxa_f32mat4x4) entity_combined_transforms,
+    daxa_BufferPtr(daxa_f32mat4x3) entity_combined_transforms,
     daxa_BufferPtr(GPUMesh) meshes,
     daxa_ImageViewId hiz
 )
@@ -109,7 +119,7 @@ bool is_meshlet_occluded(
     }
     // daxa_f32vec3 center;
     // daxa_f32 radius;
-    mat4x4 model_matrix = deref(entity_combined_transforms[meshlet_inst.entity_index]);
+    mat4x4 model_matrix = mat_4x3_to_4x4(deref(entity_combined_transforms[meshlet_inst.entity_index]));
     const float model_scaling_x_squared = dot(model_matrix[0],model_matrix[0]);
     const float model_scaling_y_squared = dot(model_matrix[1],model_matrix[1]);
     const float model_scaling_z_squared = dot(model_matrix[2],model_matrix[2]);

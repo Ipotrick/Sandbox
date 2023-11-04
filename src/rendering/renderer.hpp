@@ -40,14 +40,6 @@ struct Renderer
 
     daxa::TaskBuffer zero_buffer = {};
 
-    daxa::TaskBuffer entity_meta = {};
-    daxa::TaskBuffer entity_transforms = {};
-    daxa::TaskBuffer entity_combined_transforms = {};
-    daxa::TaskBuffer entity_first_children = {};
-    daxa::TaskBuffer entity_next_silbings = {};
-    daxa::TaskBuffer entity_parents = {};
-    daxa::TaskBuffer entity_meshlists = {};
-
     daxa::TaskBuffer meshlet_instances = {};
     daxa::TaskBuffer meshlet_instances_last_frame = {};
     daxa::TaskBuffer visible_meshlet_instances = {};

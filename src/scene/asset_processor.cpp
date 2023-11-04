@@ -707,6 +707,7 @@ auto AssetProcessor::record_gpu_load_processing_commands() -> daxa::ExecutableCo
             .allocate_info = daxa::MemoryFlagBits::HOST_ACCESS_SEQUENTIAL_WRITE,
             .name = "gpumeshes update",
         });
+        recorder.destroy_buffer_deferred(meshes_buffer_update_staging_buffer);
         auto const &mesh_descriptor = mesh_entry.runtime.value();
         auto const mesh_buffer_bda = _device.get_device_address(mesh_buffer).value();
         *_device.get_host_address_as<GPUMesh>(meshes_buffer_update_staging_buffer).value() = {

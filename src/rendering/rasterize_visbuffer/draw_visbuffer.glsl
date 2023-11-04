@@ -137,7 +137,7 @@ void main()
     vertex_index = min(vertex_index, mesh.vertex_count - 1);
     const vec4 vertex_position = vec4(mesh.vertex_positions[vertex_index].value, 1);
     const mat4x4 view_proj = (push.pass == DRAW_VISBUFFER_PASS_OBSERVER) ? globals.observer_camera_view_projection : globals.camera_view_projection;
-    const vec4 pos = view_proj * deref(u_entity_combined_transforms[meshlet_inst.entity_index]) * vertex_position;
+    const vec4 pos = view_proj * mat_4x3_to_4x4(deref(u_entity_combined_transforms[meshlet_inst.entity_index])) * vertex_position;
     vec2 uv = vec2(0,0);
     if (daxa_u64(mesh.vertex_uvs) != 0)
     {
@@ -283,7 +283,7 @@ void main()
     daxa_BufferPtr(daxa_u32) micro_index_buffer = deref(u_meshes[meshlet_inst.mesh_index]).micro_indices;
 
     // Transform vertices:
-    const mat4 model_matrix = deref(u_entity_combined_transforms[meshlet_inst.entity_index]);
+    const mat4 model_matrix = mat_4x3_to_4x4deref(u_entity_combined_transforms[meshlet_inst.entity_index]));
 #if MESH_SHADER_CULL_AND_DRAW
     const mat4 view_proj_matrix = globals.camera_view_projection;
 #else

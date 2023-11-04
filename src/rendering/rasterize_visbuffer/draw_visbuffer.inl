@@ -20,7 +20,7 @@ DAXA_DECL_TASK_USES_BEGIN(DrawVisbuffer, 1)
 DAXA_TASK_USE_BUFFER(u_command, daxa_u64, DRAW_INDIRECT_INFO_READ)
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_BufferPtr(MeshletInstances), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x3), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_vis_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_debug_image, REGULAR_2D, COLOR_ATTACHMENT)
 DAXA_TASK_USE_IMAGE(u_depth_image, REGULAR_2D, DEPTH_ATTACHMENT)
@@ -34,8 +34,9 @@ DAXA_TASK_USE_BUFFER(u_meshlet_cull_indirect_args, daxa_BufferPtr(MeshletCullInd
 DAXA_TASK_USE_BUFFER(u_instantiated_meshlets, daxa_RWBufferPtr(MeshletInstances), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_meshes, daxa_BufferPtr(GPUMesh), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meta, daxa_BufferPtr(GPUEntityMetaData), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_entity_meshlists, daxa_BufferPtr(GPUMeshGroup), GRAPHICS_SHADER_READ)
-DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x4), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_meshgroups, daxa_BufferPtr(daxa_u32), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_meshgroups, daxa_BufferPtr(GPUMeshGroup), GRAPHICS_SHADER_READ)
+DAXA_TASK_USE_BUFFER(u_entity_combined_transforms, daxa_BufferPtr(daxa_f32mat4x3), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_offsets, EntityMeshletVisibilityBitfieldOffsetsView, GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_BUFFER(u_entity_meshlet_visibility_bitfield_arena, daxa_BufferPtr(daxa_u32), GRAPHICS_SHADER_READ)
 DAXA_TASK_USE_IMAGE(u_hiz, REGULAR_2D, GRAPHICS_SHADER_SAMPLED)
@@ -298,8 +299,9 @@ struct TaskCullAndDrawVisbufferInfo
     daxa::TaskBufferView cull_meshlets_commands = {};
     daxa::TaskBufferView meshlet_cull_indirect_args = {};
     daxa::TaskBufferView entity_meta_data = {};
-    daxa::TaskBufferView entity_meshlists = {};
+    daxa::TaskBufferView entity_meshgroups = {};
     daxa::TaskBufferView entity_combined_transforms = {};
+    daxa::TaskBufferView mesh_groups = {};
     daxa::TaskBufferView meshes = {};
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_offsets = {};
     daxa::TaskBufferView entity_meshlet_visibility_bitfield_arena = {};
@@ -320,7 +322,8 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_instantiated_meshlets = info.meshlet_instances,
                 .u_meshes = info.meshes,
                 .u_entity_meta = info.entity_meta_data,
-                .u_entity_meshlists = info.entity_meshlists,
+                .u_entity_meshgroups = info.entity_meshgroups,
+                .u_meshgroups = info.mesh_groups,
                 .u_entity_combined_transforms = info.entity_combined_transforms,
                 .u_entity_meshlet_visibility_bitfield_offsets = info.entity_meshlet_visibility_bitfield_offsets,
                 .u_entity_meshlet_visibility_bitfield_arena = info.entity_meshlet_visibility_bitfield_arena,
@@ -345,7 +348,8 @@ inline void task_cull_and_draw_visbuffer(TaskCullAndDrawVisbufferInfo const & in
                 .u_commands = info.cull_meshlets_commands,
                 .u_meshlet_cull_indirect_args = info.meshlet_cull_indirect_args,
                 .u_entity_meta_data = info.entity_meta_data,
-                .u_entity_meshlists = info.entity_meshlists,
+                .u_entity_meshgroups = info.entity_meshgroups,
+                .u_meshgroups = info.mesh_groups,
                 .u_entity_combined_transforms = info.entity_combined_transforms,
                 .u_meshes = info.meshes,
                 .u_entity_meshlet_visibility_bitfield_offsets = info.entity_meshlet_visibility_bitfield_offsets,
